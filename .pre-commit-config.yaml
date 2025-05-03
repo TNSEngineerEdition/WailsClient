@@ -1,0 +1,18 @@
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+    - id: trailing-whitespace
+    - id: end-of-file-fixer
+
+  - repo: https://github.com/tekwizely/pre-commit-golang
+    rev: v1.0.0-rc.1
+    hooks:
+    - id: go-fmt
+
+  - repo: https://github.com/pre-commit/mirrors-eslint
+    rev: v9.25.1
+    hooks:
+    - id: eslint
+      files: \.(js|ts|vue)$
+      args: ["-c", "frontend/eslint.config.js"]
