@@ -1,0 +1,63 @@
+name: Branch name and PR description check
+
+on:
+  pull_request:
+    types:
+      - opened
+      - reopened
+      - synchronize
+
+jobs:
+  branch-name-check:
+    runs-on: self-hosted
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Check branch name
+      uses: actions/github-script@v7
+      with:
+        script: |
+          const {owner, repo, number} = context.issue
+          const pullRequest = await github.rest.pulls.get({
+            owner, repo, pull_number: number
+          })
+
+          const branchName = pullRequest.data.head.ref
+          if (branchName.match(/^[\w\d]+(\+[\w\d]+)*\/.+$/) === null) {
+            console.error(
+              `Branch name should follow pattern "<author-names>/<short-description>", instead found ${branchName}`
+            )
+            process.exit(1)
+          }
+      continue-on-error: false
+
+    - name: Assign authors to PR
+      uses: actions/github-script@v7
+      with:
+        script: |
+          function isArraySorted(arr, comparator = undefined) {
+            return [...arr].sort(comparator).toString() == arr.toString()
+          }
+
+          const {owner, repo, number} = context.issue
+          const pullRequest = await github.rest.pulls.get({
+            owner, repo, pull_number: number
+          })
+
+          const branchName = pullRequest.data.head.ref
+          const authors = branchName
+            .split("/")[0]
+            .split("+")
+
+          if (!isArraySorted(authors.map(item => item.toLowerCase()))) {
+            console.error("Author usernames aren't in alphabetical order")
+            process.exit(1)
+          }
+
+          console.log(`Assigning ${authors.join(", ")} to PR`)
+
+          await github.rest.issues.addAssignees({
+            owner, repo, issue_number: number, assignees: authors
+          })
