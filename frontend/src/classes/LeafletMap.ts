@@ -1,13 +1,20 @@
 import { GetBounds, GetTramStops } from "@wails/go/city/City";
-import { CircleMarker, LatLngBounds, Map as LMap, tileLayer } from "leaflet";
+import { LatLngBounds, Map as LMap, tileLayer } from "leaflet";
 import { TramMarker } from "@classes/TramMarker";
+import { StopMarker } from "@classes/StopMarker";
+import { city } from "@wails/go/models";
 
 export class LeafletMap {
   private entityCount = 0
+  public selectedStop : StopMarker | null = null
 
   constructor(private map: LMap) { }
 
-  static async init(mapHTMLElement: HTMLElement) {
+  static async init(
+    mapHTMLElement: HTMLElement,
+    onStopClick: (stop: city.GraphNode) => void
+  )
+  {
     const result = new LeafletMap(await GetBounds()
       .then(bounds =>
         new LatLngBounds(
@@ -25,10 +32,16 @@ export class LeafletMap {
     )
 
     for (const stop of await GetTramStops()) {
-      new CircleMarker([stop.lat, stop.lon], {
-        radius: 5,
-        fill: true,
-      }).addTo(result.map)
+      const marker = new StopMarker(stop.lat, stop.lon, stop.name);
+      marker.onStopClick(() => {
+        if (result.selectedStop && result.selectedStop !== marker) {
+          result.selectedStop.setSelected(false);
+        }
+        marker.setSelected(true);
+        result.selectedStop = marker;
+        onStopClick(stop);
+      });
+      marker.addTo(result.map);
     }
 
     tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
