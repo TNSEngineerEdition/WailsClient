@@ -11,7 +11,7 @@ type GraphNode = city.GraphNode
 
 type ControlCenter struct {
 	city         *city.City
-	cachedRoutes map[[2]uint64][]GraphNode
+	cachedRoutes map[[2]uint64][]*GraphNode
 }
 
 func CreateControlCenter(city *city.City) *ControlCenter {
@@ -21,7 +21,7 @@ func CreateControlCenter(city *city.City) *ControlCenter {
 	}
 }
 
-func (cc *ControlCenter) GetShortestPath(sourceID, destID uint64) []GraphNode {
+func (c *ControlCenter) GetShortestPath(sourceID, destID uint64) []*GraphNode {
 	tramStopPair := [2]uint64{sourceID, destID}
 	if path, ok := cc.cachedRoutes[tramStopPair]; ok {
 		return path
