@@ -21,8 +21,7 @@ func CreateControlCenter(cityData *city.City) ControlCenter {
 	tramTrips := cityData.GetTramTrips()
 	for _, tripData := range tramTrips {
 		for idx := 0; idx < len(tripData.Stops)-1; idx++ {
-			firstStop := tripData.Stops[idx]
-			secondStop := tripData.Stops[idx+1]
+			firstStop, secondStop := tripData.Stops[idx], tripData.Stops[idx+1]
 			tramStopPair := [2]uint64{firstStop.ID, secondStop.ID}
 			if _, ok := c.cachedRoutes[tramStopPair]; ok {
 				continue
