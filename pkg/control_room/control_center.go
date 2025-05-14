@@ -3,20 +3,21 @@ package control_room
 import (
 	"container/heap"
 	"fmt"
+	"slices"
 
 	"github.com/TNSEngineerEdition/WailsClient/pkg/city"
 	"github.com/umahmood/haversine"
 )
 
 type ControlCenter struct {
-	city         *city.City
-	cachedRoutes map[[2]uint64][]*city.GraphNode
+	city               *city.City
+	routesBetweenNodes map[[2]uint64][]*city.GraphNode
 }
 
 func CreateControlCenter(cityPointer *city.City) ControlCenter {
 	c := ControlCenter{
-		city:         cityPointer,
-		cachedRoutes: make(map[[2]uint64][]*city.GraphNode),
+		city:               cityPointer,
+		routesBetweenNodes: make(map[[2]uint64][]*city.GraphNode),
 	}
 
 	tramTrips := cityPointer.GetTramTrips()
@@ -24,11 +25,11 @@ func CreateControlCenter(cityPointer *city.City) ControlCenter {
 		for i := 0; i < len(tripData.Stops)-1; i++ {
 			firstStop, secondStop := tripData.Stops[i], tripData.Stops[i+1]
 			tramStopPair := [2]uint64{firstStop.ID, secondStop.ID}
-			if _, ok := c.cachedRoutes[tramStopPair]; ok {
+			if _, ok := c.routesBetweenNodes[tramStopPair]; ok {
 				continue
 			}
 
-			c.cachedRoutes[tramStopPair] = c.GetShortestPath(firstStop.ID, secondStop.ID)
+			c.routesBetweenNodes[tramStopPair] = c.GetShortestPath(firstStop.ID, secondStop.ID)
 		}
 	}
 	return c
@@ -39,19 +40,19 @@ func (c *ControlCenter) GetShortestPath(sourceID, destID uint64) []*city.GraphNo
 	tramStops := c.city.GetStopsByID()
 	destNode := tramStops[destID]
 
-	nodesToBeProcessed := &priorityQueue{}
-	heap.Init(nodesToBeProcessed)
-	heap.Push(nodesToBeProcessed, &nodeRecord{ID: sourceID})
+	nodesToProcess := &priorityQueue{}
+	heap.Init(nodesToProcess)
+	heap.Push(nodesToProcess, &nodeRecord{ID: sourceID})
 
 	predecessors := make(map[uint64]uint64)
 	tentativeDistFromSource := make(map[uint64]float32)
 	visitedNodes := make(map[uint64]bool)
 
-	for nodesToBeProcessed.Len() > 0 {
-		currentID := heap.Pop(nodesToBeProcessed).(*nodeRecord).ID
+	for nodesToProcess.Len() > 0 {
+		currentID := heap.Pop(nodesToProcess).(*nodeRecord).ID
 		if currentID == destID {
-			c.cachedRoutes[tramStopPair] = c.reconstructPath(predecessors, tramStops, currentID)
-			return c.cachedRoutes[tramStopPair]
+			c.routesBetweenNodes[tramStopPair] = c.reconstructPath(predecessors, tramStops, currentID)
+			return c.routesBetweenNodes[tramStopPair]
 		}
 
 		if visitedNodes[currentID] {
@@ -73,7 +74,7 @@ func (c *ControlCenter) GetShortestPath(sourceID, destID uint64) []*city.GraphNo
 			tentativeDistFromSource[neighbor.ID] = tentativeDist
 			heuristicDistance := c.heuristic(tramStops[neighbor.ID], destNode)
 			expectedDistFromSrcToDest := heuristicDistance + tentativeDist
-			heap.Push(nodesToBeProcessed, &nodeRecord{ID: neighbor.ID, Priority: expectedDistFromSrcToDest})
+			heap.Push(nodesToProcess, &nodeRecord{ID: neighbor.ID, Priority: expectedDistFromSrcToDest})
 		}
 	}
 
@@ -101,9 +102,6 @@ func (c *ControlCenter) reconstructPath(
 		currentID = prev
 	}
 
-	n := len(path)
-	for i, j := 0, n-1; i < n/2; i, j = i+1, j-1 {
-		path[i], path[j] = path[j], path[i]
-	}
+	slices.Reverse(path)
 	return
 }
