@@ -7,27 +7,36 @@ import (
 	"github.com/umahmood/haversine"
 )
 
-type GraphNode = city.GraphNode
-
 type ControlCenter struct {
 	city         *city.City
-	cachedRoutes map[[2]uint64][]*GraphNode
+	cachedRoutes map[[2]uint64][]*city.GraphNode
 }
 
-func CreateControlCenter(city *city.City) *ControlCenter {
-	return &ControlCenter{
-		city:         city,
-		cachedRoutes: make(map[[2]uint64][]GraphNode),
+func CreateControlCenter(cityData *city.City) ControlCenter {
+	c := ControlCenter{
+		city:         cityData,
+		cachedRoutes: make(map[[2]uint64][]*city.GraphNode),
 	}
+
+	tramTrips := cityData.GetTramTrips()
+	for _, tripData := range tramTrips {
+		for idx := 0; idx < len(tripData.Stops)-1; idx++ {
+			firstStop := tripData.Stops[idx]
+			secondStop := tripData.Stops[idx+1]
+			tramStopPair := [2]uint64{firstStop.ID, secondStop.ID}
+			if _, ok := c.cachedRoutes[tramStopPair]; ok {
+				continue
+			}
+			path := c.GetShortestPath(firstStop.ID, secondStop.ID)
+			c.cachedRoutes[tramStopPair] = path
+		}
+	}
+	return c
 }
 
-func (c *ControlCenter) GetShortestPath(sourceID, destID uint64) []*GraphNode {
+func (c *ControlCenter) GetShortestPath(sourceID, destID uint64) []*city.GraphNode {
 	tramStopPair := [2]uint64{sourceID, destID}
-	if path, ok := cc.cachedRoutes[tramStopPair]; ok {
-		return path
-	}
-
-	tramStops := cc.city.GetStopsByID()
+	tramStops := c.city.GetStopsByID()
 	destNode := tramStops[destID]
 
 	openSet := &priorityQueue{}
@@ -40,10 +49,9 @@ func (c *ControlCenter) GetShortestPath(sourceID, destID uint64) []*GraphNode {
 
 	for openSet.Len() > 0 {
 		currentID := heap.Pop(openSet).(*nodeRecord).ID
-
 		if currentID == destID {
-			path := cc.reconstructPath(predecessors, tramStops, currentID)
-			cc.cachedRoutes[tramStopPair] = path
+			path := c.reconstructPath(predecessors, tramStops, currentID)
+			c.cachedRoutes[tramStopPair] = path
 			return path
 		}
 
@@ -61,7 +69,7 @@ func (c *ControlCenter) GetShortestPath(sourceID, destID uint64) []*GraphNode {
 			if !wasVisited || tentativeG < cost {
 				predecessors[neighbor.ID] = currentID
 				gScores[neighbor.ID] = tentativeG
-				hScore := cc.heuristic(tramStops[neighbor.ID], destNode)
+				hScore := c.heuristic(tramStops[neighbor.ID], destNode)
 				fScore := hScore + tentativeG
 				heap.Push(openSet, &nodeRecord{ID: neighbor.ID, Priority: fScore})
 			}
@@ -71,22 +79,21 @@ func (c *ControlCenter) GetShortestPath(sourceID, destID uint64) []*GraphNode {
 	return nil
 }
 
-func (cc *ControlCenter) heuristic(a, b *GraphNode) float64 {
+func (c *ControlCenter) heuristic(a, b *city.GraphNode) float64 {
 	sourceCoords := haversine.Coord{Lat: float64(a.Latitude), Lon: float64(a.Longitude)}
 	goalCoords := haversine.Coord{Lat: float64(b.Latitude), Lon: float64(b.Longitude)}
 	_, km := haversine.Distance(sourceCoords, goalCoords)
-	return km
+	return km * 1000
 }
 
-func (cc *ControlCenter) reconstructPath(cameFrom map[uint64]uint64, stops map[uint64]*GraphNode, currentID uint64) []GraphNode {
-	var path []GraphNode
+func (c *ControlCenter) reconstructPath(predecessors map[uint64]uint64, stops map[uint64]*city.GraphNode, currentID uint64) (path []*city.GraphNode) {
 	for {
-		path = append([]GraphNode{*stops[currentID]}, path...)
-		prev, ok := cameFrom[currentID]
+		path = append([]*city.GraphNode{stops[currentID]}, path...)
+		prev, ok := predecessors[currentID]
 		if !ok {
 			break
 		}
 		currentID = prev
 	}
-	return path
+	return
 }
