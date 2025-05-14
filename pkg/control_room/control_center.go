@@ -12,16 +12,16 @@ type ControlCenter struct {
 	cachedRoutes map[[2]uint64][]*city.GraphNode
 }
 
-func CreateControlCenter(cityData *city.City) ControlCenter {
+func CreateControlCenter(CityPointer *city.City) ControlCenter {
 	c := ControlCenter{
-		city:         cityData,
+		city:         CityPointer,
 		cachedRoutes: make(map[[2]uint64][]*city.GraphNode),
 	}
 
-	tramTrips := cityData.GetTramTrips()
+	tramTrips := CityPointer.GetTramTrips()
 	for _, tripData := range tramTrips {
-		for idx := 0; idx < len(tripData.Stops)-1; idx++ {
-			firstStop, secondStop := tripData.Stops[idx], tripData.Stops[idx+1]
+		for i := 0; i < len(tripData.Stops)-1; i++ {
+			firstStop, secondStop := tripData.Stops[i], tripData.Stops[i+1]
 			tramStopPair := [2]uint64{firstStop.ID, secondStop.ID}
 			if _, ok := c.cachedRoutes[tramStopPair]; ok {
 				continue
@@ -49,9 +49,8 @@ func (c *ControlCenter) GetShortestPath(sourceID, destID uint64) []*city.GraphNo
 	for openSet.Len() > 0 {
 		currentID := heap.Pop(openSet).(*nodeRecord).ID
 		if currentID == destID {
-			path := c.reconstructPath(predecessors, tramStops, currentID)
-			c.cachedRoutes[tramStopPair] = path
-			return path
+			c.cachedRoutes[tramStopPair] = c.reconstructPath(predecessors, tramStops, currentID)
+			return c.cachedRoutes[tramStopPair]
 		}
 
 		if visitedNodes[currentID] {
