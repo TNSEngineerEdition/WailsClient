@@ -2,7 +2,7 @@ package control_room
 
 type nodeRecord struct {
 	ID       uint64
-	Priority float64
+	Priority float32
 	Index    int
 }
 
