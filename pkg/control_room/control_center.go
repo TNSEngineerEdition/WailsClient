@@ -12,7 +12,7 @@ type ControlCenter struct {
 	cachedRoutes map[[2]uint64][]*city.GraphNode
 }
 
-func CreateControlCenter(CityPointer *city.City) ControlCenter {
+func CreateControlCenter(cityPointer *city.City) ControlCenter {
 	c := ControlCenter{
 		city:         CityPointer,
 		cachedRoutes: make(map[[2]uint64][]*city.GraphNode),
@@ -40,7 +40,7 @@ func (c *ControlCenter) GetShortestPath(sourceID, destID uint64) []*city.GraphNo
 
 	openSet := &priorityQueue{}
 	heap.Init(openSet)
-	heap.Push(openSet, &nodeRecord{ID: sourceID, Priority: 0})
+	heap.Push(openSet, &nodeRecord{ID: sourceID})
 
 	predecessors := make(map[uint64]uint64)
 	gScores := make(map[uint64]float64)
