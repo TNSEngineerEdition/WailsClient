@@ -27,8 +27,8 @@ func CreateControlCenter(cityPointer *city.City) ControlCenter {
 			if _, ok := c.cachedRoutes[tramStopPair]; ok {
 				continue
 			}
-			path := c.GetShortestPath(firstStop.ID, secondStop.ID)
-			c.cachedRoutes[tramStopPair] = path
+
+			c.cachedRoutes[tramStopPair] = c.GetShortestPath(firstStop.ID, secondStop.ID)
 		}
 	}
 	return c
@@ -63,7 +63,7 @@ func (c *ControlCenter) GetShortestPath(sourceID, destID uint64) []*city.GraphNo
 		currentNode := tramStops[currentID]
 
 		for _, neighbor := range currentNode.Neighbors {
-			tentativeDist := tentativeDistFromSource[currentID] + (neighbor.Length)
+			tentativeDist := tentativeDistFromSource[currentID] + neighbor.Length
 			cost, wasVisited := tentativeDistFromSource[neighbor.ID]
 			if wasVisited && tentativeDist >= cost {
 				continue
@@ -76,6 +76,7 @@ func (c *ControlCenter) GetShortestPath(sourceID, destID uint64) []*city.GraphNo
 			heap.Push(nodesToBeProcessed, &nodeRecord{ID: neighbor.ID, Priority: expectedDistFromSrcToDest})
 		}
 	}
+
 	panic(fmt.Sprintf("No path found between %d and %d nodes", sourceID, destID))
 }
 
