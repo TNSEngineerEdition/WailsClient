@@ -1,5 +1,5 @@
 <script lang="ts" setup>
-import { onMounted, ref, useTemplateRef } from "vue"
+import { onMounted, ref, useTemplateRef, watch } from "vue"
 import { GetTimeBounds } from "@wails/go/city/City"
 import {
   GetTramIDs,
@@ -7,22 +7,35 @@ import {
   FetchData,
 } from "@wails/go/simulation/Simulation"
 import { LeafletMap } from "@classes/LeafletMap"
+import { TramMarker } from "@classes/TramMarker"
+import useTimeUtils from "@composables/useTimeUtils"
 
 const mapHTMLElement = useTemplateRef("map")
 
-const time = ref(0)
-const endTime = ref(0)
+const time = defineModel<number>("time", { required: true })
+const loading = defineModel<boolean>("loading", { required: true })
 
-onMounted(async () => {
-  if (mapHTMLElement.value === null) {
-    throw new Error("Map element not found")
+const props = defineProps<{
+  speed: number
+  isRunning: boolean
+  resetCounter: number
+}>()
+
+const endTime = ref(0)
+const leafletMap = ref<LeafletMap>()
+const tramMarkerByID = ref<Record<number, TramMarker>>({})
+
+const timeUtils = useTimeUtils()
+
+async function resetMap() {
+  loading.value = true
+
+  for (const tramMarker of Object.values(tramMarkerByID.value)) {
+    tramMarker.removeFromMap()
   }
 
-  await FetchData("http://localhost:8000/cities/krakow")
-
-  const leafletMap = await LeafletMap.init(mapHTMLElement.value)
-  const tramMarkerByID = await GetTramIDs().then(tramIDs =>
-    leafletMap.getTramMarkers(tramIDs),
+  tramMarkerByID.value = await GetTramIDs().then(tramIDs =>
+    leafletMap.value!.getTramMarkers(tramIDs),
   )
 
   await GetTimeBounds().then(timeBounds => {
@@ -30,31 +43,66 @@ onMounted(async () => {
     endTime.value = timeBounds.endTime
   })
 
-  while (time.value <= endTime.value || leafletMap.getEntityCount() > 0) {
+  loading.value = false
+}
+
+watch(
+  () => props.resetCounter,
+  () => resetMap(),
+)
+
+onMounted(async () => {
+  if (mapHTMLElement.value === null) {
+    throw new Error("Map element not found")
+  }
+
+  await FetchData("http://localhost:8000/cities/krakow")
+  leafletMap.value = await LeafletMap.init(mapHTMLElement.value)
+
+  await resetMap()
+
+  while (
+    time.value <= endTime.value ||
+    leafletMap.value!.getEntityCount() > 0
+  ) {
+    while (!props.isRunning) {
+      await timeUtils.sleep(1)
+    }
+
     await AdvanceTrams(time.value).then(tramPositionChanges => {
       for (const stop of tramPositionChanges) {
         if (stop.lat == 0 && stop.lon == 0) {
-          tramMarkerByID[stop.id].removeFromMap()
+          tramMarkerByID.value[stop.id].removeFromMap()
         } else {
-          tramMarkerByID[stop.id].updateCoordinates(stop.lat, stop.lon)
+          tramMarkerByID.value[stop.id].updateCoordinates(stop.lat, stop.lon)
         }
       }
     })
 
-    time.value += 60
+    time.value += 1
 
-    await new Promise(resolve => setTimeout(resolve, 10))
+    await timeUtils.sleep(1000 / props.speed)
   }
 })
 </script>
 
 <template>
+  <v-overlay
+    v-if="loading"
+    :model-value="true"
+    :persistent="true"
+    opacity="0"
+    class="d-flex justify-center align-center"
+  >
+    <v-progress-circular indeterminate size="128"></v-progress-circular>
+  </v-overlay>
+
   <div id="map" ref="map"></div>
 </template>
 
 <style scoped lang="scss">
 #map {
   width: 100%;
-  height: 100vh;
+  height: calc(100vh - 64px);
 }
 </style>

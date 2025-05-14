@@ -14,7 +14,9 @@
     "skipLibCheck": true,
     "paths": {
       "@wails/*": ["./wailsjs/*"],
-      "@classes/*": ["./src/classes/*"]
+      "@classes/*": ["./src/classes/*"],
+      "@composables/*": ["./src/composables/*"],
+      "@components/*": ["./src/components/*"]
     }
   },
   "include": ["src/**/*.ts", "src/**/*.d.ts", "src/**/*.tsx", "src/**/*.vue"],
