@@ -4,6 +4,7 @@ import HeaderIconButtonComponent from "@components/header/HeaderIconButtonCompon
 import useCycle from "@composables/useCycle"
 import { Reset } from "@wails/go/simulation/Simulation"
 import HeaderRestartConfirmationDialogComponent from "@components/header/HeaderRestartConfirmationDialogComponent.vue"
+import useTimer from "@composables/useTimer"
 
 const props = defineProps<{
   time: number
@@ -17,9 +18,21 @@ const resetCounter = defineModel<number>("reset-counter", { required: true })
 const speedsCycle = useCycle([1, 10, 100, 1000], speed)
 
 const timeUtils = useTimeUtils()
+const timer = useTimer()
+
+function updateIsRunning() {
+  if (isRunning.value) {
+    timer.stop()
+    isRunning.value = false
+  } else {
+    timer.start()
+    isRunning.value = true
+  }
+}
 
 async function reset() {
   speedsCycle.reset()
+  timer.reset()
   await Reset()
   resetCounter.value++
 }
@@ -34,7 +47,7 @@ async function reset() {
             :disabled="loading"
             :icon="isRunning ? 'mdi-pause' : 'mdi-play'"
             :description="isRunning ? 'Pause' : 'Start'"
-            @click="isRunning = !isRunning"
+            @click="updateIsRunning"
           ></HeaderIconButtonComponent>
 
           <HeaderIconButtonComponent
@@ -59,7 +72,7 @@ async function reset() {
 
       <v-col cols="2" class="text-center text-capitalize">
         Elapsed time <br />
-        {{ timeUtils.toTimeString(0) }}
+        {{ timeUtils.toTimeString(timer.timer.value) }}
       </v-col>
     </v-row>
   </v-footer>
