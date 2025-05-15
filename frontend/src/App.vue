@@ -1,6 +1,6 @@
 <script lang="ts" setup>
 import { ref } from "vue"
-import HeaderComponent from "./components/HeaderComponent.vue"
+import HeaderComponent from "./components/header/HeaderComponent.vue"
 import MapComponent from "./components/MapComponent.vue"
 
 const time = ref(0)

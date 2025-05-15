@@ -1,8 +1,9 @@
 <script lang="ts" setup>
 import useTimeUtils from "@composables/useTimeUtils"
-import HeaderIconButtonComponent from "@components/HeaderIconButtonComponent.vue"
+import HeaderIconButtonComponent from "@components/header/HeaderIconButtonComponent.vue"
 import useCycle from "@composables/useCycle"
 import { Reset } from "@wails/go/simulation/Simulation"
+import HeaderRestartConfirmationDialogComponent from "@components/header/HeaderRestartConfirmationDialogComponent.vue"
 
 const props = defineProps<{
   time: number
@@ -18,7 +19,6 @@ const speedsCycle = useCycle([1, 10, 100, 1000], speed)
 const timeUtils = useTimeUtils()
 
 async function reset() {
-  isRunning.value = false
   speedsCycle.reset()
   await Reset()
   resetCounter.value++
@@ -44,12 +44,11 @@ async function reset() {
             @click="speedsCycle.setNextValue"
           ></HeaderIconButtonComponent>
 
-          <HeaderIconButtonComponent
+          <HeaderRestartConfirmationDialogComponent
             :disabled="loading"
-            description="Restart"
-            icon="mdi-replay"
-            @click="reset"
-          ></HeaderIconButtonComponent>
+            @click="isRunning = false"
+            @reset="reset"
+          ></HeaderRestartConfirmationDialogComponent>
         </div>
       </v-col>
 

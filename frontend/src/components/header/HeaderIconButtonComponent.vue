@@ -3,6 +3,7 @@ const props = defineProps<{
   description: string
   icon: string
   disabled: boolean
+  parentProps?: Record<string, any>
 }>()
 
 const emit = defineEmits<{
@@ -14,7 +15,7 @@ const emit = defineEmits<{
   <v-tooltip :text="props.description" location="bottom">
     <template v-slot:activator="{ props: tooltipProps }">
       <v-btn
-        v-bind="tooltipProps"
+        v-bind="{ ...tooltipProps, ...props.parentProps }"
         :icon="props.icon"
         :disabled="props.disabled"
         density="compact"
