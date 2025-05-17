@@ -37,7 +37,7 @@ type TramPositionChange struct {
 }
 
 func (t *tram) Advance(time uint, stopsById map[uint64]*city.GraphNode, c *control_room.ControlCenter) (result TramPositionChange, update bool) {
-	// distanceToDrive := float32(50*10) / float32(36)
+	distanceToDrive := float32(50*10) / float32(36)
 	if t.tripIndex == len(t.trip.Stops) {
 		if !t.isFinished {
 			t.isFinished = true
@@ -53,95 +53,54 @@ func (t *tram) Advance(time uint, stopsById map[uint64]*city.GraphNode, c *contr
 
 	currentStop := t.trip.Stops[t.tripIndex]
 
-	// if currentStop.Time == time {
-	// 	node, ok := stopsById[currentStop.ID]
-	// 	if !ok {
-	// 		panic(fmt.Sprintf("Tram stop with ID %d should exist", currentStop.ID))
-	// 	}
-	// 	result = TramPositionChange{
-	// 		TramID:    t.id,
-	// 		Latitude:  node.Latitude,
-	// 		Longitude: node.Longitude,
-	// 	}
-	// 	update = true
-	// 	return result, update
-	// }
-
 	nextTripIndex := t.tripIndex + 1
-	if nextTripIndex < len(t.trip.Stops) {
+	if nextTripIndex < len(t.trip.Stops) && time >= t.departureTime {
 		nextStop := t.trip.Stops[nextTripIndex]
-
-		if time > currentStop.Time && time < nextStop.Time {
-			path := c.GetRoutesBetweenNodes(currentStop.ID, nextStop.ID)
-			if len(path) == 0 {
-				return result, false
-			}
-			progress := float32(time-currentStop.Time) / float32(nextStop.Time-currentStop.Time)
-			lat, lon := t.calculateNewLocation(path, progress)
-
-			result = TramPositionChange{
-				TramID:    t.id,
-				Latitude:  lat,
-				Longitude: lon,
-			}
-			update = true
-			return result, update
+		path := c.GetRoutesBetweenNodes(currentStop.ID, nextStop.ID)
+		lat, lon, index := t.calculateNewLocation(path, distanceToDrive, t.Position, t.subTripIndex)
+		t.Position = [2]float32{lat, lon}
+		t.subTripIndex = index
+		if t.subTripIndex == len(path)-1 {
+			t.tripIndex += 1
+			t.subTripIndex = 0
+			t.departureTime = max(nextStop.Time, time+20)
 		}
-
-		if time >= nextStop.Time {
-			t.tripIndex++
+		result = TramPositionChange{
+			TramID:    t.id,
+			Latitude:  lat,
+			Longitude: lon,
 		}
+		update = true
+		return result, update
 	}
 
 	return result, update
 }
 
-func (t *tram) calculateNewLocation(path []*city.GraphNode, progress float32) (lat, lon float32) {
-	index := int(progress * float32(len(path)))
-	if index >= len(path) {
-		index = len(path) - 1
+func (t *tram) calculateNewLocation(path []*city.GraphNode, distanceToDrive float32, position [2]float32, tripSubIndex int) (lat, lon float32, index int) {
+	currPosition := position
+	for distanceToDrive > 0 && tripSubIndex < len(path)-1 {
+		distToNextNode := calculateDistance(currPosition, path[tripSubIndex+1])
+		if distToNextNode <= distanceToDrive {
+			distanceToDrive -= distToNextNode
+			tripSubIndex += 1
+			lat = path[tripSubIndex].Latitude
+			lon = path[tripSubIndex].Longitude
+			currPosition = [2]float32{lat, lon}
+		} else {
+			remainingPart := distanceToDrive / distToNextNode
+			lat, lon = calculateDistVector(path[tripSubIndex], path[tripSubIndex+1], remainingPart)
+			currPosition = [2]float32{lat, lon}
+			distanceToDrive = 0
+		}
 	}
-	lat = path[index].Latitude
-	lon = path[index].Longitude
+	index = tripSubIndex
 	return
 }
 
-// func (t *tram) calculateNewLocation(currentPosition [2]float32, distanceToDrive float32, subTripIndex int, path []*city.GraphNode) (lat, lon float32, index int) {
-// 	subTripNode := path[subTripIndex+1]
-// 	distToNextNode := calculateDistance(currentPosition, subTripNode)
-// 	// fmt.Println(distToNextNode)
-// 	distanceToDrive -= distToNextNode
-// 	subTripIndex += 1
-// 	droven := distToNextNode
-// 	for distanceToDrive > 0 && subTripIndex <= len(path)-2 {
-// 		for _, neighbor := range path[subTripIndex].Neighbors {
-// 			if neighbor.ID == path[subTripIndex+1].ID {
-// 				distToNextNode = neighbor.Length
-// 				break
-// 			}
-// 		}
-// 		if distanceToDrive >= distToNextNode {
-// 			distanceToDrive -= distToNextNode
-// 			subTripIndex += 1
-// 			droven += distToNextNode
-// 		} else {
-// 			remainingPart := distanceToDrive / distToNextNode
-// 			// fmt.Println(remainingPart)
-// 			droven += distanceToDrive
-// 			lat, lon = calculateDistVector(path[subTripIndex], path[subTripIndex+1], remainingPart)
-// 			lat += path[subTripIndex].Latitude
-// 			lon += path[subTripIndex].Longitude
-// 			distanceToDrive = 0
-// 		}
-// 	}
-// 	index = subTripIndex
-// 	// fmt.Println(currentPosition, lat, lon, index, distanceToDrive, droven)
-// 	return
-// }
-
 func calculateDistVector(firstNode, secondNode *city.GraphNode, remainingPart float32) (subLat, subLot float32) {
-	subLat = (secondNode.Latitude - firstNode.Latitude) / remainingPart
-	subLot = (secondNode.Longitude - firstNode.Longitude) / remainingPart
+	subLat = firstNode.Latitude + ((secondNode.Latitude - firstNode.Latitude) * remainingPart)
+	subLot = firstNode.Longitude + ((secondNode.Longitude - firstNode.Longitude) * remainingPart)
 	return
 }
 
