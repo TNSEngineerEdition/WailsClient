@@ -1,6 +1,7 @@
 <script lang="ts" setup>
 import { onMounted, ref, useTemplateRef, watch } from "vue"
 import { GetTimeBounds } from "@wails/go/city/City"
+import { city } from "@wails/go/models"
 import {
   GetTramIDs,
   AdvanceTrams,
@@ -28,6 +29,7 @@ const leafletMap = ref<LeafletMap>()
 const tramMarkerByID = ref<Record<number, TramMarker>>({})
 
 const tramSidebar = ref(false)
+const selectedStop = ref<city.GraphNode | null>(null)
 const stopSidebar = ref(false)
 
 const timeUtils = useTimeUtils()
@@ -61,7 +63,13 @@ onMounted(async () => {
   }
 
   await FetchData("http://localhost:8000/cities/krakow")
-  leafletMap.value = await LeafletMap.init(mapHTMLElement.value)
+  leafletMap.value = await LeafletMap.init(
+    mapHTMLElement.value,
+    (stop) => {
+      selectedStop.value = stop
+      stopSidebar.value = true
+    }
+  )
 
   await reset()
 
@@ -103,8 +111,7 @@ onMounted(async () => {
   <div id="map" ref="map"></div>
 
   <TramSidebarComponent v-model="tramSidebar"></TramSidebarComponent>
-
-  <StopSidebarComponent v-model="stopSidebar"></StopSidebarComponent>
+  <StopSidebarComponent v-model="stopSidebar" :stop="selectedStop" :current-time="time"></StopSidebarComponent>
 </template>
 
 <style scoped lang="scss">
