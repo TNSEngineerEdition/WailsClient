@@ -17,13 +17,13 @@ const horizontalPosition = computed(() => {
   }
 })
 
-const slideSide = computed(() =>
+const slideSite = computed(() =>
   props.position === 'left' ? 'sidebar-slide-left' : 'sidebar-slide-right',
 )
 </script>
 
 <template>
-  <transition :name="slideSide">
+  <transition :name="slideSite">
     <v-card v-if="model" class="side-bar-card" :style="horizontalPosition">
       <v-card-title class="d-flex align-center justify-space-between">
         <transition name="content-fade" mode="out-in">
