@@ -72,13 +72,15 @@ const arrivals = computed(() => {
         <v-icon icon="mdi-transit-connection-variant" class="mr-2"></v-icon>
         Lines
       </div>
-      <div class="line-chips">
+      <div class="value">
         <template v-if="lines.length">
-          <span v-for="l in lines" :key="l" class="chip">
-            {{ l }}
-          </span>
+          <div class="line-chips">
+            <span v-for="l in lines" :key="l" class="chip">
+              {{ l }}
+            </span>
+          </div>
         </template>
-        <span v-else class="value">No lines</span>
+        <span v-else>No lines</span>
       </div>
     </div>
     <div v-if="arrivals.length" class="section arrivals">
@@ -116,7 +118,6 @@ const arrivals = computed(() => {
   justify-content: space-between;
   gap: 1rem;
   margin-bottom: .4rem;
-  width: 100%;
 
   &.arrivals {
     flex-direction: column;
@@ -136,14 +137,11 @@ const arrivals = computed(() => {
   gap: .4rem;
   font-weight: 500;
   margin-bottom: .25rem;
-  white-space: nowrap;
 }
 
 .value {
   font-weight: 450;
   text-align: right;
-  white-space: normal;
-  max-width: 100%;
 }
 
 .line-chips {
