@@ -12,7 +12,7 @@ export class LeafletMap {
 
   static async init(
     mapHTMLElement: HTMLElement,
-    onStopClick: (stop: city.GraphNode) => void
+    onStopClick: (stop: city.GraphNode) => void,
   )
   {
     const result = new LeafletMap(await GetBounds()
@@ -33,15 +33,15 @@ export class LeafletMap {
 
     for (const stop of await GetTramStops()) {
       const marker = new StopMarker(stop.lat, stop.lon, stop.name);
-      marker.onStopClick(() => {
-        if (result.selectedStop && result.selectedStop !== marker) {
+      marker.addTo(result.map);
+      marker.on("click", () => {
+        if (result.selectedStop) {
           result.selectedStop.setSelected(false);
         }
-        marker.setSelected(true);
         result.selectedStop = marker;
+        marker.setSelected(true);
         onStopClick(stop);
       });
-      marker.addTo(result.map);
     }
 
     tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {

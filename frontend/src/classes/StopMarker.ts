@@ -12,27 +12,22 @@ export class StopMarker extends CircleMarker {
         weight: 1,
         opacity: 1,
         fillOpacity: 0.8,
-      })
-      this.bindTooltip(name ?? "Unknown stop", {
+        })
+        this.bindTooltip(name ?? "Unknown stop", {
             permanent: false,
             direction: 'top',
         });
     }
 
-    public onStopClick(callback: () => void) {
-        this.on("click", callback);
-    }
-
-    public setSelected(value: boolean) {
-        this.selected = value;
+    public setSelected(selected: boolean) {
+        this.selected = selected;
         this.setStyle({
-        fillColor: value ? "green" : "blue",
-        color:     value ? "darkgreen" : "darkblue",
+        color: selected ? "darkgreen" : "darkblue",
+        fillColor: selected ? "green" : "blue",
         });
-        if (value) this.bringToFront();
     }
 
-    public isSelected() {
-        return this.selected;
-    }
+  public isSelected(): boolean {
+    return this.selected;
+  }
 }
