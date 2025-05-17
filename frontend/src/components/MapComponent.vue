@@ -41,7 +41,7 @@ onMounted(async () => {
       }
     })
 
-    time.value += 60
+    time.value += 1
 
     await new Promise(resolve => setTimeout(resolve, 10))
   }

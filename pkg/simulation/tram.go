@@ -4,6 +4,7 @@ import (
 	"github.com/TNSEngineerEdition/WailsClient/pkg/city"
 	"github.com/TNSEngineerEdition/WailsClient/pkg/control_room"
 	"github.com/umahmood/haversine"
+	"golang.org/x/exp/rand"
 )
 
 type tram struct {
@@ -63,7 +64,7 @@ func (t *tram) Advance(time uint, stopsById map[uint64]*city.GraphNode, c *contr
 		if t.subTripIndex == len(path)-1 {
 			t.tripIndex += 1
 			t.subTripIndex = 0
-			t.departureTime = max(nextStop.Time, time+20)
+			t.departureTime = max(nextStop.Time, time+uint(rand.Intn(11))+15)
 		}
 		result = TramPositionChange{
 			TramID:    t.id,
@@ -74,7 +75,7 @@ func (t *tram) Advance(time uint, stopsById map[uint64]*city.GraphNode, c *contr
 		return result, update
 	}
 
-	return result, update
+	return result, false
 }
 
 func (t *tram) calculateNewLocation(path []*city.GraphNode, distanceToDrive float32, position [2]float32, tripSubIndex int) (lat, lon float32, index int) {
