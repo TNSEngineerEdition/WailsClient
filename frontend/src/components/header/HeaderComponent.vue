@@ -20,10 +20,14 @@ const speedsCycle = useCycle([1, 10, 100, 1000], speed)
 const timeUtils = useTimeUtils()
 const timer = useTimer()
 
+function stop() {
+  timer.stop()
+  isRunning.value = false
+}
+
 function updateIsRunning() {
   if (isRunning.value) {
-    timer.stop()
-    isRunning.value = false
+    stop()
   } else {
     timer.start()
     isRunning.value = true
@@ -59,7 +63,7 @@ async function reset() {
 
           <HeaderRestartConfirmationDialogComponent
             :disabled="loading"
-            @click="isRunning = false"
+            @click="stop"
             @reset="reset"
           ></HeaderRestartConfirmationDialogComponent>
         </div>

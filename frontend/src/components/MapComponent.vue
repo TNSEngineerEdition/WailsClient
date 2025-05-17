@@ -9,6 +9,8 @@ import {
 import { LeafletMap } from "@classes/LeafletMap"
 import { TramMarker } from "@classes/TramMarker"
 import useTimeUtils from "@composables/useTimeUtils"
+import TramSidebarComponent from "@components/sidebar/TramSidebarComponent.vue"
+import StopSidebarComponent from "@components/sidebar/StopSidebarComponent.vue"
 
 const mapHTMLElement = useTemplateRef("map")
 
@@ -25,9 +27,14 @@ const endTime = ref(0)
 const leafletMap = ref<LeafletMap>()
 const tramMarkerByID = ref<Record<number, TramMarker>>({})
 
+const tramSidebar = ref(false)
+const stopSidebar = ref(false)
+
 const timeUtils = useTimeUtils()
 
-async function resetMap() {
+async function reset() {
+  tramSidebar.value = false
+  stopSidebar.value = false
   loading.value = true
 
   for (const tramMarker of Object.values(tramMarkerByID.value)) {
@@ -46,10 +53,7 @@ async function resetMap() {
   loading.value = false
 }
 
-watch(
-  () => props.resetCounter,
-  () => resetMap(),
-)
+watch(() => props.resetCounter, reset)
 
 onMounted(async () => {
   if (mapHTMLElement.value === null) {
@@ -59,7 +63,7 @@ onMounted(async () => {
   await FetchData("http://localhost:8000/cities/krakow")
   leafletMap.value = await LeafletMap.init(mapHTMLElement.value)
 
-  await resetMap()
+  await reset()
 
   while (
     time.value <= endTime.value ||
@@ -88,16 +92,19 @@ onMounted(async () => {
 
 <template>
   <v-overlay
-    v-if="loading"
-    :model-value="true"
-    :persistent="true"
+    v-model="loading"
     opacity="0"
     class="d-flex justify-center align-center"
+    persistent
   >
     <v-progress-circular indeterminate size="128"></v-progress-circular>
   </v-overlay>
 
   <div id="map" ref="map"></div>
+
+  <TramSidebarComponent v-model="tramSidebar"></TramSidebarComponent>
+
+  <StopSidebarComponent v-model="stopSidebar"></StopSidebarComponent>
 </template>
 
 <style scoped lang="scss">
