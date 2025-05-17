@@ -15,13 +15,16 @@ func NewSimulation(city *city.City) Simulation {
 	}
 }
 
-func (s *Simulation) FetchData(url string) {
-	s.city.FetchCityData(url)
-
+func (s *Simulation) ResetTrams() {
 	s.trams = make([]*tram, len(s.city.GetTramTrips()))
 	for i, trip := range s.city.GetTramTrips() {
 		s.trams[i] = newTram(i, &trip)
 	}
+}
+
+func (s *Simulation) FetchData(url string) {
+	s.city.FetchCityData(url)
+	s.ResetTrams()
 }
 
 func (s *Simulation) GetTramIDs() (result []int) {

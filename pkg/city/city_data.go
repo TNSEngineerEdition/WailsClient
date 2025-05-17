@@ -9,6 +9,7 @@ import (
 type CityData struct {
 	TramTrackGraph []GraphNode `json:"tram_track_graph"`
 	TramTrips      []TramTrip  `json:"tram_trips"`
+	LastUpdated    string      `json:"last_updated"`
 }
 
 func (c *CityData) FetchCity(url string) {
@@ -26,6 +27,8 @@ func (c *CityData) FetchCity(url string) {
 }
 
 func (c *CityData) GetTramStops() (result []GraphNode) {
+	result = make([]GraphNode, 0)
+
 	for _, node := range c.TramTrackGraph {
 		if node.isTramStop() {
 			result = append(result, node)
