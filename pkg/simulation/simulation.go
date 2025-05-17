@@ -2,11 +2,13 @@ package simulation
 
 import (
 	"github.com/TNSEngineerEdition/WailsClient/pkg/city"
+	"github.com/TNSEngineerEdition/WailsClient/pkg/control_room"
 )
 
 type Simulation struct {
 	city  *city.City
 	trams []*tram
+	c     control_room.ControlCenter
 }
 
 func NewSimulation(city *city.City) Simulation {
@@ -24,6 +26,7 @@ func (s *Simulation) ResetTrams() {
 
 func (s *Simulation) FetchData(url string) {
 	s.city.FetchCityData(url)
+	s.c = control_room.CreateControlCenter(s.city)
 	s.ResetTrams()
 }
 
@@ -40,7 +43,7 @@ func (s *Simulation) AdvanceTrams(time uint) (result []TramPositionChange) {
 	result = make([]TramPositionChange, 0)
 
 	for _, tram := range s.trams {
-		positionChange, update := tram.Advance(time, s.city.GetStopsByID())
+		positionChange, update := tram.Advance(time, s.city.GetStopsByID(), &s.c)
 		if update {
 			result = append(result, positionChange)
 		}
