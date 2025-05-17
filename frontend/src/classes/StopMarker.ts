@@ -26,8 +26,4 @@ export class StopMarker extends CircleMarker {
         fillColor: selected ? "green" : "blue",
         });
     }
-
-  public isSelected(): boolean {
-    return this.selected;
-  }
 }

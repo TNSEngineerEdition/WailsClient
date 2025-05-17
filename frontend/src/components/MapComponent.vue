@@ -35,7 +35,7 @@ const stopSidebar = ref(false)
 const timeUtils = useTimeUtils()
 
 async function reset() {
-  tramSidebar.value = false
+  tramSidebar.value = true
   stopSidebar.value = false
   loading.value = true
 

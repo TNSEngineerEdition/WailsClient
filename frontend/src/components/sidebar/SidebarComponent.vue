@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, nextTick, watch } from "vue"
+import { computed } from "vue"
 
 const model = defineModel({ required: true })
 
@@ -25,7 +25,7 @@ const slideSide = computed(() =>
 <template>
   <transition :name="slideSide">
     <v-card v-if="model" class="side-bar-card" :style="horizontalPosition">
-      <v-card-title ref="headerRef" class="d-flex align-center justify-space-between">
+      <v-card-title class="d-flex align-center justify-space-between">
         <transition name="content-fade" mode="out-in">
           <div class="d-flex align-center justify-space-between" :key="props.title">
             <v-icon :icon="props.titleIcon" class="mr-2"></v-icon>
