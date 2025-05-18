@@ -41,7 +41,6 @@ func (s *Simulation) GetTramIDs() (result []int) {
 
 func (s *Simulation) AdvanceTrams(time uint) (result []TramPositionChange) {
 	result = make([]TramPositionChange, 0)
-
 	for _, tram := range s.trams {
 		positionChange, update := tram.Advance(time, s.city.GetStopsByID(), &s.c)
 		if update {

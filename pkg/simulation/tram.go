@@ -38,44 +38,44 @@ type TramPositionChange struct {
 }
 
 func (t *tram) Advance(time uint, stopsById map[uint64]*city.GraphNode, c *control_room.ControlCenter) (result TramPositionChange, update bool) {
-	distanceToDrive := float32(50*10) / float32(36)
-	if t.tripIndex == len(t.trip.Stops) {
-		if !t.isFinished {
-			t.isFinished = true
+	startTime := t.trip.Stops[0].Time
+	update = false
+	if time >= startTime && !t.isFinished {
+
+		if t.tripIndex >= len(t.trip.Stops)-1 {
 			result = TramPositionChange{
 				TramID:    t.id,
 				Latitude:  0,
 				Longitude: 0,
 			}
 			update = true
+			t.isFinished = true
+			return result, update
 		}
-		return result, update
+		distanceToDrive := float32(50*10) / float32(36)
+		currentStop := t.trip.Stops[t.tripIndex]
+
+		nextTripIndex := t.tripIndex + 1
+		if nextTripIndex < len(t.trip.Stops) && time >= t.departureTime {
+			nextStop := t.trip.Stops[nextTripIndex]
+			path := c.GetRoutesBetweenNodes(currentStop.ID, nextStop.ID)
+			lat, lon, index := t.calculateNewLocation(path, distanceToDrive, t.Position, t.subTripIndex)
+			t.Position = [2]float32{lat, lon}
+			t.subTripIndex = index
+			if t.subTripIndex == len(path)-1 {
+				t.tripIndex += 1
+				t.subTripIndex = 0
+				t.departureTime = max(nextStop.Time, time+uint(rand.Intn(11))+15)
+			}
+			result = TramPositionChange{
+				TramID:    t.id,
+				Latitude:  lat,
+				Longitude: lon,
+			}
+			update = true
+		}
 	}
-
-	currentStop := t.trip.Stops[t.tripIndex]
-
-	nextTripIndex := t.tripIndex + 1
-	if nextTripIndex < len(t.trip.Stops) && time >= t.departureTime {
-		nextStop := t.trip.Stops[nextTripIndex]
-		path := c.GetRoutesBetweenNodes(currentStop.ID, nextStop.ID)
-		lat, lon, index := t.calculateNewLocation(path, distanceToDrive, t.Position, t.subTripIndex)
-		t.Position = [2]float32{lat, lon}
-		t.subTripIndex = index
-		if t.subTripIndex == len(path)-1 {
-			t.tripIndex += 1
-			t.subTripIndex = 0
-			t.departureTime = max(nextStop.Time, time+uint(rand.Intn(11))+15)
-		}
-		result = TramPositionChange{
-			TramID:    t.id,
-			Latitude:  lat,
-			Longitude: lon,
-		}
-		update = true
-		return result, update
-	}
-
-	return result, false
+	return result, update
 }
 
 func (t *tram) calculateNewLocation(path []*city.GraphNode, distanceToDrive float32, position [2]float32, tripSubIndex int) (lat, lon float32, index int) {
