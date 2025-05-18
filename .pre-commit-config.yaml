@@ -17,3 +17,10 @@ repos:
     - id: eslint
       files: \.(js|ts|vue)$
       args: ["-c", "frontend/eslint.config.js"]
+
+  - repo: https://github.com/rbubley/mirrors-prettier
+    rev: v3.5.3
+    hooks:
+    - id: prettier
+      files: \.(js|ts|vue)$
+      args: [--config, frontend/.prettierrc]
