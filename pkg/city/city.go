@@ -37,11 +37,13 @@ func (c *City) GetTimeBounds() TimeBounds {
 func (c *City) GetLinesForStop(stopID uint64) []string {
 	if lines, ok := c.linesByStopID[stopID]; ok {
 		return lines
+	} else {
+		return []string{}
 	}
-	return []string{}
 }
 
 func (c *City) GetArrivalsForStop(stopID uint64, currentTime uint) (upcoming []Arrival) {
+	upcoming = []Arrival{}
 	for _, arrival := range c.arrivalsByStopID[stopID] {
 		if arrival.Departure >= currentTime {
 			upcoming = append(upcoming, arrival)

@@ -94,7 +94,7 @@ func (c *CityData) GetTimeBounds() (result TimeBounds) {
 	return result
 }
 
-func (c *CityData) GetLinesByStopID() map[uint64][]string {
+func (c *CityData) getLineSetsByStopID() map[uint64]map[string]struct{} {
 	set := make(map[uint64]map[string]struct{})
 	for _, trip := range c.TramTrips {
 		for _, stop := range trip.Stops {
@@ -104,9 +104,13 @@ func (c *CityData) GetLinesByStopID() map[uint64][]string {
 			set[stop.ID][trip.Route] = struct{}{}
 		}
 	}
+	return set
+}
 
+func (c *CityData) GetLinesByStopID() map[uint64][]string {
+	routeSets := c.getLineSetsByStopID()
 	linesByStopID := make(map[uint64][]string)
-	for stopID, routeSet := range set {
+	for stopID, routeSet := range routeSets {
 		routes := make([]string, 0, len(routeSet))
 		for r := range routeSet {
 			routes = append(routes, r)
@@ -130,9 +134,8 @@ type Arrival struct {
 	Departure uint
 }
 
-func (c *CityData) GetArrivalsByStopID() map[uint64][]Arrival {
+func (c *CityData) getRawArrivalsByStopID() map[uint64][]Arrival {
 	arrivalsByStopID := make(map[uint64][]Arrival)
-
 	seen := make(map[uint64]map[[2]string]struct{})
 
 	for _, trip := range c.TramTrips {
@@ -156,12 +159,16 @@ func (c *CityData) GetArrivalsByStopID() map[uint64][]Arrival {
 			arrivalsByStopID[stopID] = append(arrivalsByStopID[stopID], arrival)
 		}
 	}
+	return arrivalsByStopID
+}
 
-	for stopID, arrival := range arrivalsByStopID {
-		sort.Slice(arrival, func(i, j int) bool {
-			return arrival[i].Departure < arrival[j].Departure
+func (c *CityData) GetArrivalsByStopID() map[uint64][]Arrival {
+	arrivalsByStopID := c.getRawArrivalsByStopID()
+	for stopID, arrivals := range arrivalsByStopID {
+		sort.Slice(arrivals, func(i, j int) bool {
+			return arrivals[i].Departure < arrivals[j].Departure
 		})
-		arrivalsByStopID[stopID] = arrival
+		arrivalsByStopID[stopID] = arrivals
 	}
 	return arrivalsByStopID
 }

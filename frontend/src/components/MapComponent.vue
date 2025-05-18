@@ -29,7 +29,7 @@ const leafletMap = ref<LeafletMap>()
 const tramMarkerByID = ref<Record<number, TramMarker>>({})
 
 const tramSidebar = ref(false)
-const selectedStop = ref<city.GraphNode | null>(null)
+const selectedStop = ref<city.GraphNode>()
 const stopSidebar = ref(false)
 
 const timeUtils = useTimeUtils()
@@ -63,13 +63,10 @@ onMounted(async () => {
   }
 
   await FetchData("http://localhost:8000/cities/krakow")
-  leafletMap.value = await LeafletMap.init(
-    mapHTMLElement.value,
-    (stop) => {
-      selectedStop.value = stop
-      stopSidebar.value = true
-    }
-  )
+  leafletMap.value = await LeafletMap.init(mapHTMLElement.value, stop => {
+    selectedStop.value = stop
+    stopSidebar.value = true
+  })
 
   await reset()
 
@@ -111,7 +108,11 @@ onMounted(async () => {
   <div id="map" ref="map"></div>
 
   <TramSidebarComponent v-model="tramSidebar"></TramSidebarComponent>
-  <StopSidebarComponent v-model="stopSidebar" :stop="selectedStop" :current-time="time"></StopSidebarComponent>
+  <StopSidebarComponent
+    v-model="stopSidebar"
+    :stop="selectedStop"
+    :current-time="time"
+  ></StopSidebarComponent>
 </template>
 
 <style scoped lang="scss">

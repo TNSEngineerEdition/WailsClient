@@ -18,7 +18,7 @@ const horizontalPosition = computed(() => {
 })
 
 const slideSite = computed(() =>
-  props.position === 'left' ? 'sidebar-slide-left' : 'sidebar-slide-right',
+  props.position === "left" ? "sidebar-slide-left" : "sidebar-slide-right",
 )
 </script>
 
@@ -27,7 +27,10 @@ const slideSite = computed(() =>
     <v-card v-if="model" class="side-bar-card" :style="horizontalPosition">
       <v-card-title class="d-flex align-center justify-space-between">
         <transition name="content-fade" mode="out-in">
-          <div class="d-flex align-center justify-space-between" :key="props.title">
+          <div
+            class="d-flex align-center justify-space-between"
+            :key="props.title"
+          >
             <v-icon :icon="props.titleIcon" class="mr-2"></v-icon>
             {{ props.title }}
           </div>
@@ -57,10 +60,10 @@ const slideSite = computed(() =>
   position: absolute;
   top: calc(60px + 20px);
   z-index: 1001;
-  background-color: rgba(255, 255, 255, 0.8);
-  border: 1px solid rgba(100, 100, 100, .3);
+  background-color: rgba(255, 255, 255, 0.85);
+  border: 1px solid rgba(100, 100, 100, 0.3);
   border-radius: 16px;
-  box-shadow: 0 0 14px rgba(0, 0, 0, .5);
+  box-shadow: 0 0 14px rgba(0, 0, 0, 0.5);
   backdrop-filter: blur(1.4px);
 }
 
@@ -68,7 +71,9 @@ const slideSite = computed(() =>
 .sidebar-slide-left-leave-active,
 .sidebar-slide-right-enter-active,
 .sidebar-slide-right-leave-active {
-  transition: opacity 0.3s ease, transform 0.3s ease;
+  transition:
+    opacity 0.3s ease,
+    transform 0.3s ease;
 }
 
 .sidebar-slide-left-enter-from,
@@ -95,7 +100,7 @@ const slideSite = computed(() =>
 
 .content-fade-enter-active,
 .content-fade-leave-active {
-  transition: opacity .25s ease;
+  transition: opacity 0.25s ease;
 }
 
 .content-fade-enter-from,

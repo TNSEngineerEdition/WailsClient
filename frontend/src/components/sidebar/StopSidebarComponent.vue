@@ -7,11 +7,11 @@ import { GetLinesForStop, GetArrivalsForStop } from "@wails/go/city/City"
 const model = defineModel<boolean>({ required: true })
 
 const props = defineProps<{
-  stop: city.GraphNode | null
+  stop?: city.GraphNode
   currentTime: number
 }>()
 
-const lines = ref<Array<string>>([])
+const lines = ref<string[]>([])
 const arrivalsInfo = ref<city.Arrival[]>([])
 
 watch(
@@ -23,9 +23,9 @@ watch(
       return
     }
     lines.value = await GetLinesForStop(id)
-    arrivalsInfo.value = await (GetArrivalsForStop(id, props.currentTime)) ?? []
+    arrivalsInfo.value = await GetArrivalsForStop(id, props.currentTime)
   },
-  { immediate: true }
+  { immediate: true },
 )
 
 const arrivals = computed(() => {
@@ -34,9 +34,22 @@ const arrivals = computed(() => {
     .slice(0, 5)
     .map(a => {
       const diff = a.Departure - props.currentTime
-      return diff <= 0 ? { ...a, eta: null } : { ...a, eta: Math.ceil(diff / 60) }
+      return diff <= 0
+        ? { ...a, eta: null }
+        : { ...a, eta: Math.ceil(diff / 60) }
     })
 })
+
+const headers = [
+  { title: "Route", key: "Route", sortable: false },
+  {
+    title: "Trip head-sign",
+    key: "Headsign",
+    align: "center",
+    sortable: false,
+  },
+  { title: "ETA", key: "eta", align: "end", sortable: false },
+] as const
 </script>
 
 <template>
@@ -62,7 +75,7 @@ const arrivals = computed(() => {
       </div>
       <div class="value">
         <span v-if="stop?.gtfs_stop_ids?.length">
-          {{ stop.gtfs_stop_ids.join(', ') }}
+          {{ stop.gtfs_stop_ids.join(", ") }}
         </span>
         <span v-else>Unknown</span>
       </div>
@@ -88,25 +101,20 @@ const arrivals = computed(() => {
         <v-icon icon="mdi-clock-time-four" class="mr-2"></v-icon>
         Arrivals
       </div>
-      <table class="arrivals-table">
-        <thead>
-          <tr>
-            <th>Route</th>
-            <th>Trip head-sign</th>
-            <th class="eta">ETA</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr v-for="a in arrivals" :key="a.Route + a.Headsign + a.Departure">
-            <td>{{ a.Route }}</td>
-            <td>{{ a.Headsign }}</td>
-            <td class="eta">
-              <span v-if="a.eta === null">&gt;&gt;&gt;</span>
-              <span v-else>{{ a.eta }}min</span>
-            </td>
-          </tr>
-        </tbody>
-      </table>
+      <v-data-table
+        class="arrivals-table"
+        :headers="headers"
+        :items="arrivals"
+        disable-pagination
+        hide-default-footer
+        density="compact"
+        :items-per-page="5"
+      >
+        <template v-slot:item.eta="{ item }">
+          <span v-if="item.eta === null">&gt;&gt;&gt;</span>
+          <span v-else>{{ item.eta }}min</span>
+        </template>
+      </v-data-table>
     </div>
   </SidebarComponent>
 </template>
@@ -117,7 +125,7 @@ const arrivals = computed(() => {
   align-items: flex-start;
   justify-content: space-between;
   gap: 1rem;
-  margin-bottom: .4rem;
+  margin-bottom: 0.4rem;
 
   &.arrivals {
     flex-direction: column;
@@ -127,16 +135,16 @@ const arrivals = computed(() => {
 
 .label,
 .value {
-  font-size: clamp(.8rem, .75rem + .2vw, 1rem);
+  font-size: clamp(0.8rem, 0.75rem + 0.2vw, 1rem);
   color: #111;
 }
 
 .label {
   display: inline-flex;
   align-items: center;
-  gap: .4rem;
+  gap: 0.4rem;
   font-weight: 500;
-  margin-bottom: .25rem;
+  margin-bottom: 0.25rem;
 }
 
 .value {
@@ -165,59 +173,65 @@ const arrivals = computed(() => {
   background: #0078d4;
   border-radius: 4px;
   color: #fff;
-  font-size: .85rem;
+  font-size: 0.85rem;
   line-height: 1;
-  transition: background .2s ease;
+  transition:
+    background 0.2s ease,
+    transform 0.2s ease,
+    box-shadow 0.2s ease;
   text-align: center;
   &:hover {
     background: #2896f1;
     cursor: pointer;
+    transform: scale(1.1);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+    z-index: 10;
   }
 }
 
 .arrivals-table {
   margin-top: 0;
-  border-collapse: collapse;
-  table-layout: auto;
-  font-size: .9rem;
+  font-size: 0.9rem;
   width: 100%;
+  background-color: transparent;
 
-  th,
-  td {
-    padding: .45rem .6rem;
+  :deep(th),
+  :deep(td) {
+    padding: 0.45rem 0.6rem;
     white-space: nowrap;
   }
 
-  th {
+  :deep(th) {
     background: #4a4d51;
     color: #fff;
     font-weight: 500;
     text-align: left;
   }
 
-  td {
-    border-top: 1px solid #dcdcdc;
-    transition: background .2s ease;
+  :deep(td) {
+    transition: background 0.2s ease;
   }
 
-  tr:hover td {
-    background: rgba(0, 0, 0, .05);
+  :deep(tr:hover td) {
+    background: rgba(0, 0, 0, 0.05);
     cursor: pointer;
   }
 
-  th:nth-child(1),
-  td:nth-child(1) { width: 15%; }
+  :deep(th:nth-child(1)),
+  :deep(td:nth-child(1)) {
+    width: 15%;
+  }
 
-  th:nth-child(2),
-  td:nth-child(2) {
+  :deep(th:nth-child(2)),
+  :deep(td:nth-child(2)) {
     width: 65%;
     overflow: hidden;
     text-overflow: ellipsis;
     text-align: center;
   }
 
-  th:nth-child(3),
-  td:nth-child(3) {
+  :deep(th:nth-child(3)),
+  :deep(td:nth-child(3)) {
     width: 20%;
     text-align: right;
   }
