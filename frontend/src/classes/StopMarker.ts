@@ -22,8 +22,8 @@ export class StopMarker extends CircleMarker {
   public setSelected(selected: boolean) {
     this.selected = selected
     this.setStyle({
-      color: selected ? "darkgreen" : "darkblue",
-      fillColor: selected ? "green" : "blue",
+      color: selected ? "cyan" : "blue",
+      fillColor: selected ? "cyan" : "blue",
     })
   }
 }

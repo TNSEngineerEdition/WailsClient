@@ -14,42 +14,42 @@ const props = defineProps<{
 const lines = ref<string[]>([])
 const arrivalsInfo = ref<city.Arrival[]>([])
 
-watch(
-  () => props.stop?.id,
-  async id => {
-    if (!id) {
-      lines.value = []
-      arrivalsInfo.value = []
-      return
-    }
-    lines.value = await GetLinesForStop(id)
-    arrivalsInfo.value = await GetArrivalsForStop(id, props.currentTime)
-  },
-  { immediate: true },
-)
-
-const arrivals = computed(() => {
-  return arrivalsInfo.value
-    .filter(a => a.Departure + 30 >= props.currentTime)
-    .slice(0, 5)
-    .map(a => {
-      const diff = a.Departure - props.currentTime
-      return diff <= 0
-        ? { ...a, eta: null }
-        : { ...a, eta: Math.ceil(diff / 60) }
-    })
-})
-
 const headers = [
-  { title: "Route", key: "Route", sortable: false },
+  { title: "Route", key: "Route", align: "center", sortable: false },
   {
     title: "Trip head-sign",
     key: "Headsign",
     align: "center",
     sortable: false,
   },
-  { title: "ETA", key: "eta", align: "end", sortable: false },
+  { title: "ETA", key: "eta", align: "center", sortable: false },
 ] as const
+
+const arrivals = computed(() =>
+  arrivalsInfo.value
+    .filter(a => a.Departure + 30 >= props.currentTime)
+    .slice(0, 5)
+    .map(a => {
+      const diff = a.Departure - props.currentTime
+      return diff <= 0
+        ? { ...a, eta: undefined }
+        : { ...a, eta: Math.ceil(diff / 60) }
+    }),
+)
+
+watch(
+  () => props.stop?.id,
+  async id => {
+    if (id) {
+      lines.value = await GetLinesForStop(id)
+      arrivalsInfo.value = await GetArrivalsForStop(id, props.currentTime)
+    } else {
+      lines.value = []
+      arrivalsInfo.value = []
+    }
+  },
+  { immediate: true },
+)
 </script>
 
 <template>
@@ -64,15 +64,18 @@ const headers = [
         <v-icon icon="mdi-map-marker" class="mr-2"></v-icon>
         Coordinates
       </div>
+
       <div class="value">
         {{ stop?.lat.toFixed(6) }}, {{ stop?.lon.toFixed(6) }}
       </div>
     </div>
+
     <div class="section">
       <div class="label">
         <v-icon icon="mdi-zip-box" class="mr-2"></v-icon>
         GTFS ID
       </div>
+
       <div class="value">
         <span v-if="stop?.gtfs_stop_ids?.length">
           {{ stop.gtfs_stop_ids.join(", ") }}
@@ -80,42 +83,48 @@ const headers = [
         <span v-else>Unknown</span>
       </div>
     </div>
+
     <div class="section">
       <div class="label">
         <v-icon icon="mdi-transit-connection-variant" class="mr-2"></v-icon>
         Lines
       </div>
+
       <div class="value">
-        <template v-if="lines.length">
-          <div class="line-chips">
-            <span v-for="l in lines" :key="l" class="chip">
-              {{ l }}
-            </span>
-          </div>
-        </template>
+        <div v-if="lines.length" class="line-chips">
+          <span v-for="line in lines" class="chip">
+            {{ line }}
+          </span>
+        </div>
+
         <span v-else>No lines</span>
       </div>
     </div>
-    <div v-if="arrivals.length" class="section arrivals">
-      <div class="label">
-        <v-icon icon="mdi-clock-time-four" class="mr-2"></v-icon>
-        Arrivals
-      </div>
-      <v-data-table
-        class="arrivals-table"
-        :headers="headers"
-        :items="arrivals"
-        disable-pagination
-        hide-default-footer
-        density="compact"
-        :items-per-page="5"
-      >
-        <template v-slot:item.eta="{ item }">
-          <span v-if="item.eta === null">&gt;&gt;&gt;</span>
-          <span v-else>{{ item.eta }}min</span>
-        </template>
-      </v-data-table>
-    </div>
+
+    <v-data-table
+      v-if="arrivals.length"
+      :headers="headers"
+      :items="arrivals"
+      class="arrivals-table"
+      density="compact"
+      hide-default-footer
+      hover
+    >
+      <template v-slot:top>
+        <div class="label">
+          <v-icon icon="mdi-clock-time-four" class="mr-2"></v-icon>
+          Arrivals
+        </div>
+      </template>
+
+      <template v-slot:item.eta="{ item }">
+        <span v-if="item.eta == undefined" class="blinking">
+          &gt;&gt;&gt;
+        </span>
+
+        <span v-else>{{ item.eta }} min</span>
+      </template>
+    </v-data-table>
   </SidebarComponent>
 </template>
 
@@ -143,7 +152,7 @@ const headers = [
   display: inline-flex;
   align-items: center;
   gap: 0.4rem;
-  font-weight: 500;
+  font-weight: bold;
   margin-bottom: 0.25rem;
 }
 
@@ -154,18 +163,9 @@ const headers = [
 
 .line-chips {
   display: grid;
-  flex-wrap: wrap;
   gap: 4px;
-  grid-template-columns: repeat(4, 1fr);
-}
-
-.line-chips:has(.chip:nth-child(1):nth-last-child(3)),
-.line-chips:has(.chip:nth-child(1):nth-last-child(2)),
-.line-chips:has(.chip:nth-child(1):nth-last-child(1)) {
-  display: flex;
-  justify-content: flex-end;
-  flex-wrap: wrap;
-  gap: 4px;
+  grid-template-columns: repeat(5, 1fr);
+  direction: rtl;
 }
 
 .chip {
@@ -175,65 +175,33 @@ const headers = [
   color: #fff;
   font-size: 0.85rem;
   line-height: 1;
-  transition:
-    background 0.2s ease,
-    transform 0.2s ease,
-    box-shadow 0.2s ease;
+  transition: 0.2s ease;
   text-align: center;
+
   &:hover {
     background: #2896f1;
     cursor: pointer;
-    transform: scale(1.1);
     box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
     z-index: 10;
   }
 }
 
 .arrivals-table {
-  margin-top: 0;
-  font-size: 0.9rem;
   width: 100%;
   background-color: transparent;
+}
 
-  :deep(th),
-  :deep(td) {
-    padding: 0.45rem 0.6rem;
-    white-space: nowrap;
+.blinking {
+  animation: smooth-blink 1s ease-in-out infinite;
+}
+
+@keyframes smooth-blink {
+  25%,
+  75% {
+    opacity: 1;
   }
-
-  :deep(th) {
-    background: #4a4d51;
-    color: #fff;
-    font-weight: 500;
-    text-align: left;
-  }
-
-  :deep(td) {
-    transition: background 0.2s ease;
-  }
-
-  :deep(tr:hover td) {
-    background: rgba(0, 0, 0, 0.05);
-    cursor: pointer;
-  }
-
-  :deep(th:nth-child(1)),
-  :deep(td:nth-child(1)) {
-    width: 15%;
-  }
-
-  :deep(th:nth-child(2)),
-  :deep(td:nth-child(2)) {
-    width: 65%;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    text-align: center;
-  }
-
-  :deep(th:nth-child(3)),
-  :deep(td:nth-child(3)) {
-    width: 20%;
-    text-align: right;
+  50% {
+    opacity: 0;
   }
 }
 </style>

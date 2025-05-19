@@ -25,7 +25,7 @@ const slideSite = computed(() =>
 <template>
   <transition :name="slideSite">
     <v-card v-if="model" class="side-bar-card" :style="horizontalPosition">
-      <v-card-title class="d-flex align-center justify-space-between">
+      <v-card-title class="d-flex align-center justify-space-between my-1">
         <transition name="content-fade" mode="out-in">
           <div
             class="d-flex align-center justify-space-between"
