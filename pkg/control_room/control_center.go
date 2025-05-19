@@ -20,7 +20,7 @@ type ControlCenter struct {
 	routesBetweenNodes map[[2]uint64][]*city.GraphNode
 }
 
-func (c *ControlCenter) GetRoutesBetweenNodes(sourceID, destID uint64) (path []*city.GraphNode) {
+func (c *ControlCenter) GetRouteBetweenNodes(sourceID, destID uint64) (path []*city.GraphNode) {
 	key := [2]uint64{sourceID, destID}
 	path, _ = c.routesBetweenNodes[key]
 	return
