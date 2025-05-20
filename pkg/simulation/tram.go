@@ -1,10 +1,11 @@
 package simulation
 
 import (
+	"math/rand/v2"
+
 	"github.com/TNSEngineerEdition/WailsClient/pkg/city"
 	"github.com/TNSEngineerEdition/WailsClient/pkg/control_room"
 	"github.com/umahmood/haversine"
-	"golang.org/x/exp/rand"
 )
 
 type tram struct {
@@ -16,6 +17,7 @@ type tram struct {
 	Longitude         float32
 	coveredDistance   float32
 	departureTime     uint
+	isFinished        bool
 	state             TramState
 	c                 control_room.ControlCenter
 }
@@ -37,7 +39,7 @@ func newTram(id int, trip *city.TramTrip) *tram {
 		tripIndex:         0,
 		intermediateIndex: 0,
 		coveredDistance:   0,
-		departureTime:     startTime - uint(rand.Intn(11)) - 15,
+		departureTime:     startTime - uint(rand.IntN(11)) - 15,
 		state:             StateTripNotStarted,
 	}
 }
@@ -79,11 +81,11 @@ func (t *tram) Advance(time uint, stopsById map[uint64]*city.GraphNode, c *contr
 		currentStop := t.trip.Stops[t.tripIndex]
 		nextStop := t.trip.Stops[t.tripIndex+1]
 		path := c.GetRouteBetweenNodes(currentStop.ID, nextStop.ID)
-		t.calculateNewLocation(path, distanceToDrive)
+		t.findNewLocation(path, distanceToDrive)
 		if t.intermediateIndex == len(path)-1 {
 			t.tripIndex += 1
 			t.intermediateIndex = 0
-			t.departureTime = max(nextStop.Time, time+uint(rand.Intn(11))+15)
+			t.departureTime = max(nextStop.Time, time+uint(rand.IntN(11))+15)
 			t.state = StatePassengerTransfer
 		}
 		result = TramPositionChange{
@@ -91,25 +93,25 @@ func (t *tram) Advance(time uint, stopsById map[uint64]*city.GraphNode, c *contr
 			Latitude:  t.Latitude,
 			Longitude: t.Longitude,
 		}
-		if t.tripIndex == len(t.trip.Stops)-1 {
-			t.state = StatePassengerTransfer
-		}
 		update = true
 
 	case StateTripFinished:
 
-		result = TramPositionChange{
-			TramID:    t.id,
-			Latitude:  0,
-			Longitude: 0,
+		if !t.isFinished {
+			result = TramPositionChange{
+				TramID:    t.id,
+				Latitude:  0,
+				Longitude: 0,
+			}
+			update = true
+			t.isFinished = true
 		}
-		update = true
 
 	}
 	return result, update
 }
 
-func (t *tram) calculateNewLocation(path []*city.GraphNode, distanceToDrive float32) {
+func (t *tram) findNewLocation(path []*city.GraphNode, distanceToDrive float32) {
 	for distanceToDrive > 0 && t.intermediateIndex < len(path)-1 {
 		distToNextNode := t.distanceToNextNode(path)
 		if distToNextNode <= distanceToDrive {
@@ -121,13 +123,13 @@ func (t *tram) calculateNewLocation(path []*city.GraphNode, distanceToDrive floa
 		} else {
 			remainingPart := distanceToDrive / distToNextNode
 			t.coveredDistance += distanceToDrive
-			t.calculateIntermediateDist(path, remainingPart)
+			t.findIntermediateLocation(path, remainingPart)
 			distanceToDrive = 0
 		}
 	}
 }
 
-func (t *tram) calculateIntermediateDist(path []*city.GraphNode, remainingPart float32) {
+func (t *tram) findIntermediateLocation(path []*city.GraphNode, remainingPart float32) {
 	t.Latitude = path[t.intermediateIndex].Latitude + ((path[t.intermediateIndex+1].Latitude - path[t.intermediateIndex].Latitude) * remainingPart)
 	t.Longitude = path[t.intermediateIndex].Longitude + ((path[t.intermediateIndex+1].Longitude - path[t.intermediateIndex].Longitude) * remainingPart)
 }
