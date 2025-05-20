@@ -26,7 +26,7 @@ func (s *Simulation) ResetTrams() {
 
 func (s *Simulation) FetchData(url string) {
 	s.city.FetchCityData(url)
-	s.controlCenter = controlcenter.CreateControlCenter(s.city)
+	s.controlCenter = controlcenter.NewControlCenter(s.city)
 	s.ResetTrams()
 }
 

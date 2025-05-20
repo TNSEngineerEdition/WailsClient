@@ -60,6 +60,7 @@ func (t *tram) handlePassangerTransfer(time uint) {
 	if time != t.departureTime {
 		return
 	}
+
 	if t.tripIndex == len(t.trip.Stops)-1 {
 		t.state = StateTripFinished
 	} else {
