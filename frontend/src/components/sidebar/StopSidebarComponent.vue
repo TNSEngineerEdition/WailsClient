@@ -26,13 +26,13 @@ const headers = [
 ] as const
 
 const ARRIVALS_IN_TABLE = 5
-const LINE_CHIP_COLUMNS = 5
+const LINE_CHIP_COLUMNS = ref(5)
 
 watch(
   () => props.stop?.id,
   async id => {
     if (id) {
-      lines.value = await GetLinesForStop(id, LINE_CHIP_COLUMNS)
+      lines.value = await GetLinesForStop(id, LINE_CHIP_COLUMNS.value)
       arrivalsInfo.value = await GetArrivalsForStop(
         id,
         props.currentTime,
@@ -100,11 +100,7 @@ watch(
       </div>
 
       <div class="value">
-        <div
-          v-if="lines.length"
-          class="line-chips"
-          :style="`--line-chip-columns: ${LINE_CHIP_COLUMNS}`"
-        >
+        <div v-if="lines.length" class="line-chips">
           <span v-for="line in lines" class="chip">
             {{ line }}
           </span>
@@ -175,7 +171,7 @@ watch(
 .line-chips {
   display: grid;
   gap: 4px;
-  grid-template-columns: repeat(var(--line-chip-columns), 1fr);
+  grid-template-columns: repeat(v-bind(LINE_CHIP_COLUMNS), 1fr);
   direction: rtl;
 }
 
@@ -186,12 +182,16 @@ watch(
   color: #fff;
   font-size: 0.85rem;
   line-height: 1;
-  transition: 0.2s ease;
+  transition:
+    background 0.2s ease,
+    transform 0.2s ease,
+    box-shadow 0.2s ease;
   text-align: center;
 
   &:hover {
     background: #2896f1;
     cursor: pointer;
+    transform: scale(1.1);
     box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
     z-index: 10;
   }

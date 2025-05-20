@@ -54,6 +54,13 @@ export class LeafletMap {
     return leafletMap
   }
 
+  public unselectStop() {
+    if (this.selectedStop) {
+      this.selectedStop.setSelected(false)
+      this.selectedStop = undefined
+    }
+  }
+
   public getTramMarkers(tramIDs: number[]) {
     const result: Record<number, TramMarker> = {}
 

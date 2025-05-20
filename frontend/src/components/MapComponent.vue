@@ -57,6 +57,13 @@ async function reset() {
 
 watch(() => props.resetCounter, reset)
 
+watch(stopSidebar, isOpen => {
+  if (!isOpen) {
+    leafletMap.value?.unselectStop()
+    selectedStop.value = undefined
+  }
+})
+
 onMounted(async () => {
   if (mapHTMLElement.value === null) {
     throw new Error("Map element not found")
