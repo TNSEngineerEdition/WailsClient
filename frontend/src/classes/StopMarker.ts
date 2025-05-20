@@ -1,4 +1,4 @@
-import { CircleMarker, CircleMarkerOptions } from "leaflet"
+import { CircleMarker } from "leaflet"
 
 export class StopMarker extends CircleMarker {
   private selected = false
@@ -9,7 +9,7 @@ export class StopMarker extends CircleMarker {
       fill: true,
       color: "darkblue",
       fillColor: "blue",
-      weight: 1,
+      weight: 2,
       opacity: 1,
       fillOpacity: 0.8,
     })
@@ -22,7 +22,7 @@ export class StopMarker extends CircleMarker {
   public setSelected(selected: boolean) {
     this.selected = selected
     this.setStyle({
-      color: selected ? "cyan" : "blue",
+      color: selected ? "darkcyan" : "darkblue",
       fillColor: selected ? "cyan" : "blue",
     })
   }

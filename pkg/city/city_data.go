@@ -2,11 +2,10 @@ package city
 
 import (
 	"encoding/json"
-	"fmt"
+	"github.com/facette/natsort"
 	"math"
 	"net/http"
 	"sort"
-	"strconv"
 )
 
 type CityData struct {
@@ -115,60 +114,39 @@ func (c *CityData) GetLinesByStopID() map[uint64][]string {
 		for r := range routeSet {
 			routes = append(routes, r)
 		}
-		sort.Slice(routes, func(i, j int) bool {
-			ri, err1 := strconv.Atoi(routes[i])
-			rj, err2 := strconv.Atoi(routes[j])
-			if err1 == nil && err2 == nil {
-				return ri < rj
-			}
-			return routes[i] < routes[j]
-		})
+		natsort.Sort(routes)
 		linesByStopID[stopID] = routes
 	}
 	return linesByStopID
 }
 
 type Arrival struct {
-	Route     string
-	Headsign  string
-	Departure uint
+	Route    string
+	Headsign string
+	ETA      uint
 }
 
-func (c *CityData) getRawArrivalsByStopID() map[uint64][]Arrival {
+func (c *CityData) GetArrivalsByStopID() map[uint64][]Arrival {
 	arrivalsByStopID := make(map[uint64][]Arrival)
-	seen := make(map[uint64]map[[2]string]struct{})
 
 	for _, trip := range c.TramTrips {
 		for _, s := range trip.Stops {
 			stopID := s.ID
-			key := [2]string{trip.Route, fmt.Sprint(s.Time)}
-
-			if seen[stopID] == nil {
-				seen[stopID] = make(map[[2]string]struct{})
-			}
-			if _, ok := seen[stopID][key]; ok {
-				continue
-			}
-			seen[stopID][key] = struct{}{}
-
 			arrival := Arrival{
-				Route:     trip.Route,
-				Headsign:  trip.TripHeadSign,
-				Departure: s.Time,
+				Route:    trip.Route,
+				Headsign: trip.TripHeadSign,
+				ETA:      s.Time,
 			}
 			arrivalsByStopID[stopID] = append(arrivalsByStopID[stopID], arrival)
 		}
 	}
-	return arrivalsByStopID
-}
 
-func (c *CityData) GetArrivalsByStopID() map[uint64][]Arrival {
-	arrivalsByStopID := c.getRawArrivalsByStopID()
 	for stopID, arrivals := range arrivalsByStopID {
 		sort.Slice(arrivals, func(i, j int) bool {
-			return arrivals[i].Departure < arrivals[j].Departure
+			return arrivals[i].ETA < arrivals[j].ETA
 		})
 		arrivalsByStopID[stopID] = arrivals
 	}
+
 	return arrivalsByStopID
 }

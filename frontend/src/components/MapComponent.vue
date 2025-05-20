@@ -109,6 +109,7 @@ onMounted(async () => {
 
   <TramSidebarComponent v-model="tramSidebar"></TramSidebarComponent>
   <StopSidebarComponent
+    v-if="stopSidebar"
     v-model="stopSidebar"
     :stop="selectedStop"
     :current-time="time"

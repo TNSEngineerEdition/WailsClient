@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import SidebarComponent from "@components/sidebar/SidebarComponent.vue"
-import { ref, watch, computed } from "vue"
+import { ref, watch } from "vue"
 import { city } from "@wails/go/models"
 import { GetLinesForStop, GetArrivalsForStop } from "@wails/go/city/City"
 
@@ -25,27 +25,36 @@ const headers = [
   { title: "ETA", key: "eta", align: "center", sortable: false },
 ] as const
 
-const arrivals = computed(() =>
-  arrivalsInfo.value
-    .filter(a => a.Departure + 30 >= props.currentTime)
-    .slice(0, 5)
-    .map(a => {
-      const diff = a.Departure - props.currentTime
-      return diff <= 0
-        ? { ...a, eta: undefined }
-        : { ...a, eta: Math.ceil(diff / 60) }
-    }),
-)
+const ARRIVALS_IN_TABLE = 5
+const LINE_CHIP_COLUMNS = 5
 
 watch(
   () => props.stop?.id,
   async id => {
     if (id) {
-      lines.value = await GetLinesForStop(id)
-      arrivalsInfo.value = await GetArrivalsForStop(id, props.currentTime)
+      lines.value = await GetLinesForStop(id, LINE_CHIP_COLUMNS)
+      arrivalsInfo.value = await GetArrivalsForStop(
+        id,
+        props.currentTime,
+        ARRIVALS_IN_TABLE,
+      )
     } else {
       lines.value = []
       arrivalsInfo.value = []
+    }
+  },
+  { immediate: true },
+)
+
+watch(
+  () => props.currentTime,
+  async currentTime => {
+    if (props.stop?.id) {
+      arrivalsInfo.value = await GetArrivalsForStop(
+        props.stop.id,
+        currentTime,
+        ARRIVALS_IN_TABLE,
+      )
     }
   },
   { immediate: true },
@@ -91,7 +100,11 @@ watch(
       </div>
 
       <div class="value">
-        <div v-if="lines.length" class="line-chips">
+        <div
+          v-if="lines.length"
+          class="line-chips"
+          :style="`--line-chip-columns: ${LINE_CHIP_COLUMNS}`"
+        >
           <span v-for="line in lines" class="chip">
             {{ line }}
           </span>
@@ -102,9 +115,9 @@ watch(
     </div>
 
     <v-data-table
-      v-if="arrivals.length"
+      v-if="arrivalsInfo.length"
       :headers="headers"
-      :items="arrivals"
+      :items="arrivalsInfo"
       class="arrivals-table"
       density="compact"
       hide-default-footer
@@ -118,11 +131,9 @@ watch(
       </template>
 
       <template v-slot:item.eta="{ item }">
-        <span v-if="item.eta == undefined" class="blinking">
-          &gt;&gt;&gt;
-        </span>
+        <span v-if="item.ETA === 0" class="blinking"> &gt;&gt;&gt; </span>
 
-        <span v-else>{{ item.eta }} min</span>
+        <span v-else>{{ item.ETA }} min</span>
       </template>
     </v-data-table>
   </SidebarComponent>
@@ -164,7 +175,7 @@ watch(
 .line-chips {
   display: grid;
   gap: 4px;
-  grid-template-columns: repeat(5, 1fr);
+  grid-template-columns: repeat(var(--line-chip-columns), 1fr);
   direction: rtl;
 }
 
