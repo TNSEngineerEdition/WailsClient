@@ -72,6 +72,7 @@ func (t *tram) handleTripFinished() (result TramPositionChange, update bool) {
 	if t.isFinished {
 		return
 	}
+
 	result = TramPositionChange{
 		TramID: t.id,
 	}
