@@ -1,4 +1,4 @@
-package control_room
+package controlCenter
 
 import (
 	"container/heap"
@@ -16,7 +16,10 @@ type ControlCenter struct {
 
 func (c *ControlCenter) GetRouteBetweenNodes(sourceID, destID uint64) (path []*city.GraphNode) {
 	key := [2]uint64{sourceID, destID}
-	path, _ = c.routesBetweenNodes[key]
+	path, exist := c.routesBetweenNodes[key]
+	if !exist {
+		panic(fmt.Sprintf("No path found between %d and %d nodes", sourceID, destID))
+	}
 	return
 }
 
