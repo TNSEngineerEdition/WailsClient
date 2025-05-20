@@ -9,12 +9,6 @@ import (
 	"github.com/umahmood/haversine"
 )
 
-type RouteBetweenNodes struct {
-	SourceID uint64            `json:"sourceId"`
-	DestID   uint64            `json:"destId"`
-	Route    []*city.GraphNode `json:"route"`
-}
-
 type ControlCenter struct {
 	city               *city.City
 	routesBetweenNodes map[[2]uint64][]*city.GraphNode

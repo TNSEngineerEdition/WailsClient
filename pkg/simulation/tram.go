@@ -50,7 +50,7 @@ type TramPositionChange struct {
 	Longitude float32 `json:"lon"`
 }
 
-func (t *tram) Advance(time uint, stopsById map[uint64]*city.GraphNode, c *control_room.ControlCenter) (result TramPositionChange, update bool) {
+func (t *tram) Advance(time uint, stopsById map[uint64]*city.GraphNode, c control_room.ControlCenter) (result TramPositionChange, update bool) {
 	distanceToDrive := float32(50*5) / float32(18)
 	switch t.state {
 	case StateTripNotStarted:
