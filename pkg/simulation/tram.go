@@ -142,10 +142,10 @@ func (t *tram) findNewLocation(path []*city.GraphNode, distanceToDrive float32) 
 }
 
 func (t *tram) findIntermediateLocation(path []*city.GraphNode, remainingPart float32) {
-	vectorLat := (path[t.intermediateIndex+1].Latitude - path[t.intermediateIndex].Latitude)
-	vectorLot := (path[t.intermediateIndex+1].Longitude - path[t.intermediateIndex].Longitude)
+	vectorLat := path[t.intermediateIndex+1].Latitude - path[t.intermediateIndex].Latitude
+	vectorLon := path[t.intermediateIndex+1].Longitude - path[t.intermediateIndex].Longitude
 	t.Latitude = path[t.intermediateIndex].Latitude + vectorLat*remainingPart
-	t.Longitude = path[t.intermediateIndex].Longitude + vectorLot*remainingPart
+	t.Longitude = path[t.intermediateIndex].Longitude + vectorLon*remainingPart
 }
 
 func (t *tram) getDistanceToNextNode(path []*city.GraphNode) {

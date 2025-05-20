@@ -20,7 +20,7 @@ func NewSimulation(city *city.City) Simulation {
 func (s *Simulation) ResetTrams() {
 	s.trams = make([]*tram, len(s.city.GetTramTrips()))
 	for i, trip := range s.city.GetTramTrips() {
-		s.trams[i] = newTram(i, &trip, s.controlCenter)
+		s.trams[i] = newTram(i, &trip, &s.controlCenter)
 	}
 }
 
