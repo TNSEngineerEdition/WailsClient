@@ -2,13 +2,13 @@ package simulation
 
 import (
 	"github.com/TNSEngineerEdition/WailsClient/pkg/city"
-	"github.com/TNSEngineerEdition/WailsClient/pkg/controlCenter"
+	"github.com/TNSEngineerEdition/WailsClient/pkg/controlcenter"
 )
 
 type Simulation struct {
 	city          *city.City
 	trams         []*tram
-	controlCenter controlCenter.ControlCenter
+	controlCenter controlcenter.ControlCenter
 }
 
 func NewSimulation(city *city.City) Simulation {
@@ -26,7 +26,7 @@ func (s *Simulation) ResetTrams() {
 
 func (s *Simulation) FetchData(url string) {
 	s.city.FetchCityData(url)
-	s.controlCenter = controlCenter.CreateControlCenter(s.city)
+	s.controlCenter = controlcenter.CreateControlCenter(s.city)
 	s.ResetTrams()
 }
 

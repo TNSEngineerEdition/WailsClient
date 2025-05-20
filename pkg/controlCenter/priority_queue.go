@@ -1,4 +1,4 @@
-package controlCenter
+package controlcenter
 
 type nodeRecord struct {
 	ID       uint64
