@@ -66,11 +66,12 @@ export class LeafletMap {
 
     for (const tramID of tramIDs) {
       result[tramID] = new TramMarker(
+        
         this, {
-          radius: 5,
-          fill: true,
-          color: "red",
-        },
+            radius: 5,
+            fill: true,
+            color: "red",
+          },
         () => {onClickHandler(tramID)}
       )
     }
