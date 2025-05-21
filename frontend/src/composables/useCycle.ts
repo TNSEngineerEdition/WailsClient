@@ -1,4 +1,4 @@
-import { Ref } from "vue";
+import { Ref } from "vue"
 
 export default function useCycle<T>(values: T[], currentValue: Ref<T>) {
   if (!values.length) {

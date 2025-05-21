@@ -16,17 +16,23 @@ const horizontalPosition = computed(() => {
     return { right: "20px" }
   }
 })
+
+const slideDirection = computed(() => `sidebar-slide-${props.position}`)
 </script>
 
 <template>
-  <transition name="fade-scale">
+  <transition :name="slideDirection">
     <v-card v-if="model" class="side-bar-card" :style="horizontalPosition">
-      <v-card-title class="d-flex align-center justify-space-between">
-        <div class="d-flex align-center justify-space-between">
-          <v-icon :icon="props.titleIcon" class="mr-2"></v-icon>
-
-          {{ props.title }}
-        </div>
+      <v-card-title class="d-flex align-center justify-space-between my-1">
+        <transition name="content-fade" mode="out-in">
+          <div
+            class="d-flex align-center justify-space-between"
+            :key="props.title"
+          >
+            <v-icon :icon="props.titleIcon" class="mr-2"></v-icon>
+            <span class="font-weight-bold">{{ props.title }}</span>
+          </div>
+        </transition>
 
         <v-btn
           icon="mdi-close"
@@ -36,9 +42,12 @@ const horizontalPosition = computed(() => {
           @click="model = false"
         ></v-btn>
       </v-card-title>
-
       <v-card-text>
-        <slot></slot>
+        <transition name="content-fade" mode="out-in">
+          <div :key="props.title">
+            <slot></slot>
+          </div>
+        </transition>
       </v-card-text>
     </v-card>
   </transition>
@@ -49,17 +58,56 @@ const horizontalPosition = computed(() => {
   position: absolute;
   top: calc(60px + 20px);
   z-index: 1001;
-  background-color: rgba(255, 255, 255, 0.8);
+  background-color: rgba(255, 255, 255, 0.85);
+  border: 1px solid rgba(100, 100, 100, 0.3);
+  border-radius: 16px;
+  box-shadow: 0 0 14px rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(1.4px);
 }
 
-.fade-scale-enter-active,
-.fade-scale-leave-active {
-  transition: all 0.3s ease;
+.sidebar-slide-left-enter-active,
+.sidebar-slide-left-leave-active,
+.sidebar-slide-right-enter-active,
+.sidebar-slide-right-leave-active {
+  transition:
+    opacity 0.3s ease,
+    transform 0.3s ease;
 }
 
-.fade-scale-enter-from,
-.fade-scale-leave-to {
+.sidebar-slide-left-enter-from,
+.sidebar-slide-left-leave-to {
   opacity: 0;
-  transform: scale(0.95);
+  transform: translateX(-30px);
+}
+.sidebar-slide-left-enter-to,
+.sidebar-slide-left-leave-from {
+  opacity: 1;
+  transform: translateX(0);
+}
+
+.sidebar-slide-right-enter-from,
+.sidebar-slide-right-leave-to {
+  opacity: 0;
+  transform: translateX(30px);
+}
+.sidebar-slide-right-enter-to,
+.sidebar-slide-right-leave-from {
+  opacity: 1;
+  transform: translateX(0);
+}
+
+.content-fade-enter-active,
+.content-fade-leave-active {
+  transition: opacity 0.25s ease;
+}
+
+.content-fade-enter-from,
+.content-fade-leave-to {
+  opacity: 0;
+}
+
+.content-fade-enter-to,
+.content-fade-leave-from {
+  opacity: 1;
 }
 </style>

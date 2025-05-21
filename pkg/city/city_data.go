@@ -2,8 +2,10 @@ package city
 
 import (
 	"encoding/json"
+	"github.com/facette/natsort"
 	"math"
 	"net/http"
+	"sort"
 )
 
 type CityData struct {
@@ -89,4 +91,62 @@ func (c *CityData) GetTimeBounds() (result TimeBounds) {
 	}
 
 	return result
+}
+
+func (c *CityData) getLineSetsByStopID() map[uint64]map[string]struct{} {
+	set := make(map[uint64]map[string]struct{})
+	for _, trip := range c.TramTrips {
+		for _, stop := range trip.Stops {
+			if _, ok := set[stop.ID]; !ok {
+				set[stop.ID] = make(map[string]struct{})
+			}
+			set[stop.ID][trip.Route] = struct{}{}
+		}
+	}
+	return set
+}
+
+func (c *CityData) GetLinesByStopID() map[uint64][]string {
+	routeSets := c.getLineSetsByStopID()
+	linesByStopID := make(map[uint64][]string)
+	for stopID, routeSet := range routeSets {
+		routes := make([]string, 0, len(routeSet))
+		for r := range routeSet {
+			routes = append(routes, r)
+		}
+		natsort.Sort(routes)
+		linesByStopID[stopID] = routes
+	}
+	return linesByStopID
+}
+
+type Arrival struct {
+	Route    string
+	Headsign string
+	ETA      uint
+}
+
+func (c *CityData) GetArrivalsByStopID() map[uint64][]Arrival {
+	arrivalsByStopID := make(map[uint64][]Arrival)
+
+	for _, trip := range c.TramTrips {
+		for _, s := range trip.Stops {
+			stopID := s.ID
+			arrival := Arrival{
+				Route:    trip.Route,
+				Headsign: trip.TripHeadSign,
+				ETA:      s.Time,
+			}
+			arrivalsByStopID[stopID] = append(arrivalsByStopID[stopID], arrival)
+		}
+	}
+
+	for stopID, arrivals := range arrivalsByStopID {
+		sort.Slice(arrivals, func(i, j int) bool {
+			return arrivals[i].ETA < arrivals[j].ETA
+		})
+		arrivalsByStopID[stopID] = arrivals
+	}
+
+	return arrivalsByStopID
 }

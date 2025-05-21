@@ -2,7 +2,10 @@ module github.com/TNSEngineerEdition/WailsClient
 
 go 1.24.2
 
-require github.com/wailsapp/wails/v2 v2.10.1
+require (
+	github.com/umahmood/haversine v0.0.0-20151105152445-808ab04add26
+	github.com/wailsapp/wails/v2 v2.10.1
+)
 
 require (
 	github.com/bep/debounce v1.2.1 // indirect
