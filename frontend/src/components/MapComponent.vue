@@ -6,12 +6,14 @@ import {
   GetTramIDs,
   AdvanceTrams,
   FetchData,
+  GetTramDetails,
 } from "@wails/go/simulation/Simulation"
 import { LeafletMap } from "@classes/LeafletMap"
 import { TramMarker } from "@classes/TramMarker"
 import useTimeUtils from "@composables/useTimeUtils"
 import TramSidebarComponent from "@components/sidebar/TramSidebarComponent.vue"
 import StopSidebarComponent from "@components/sidebar/StopSidebarComponent.vue"
+import { simulation } from "@wails/go/models"
 
 const mapHTMLElement = useTemplateRef("map")
 
@@ -32,7 +34,17 @@ const tramSidebar = ref(false)
 const selectedStop = ref<city.GraphNode>()
 const stopSidebar = ref(false)
 
+const selectedTramID = ref<number | null>(null)
+const selectedTramDetails = ref<simulation.TramDetails | null>(null)
+
 const timeUtils = useTimeUtils()
+
+async function handleGetTramDetails(id: number) {
+  tramSidebar.value = true
+  selectedTramID.value = id
+  selectedTramDetails.value = await GetTramDetails(id)
+  console.log(selectedTramDetails.value)
+}
 
 async function reset() {
   tramSidebar.value = false
@@ -44,7 +56,7 @@ async function reset() {
   }
 
   tramMarkerByID.value = await GetTramIDs().then(tramIDs =>
-    leafletMap.value!.getTramMarkers(tramIDs),
+    leafletMap.value!.getTramMarkers(tramIDs, handleGetTramDetails),
   )
 
   await GetTimeBounds().then(timeBounds => {
@@ -77,10 +89,7 @@ onMounted(async () => {
 
   await reset()
 
-  while (
-    time.value <= endTime.value ||
-    leafletMap.value!.getEntityCount() > 0
-  ) {
+  while (time.value <= endTime.value || leafletMap.value!.getEntityCount() > 0) {
     while (!props.isRunning) {
       await timeUtils.sleep(1)
     }
@@ -114,7 +123,12 @@ onMounted(async () => {
 
   <div id="map" ref="map"></div>
 
-  <TramSidebarComponent v-model="tramSidebar"></TramSidebarComponent>
+  <TramSidebarComponent
+    v-model="tramSidebar"
+    v-if="selectedTramID !== null && selectedTramDetails !== null"
+    :tram-i-d="selectedTramID"
+    :tram-details="selectedTramDetails"
+  />
   <StopSidebarComponent
     v-model="stopSidebar"
     :stop="selectedStop"

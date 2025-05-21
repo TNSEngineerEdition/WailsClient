@@ -50,3 +50,16 @@ func (s *Simulation) AdvanceTrams(time uint) (result []TramPositionChange) {
 
 	return result
 }
+
+func (s *Simulation) GetTramDetails(id int) TramDetails {
+	var myTram *tram
+
+	for _, tram := range s.trams {
+		if tram.id == id {
+			myTram = tram
+			break
+		}
+	}
+
+	return myTram.GetDetails(s.city)
+}

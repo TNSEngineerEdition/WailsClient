@@ -61,15 +61,18 @@ export class LeafletMap {
     }
   }
 
-  public getTramMarkers(tramIDs: number[]) {
+  public getTramMarkers(tramIDs: number[], onClickHandler: (id: number) => void) {
     const result: Record<number, TramMarker> = {}
 
     for (const tramID of tramIDs) {
-      result[tramID] = new TramMarker(this, {
-        radius: 5,
-        fill: true,
-        color: "red",
-      })
+      result[tramID] = new TramMarker(
+        this, {
+          radius: 5,
+          fill: true,
+          color: "red",
+        },
+        () => {onClickHandler(tramID)}
+      )
     }
 
     return result

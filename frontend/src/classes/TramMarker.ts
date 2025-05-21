@@ -7,9 +7,16 @@ export class TramMarker extends CircleMarker {
   constructor(
     private leafletMap: LeafletMap,
     options: CircleMarkerOptions,
+    private onClickHandler: () => void
   ) {
     super([0, 0], options)
+
     this.leafletMap = leafletMap
+
+    this.on('click', () => {
+      this.setStyle({color: "orange"})
+      this.onClickHandler()
+    })
   }
 
   public updateCoordinates(lat: number, lon: number) {
