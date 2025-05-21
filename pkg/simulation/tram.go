@@ -58,3 +58,28 @@ func (t *tram) Advance(time uint, stopsById map[uint64]*city.GraphNode) (result 
 
 	return result, update
 }
+
+type TramDetails struct {
+	Route        string              `json:"route"`
+	TripHeadSign string              `json:"trip_head_sign"`
+	Stops        []city.TramTripStop `json:"stops"`
+	StopNames    []string            `json:"stop_names"`
+	Speed        uint8               `json:"speed"`
+}
+
+func (t *tram) GetDetails(c *city.City) TramDetails {
+	stopsByID := c.GetStopsByID()
+	var stopNames []string
+
+	for _, stop := range t.trip.Stops {
+		stopNames = append(stopNames, *stopsByID[stop.ID].Name)
+	}
+
+	return TramDetails{
+		Route:        t.trip.Route,
+		TripHeadSign: t.trip.TripHeadSign,
+		Stops:        t.trip.Stops,
+		StopNames:    stopNames,
+		Speed:        50,
+	}
+}
