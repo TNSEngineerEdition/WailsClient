@@ -1,4 +1,4 @@
-package control_room
+package controlcenter
 
 import (
 	"container/heap"
@@ -14,7 +14,7 @@ type ControlCenter struct {
 	routesBetweenNodes map[[2]uint64][]*city.GraphNode
 }
 
-func CreateControlCenter(cityPointer *city.City) ControlCenter {
+func NewControlCenter(cityPointer *city.City) ControlCenter {
 	c := ControlCenter{
 		city:               cityPointer,
 		routesBetweenNodes: make(map[[2]uint64][]*city.GraphNode),
@@ -29,13 +29,22 @@ func CreateControlCenter(cityPointer *city.City) ControlCenter {
 				continue
 			}
 
-			c.routesBetweenNodes[tramStopPair] = c.GetShortestPath(firstStop.ID, secondStop.ID)
+			c.routesBetweenNodes[tramStopPair] = c.getShortestPath(firstStop.ID, secondStop.ID)
 		}
 	}
 	return c
 }
 
-func (c *ControlCenter) GetShortestPath(sourceID, destID uint64) []*city.GraphNode {
+func (c *ControlCenter) GetRouteBetweenNodes(sourceID, destID uint64) []*city.GraphNode {
+	key := [2]uint64{sourceID, destID}
+	path, exist := c.routesBetweenNodes[key]
+	if !exist {
+		panic(fmt.Sprintf("No path found between %d and %d nodes", sourceID, destID))
+	}
+	return path
+}
+
+func (c *ControlCenter) getShortestPath(sourceID, destID uint64) []*city.GraphNode {
 	tramStopPair := [2]uint64{sourceID, destID}
 	tramStops := c.city.GetStopsByID()
 	destNode := tramStops[destID]
