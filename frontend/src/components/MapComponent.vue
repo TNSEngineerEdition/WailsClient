@@ -40,10 +40,14 @@ const selectedTramDetails = ref<simulation.TramDetails | null>(null)
 const timeUtils = useTimeUtils()
 
 async function handleGetTramDetails(id: number) {
-  tramSidebar.value = true
+  if (selectedTramID.value !== null && id !== selectedTramID.value)
+    tramMarkerByID.value[selectedTramID.value].removeHighlightColor()
+
   selectedTramID.value = id
   selectedTramDetails.value = await GetTramDetails(id)
-  console.log(selectedTramDetails.value)
+  tramSidebar.value = true
+
+  //console.log(leafletMap.value?.getEntityCount())
 }
 
 async function reset() {
@@ -76,6 +80,14 @@ watch(stopSidebar, isOpen => {
   }
 })
 
+watch(tramSidebar, (newVal) => {
+  if (!newVal) {
+    tramMarkerByID.value[selectedTramID.value!].removeHighlightColor()
+    selectedTramID.value = null
+    selectedTramDetails.value = null
+  }
+})
+
 onMounted(async () => {
   if (mapHTMLElement.value === null) {
     throw new Error("Map element not found")
@@ -95,14 +107,17 @@ onMounted(async () => {
     }
 
     await AdvanceTrams(time.value).then(tramPositionChanges => {
-      for (const stop of tramPositionChanges) {
-        if (stop.lat == 0 && stop.lon == 0) {
-          tramMarkerByID.value[stop.id].removeFromMap()
+      for (const tram of tramPositionChanges) {
+        if (tram.lat == 0 && tram.lon == 0) {
+          tramMarkerByID.value[tram.id].removeFromMap()
         } else {
-          tramMarkerByID.value[stop.id].updateCoordinates(stop.lat, stop.lon)
+          tramMarkerByID.value[tram.id].updateCoordinates(tram.lat, tram.lon)
         }
       }
     })
+
+    if (selectedTramID.value !== null)
+      handleGetTramDetails(selectedTramID.value)
 
     time.value += 1
 

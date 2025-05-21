@@ -166,6 +166,7 @@ func (t *tram) setDistanceToNextNode(path []*city.GraphNode) {
 type TramDetails struct {
 	Route        string              `json:"route"`
 	TripHeadSign string              `json:"trip_head_sign"`
+	TripIndex    int                 `json:"trip_index"`
 	Stops        []city.TramTripStop `json:"stops"`
 	StopNames    []string            `json:"stop_names"`
 	Speed        uint8               `json:"speed"`
@@ -179,11 +180,23 @@ func (t *tram) GetDetails(c *city.City) TramDetails {
 		stopNames = append(stopNames, *stopsByID[stop.ID].Name)
 	}
 
+	var tramSpeed uint8
+
+	switch t.state {
+	case StatePassengerTransfer:
+		tramSpeed = 0
+	case StateTravelling:
+		tramSpeed = 50
+	default:
+		tramSpeed = 0
+	}
+
 	return TramDetails{
 		Route:        t.trip.Route,
 		TripHeadSign: t.trip.TripHeadSign,
+		TripIndex:    t.tripIndex,
 		Stops:        t.trip.Stops,
 		StopNames:    stopNames,
-		Speed:        50,
+		Speed:        tramSpeed,
 	}
 }

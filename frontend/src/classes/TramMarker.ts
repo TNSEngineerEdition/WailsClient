@@ -28,6 +28,10 @@ export class TramMarker extends CircleMarker {
     this.setLatLng([lat, lon])
   }
 
+  public removeHighlightColor() {
+    this.setStyle({color: "red"})
+  }
+
   public removeFromMap() {
     if (!this.isOnMap) return
 
