@@ -31,23 +31,20 @@ const leafletMap = ref<LeafletMap>()
 const tramMarkerByID = ref<Record<number, TramMarker>>({})
 
 const tramSidebar = ref(false)
-const selectedStop = ref<city.GraphNode>()
 const stopSidebar = ref(false)
+
+const selectedStop = ref<city.GraphNode>()
 
 const selectedTramID = ref<number | null>(null)
 const selectedTramDetails = ref<simulation.TramDetails | null>(null)
 
 const timeUtils = useTimeUtils()
 
-async function handleGetTramDetails(id: number) {
-  if (selectedTramID.value !== null && id !== selectedTramID.value)
-    tramMarkerByID.value[selectedTramID.value].removeHighlightColor()
 
+async function selectTram(id: number) {
   selectedTramID.value = id
-  selectedTramDetails.value = await GetTramDetails(id)
   tramSidebar.value = true
-
-  //console.log(leafletMap.value?.getEntityCount())
+  selectedTramDetails.value = await GetTramDetails(id)
 }
 
 async function reset() {
@@ -60,7 +57,7 @@ async function reset() {
   }
 
   tramMarkerByID.value = await GetTramIDs().then(tramIDs =>
-    leafletMap.value!.getTramMarkers(tramIDs, handleGetTramDetails),
+    leafletMap.value!.getTramMarkers(tramIDs, selectTram),
   )
 
   await GetTimeBounds().then(timeBounds => {
@@ -80,9 +77,10 @@ watch(stopSidebar, isOpen => {
   }
 })
 
-watch(tramSidebar, (newVal) => {
-  if (!newVal) {
-    tramMarkerByID.value[selectedTramID.value!].removeHighlightColor()
+watch(tramSidebar, isOpen => {
+  if (!isOpen) {
+    //tramMarkerByID.value[selectedTramID.value!].removeHighlightColor()
+    leafletMap.value?.unselectTram()
     selectedTramID.value = null
     selectedTramDetails.value = null
   }
@@ -117,7 +115,7 @@ onMounted(async () => {
     })
 
     if (selectedTramID.value !== null)
-      handleGetTramDetails(selectedTramID.value)
+      selectTram(selectedTramID.value)
 
     time.value += 1
 

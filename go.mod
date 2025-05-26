@@ -27,7 +27,6 @@ require (
 	github.com/rivo/uniseg v0.4.7 // indirect
 	github.com/samber/lo v1.50.0 // indirect
 	github.com/tkrajina/go-reflector v0.5.8 // indirect
-	github.com/umahmood/haversine v0.0.0-20151105152445-808ab04add26
 	github.com/valyala/bytebufferpool v1.0.0 // indirect
 	github.com/valyala/fasttemplate v1.2.2 // indirect
 	github.com/wailsapp/go-webview2 v1.0.21 // indirect

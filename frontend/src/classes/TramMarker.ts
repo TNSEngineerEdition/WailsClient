@@ -3,19 +3,21 @@ import { LeafletMap } from "@classes/LeafletMap"
 
 export class TramMarker extends CircleMarker {
   private isOnMap = false
+  private isSelected = false
 
-  constructor(
-    private leafletMap: LeafletMap,
-    options: CircleMarkerOptions,
-    private onClickHandler: () => void
-  ) {
-    super([0, 0], options)
-
+  constructor(private leafletMap: LeafletMap) {
+    super([0, 0], {
+      radius: 5,
+      fill: true,
+      color: "red",
+    })
     this.leafletMap = leafletMap
+  }
 
-    this.on('click', () => {
-      this.setStyle({color: "orange"})
-      this.onClickHandler()
+  public setSelected(isSelected: boolean) {
+    this.isSelected = isSelected
+    this.setStyle({
+      color: isSelected ? "orange" : "red"
     })
   }
 
@@ -26,10 +28,6 @@ export class TramMarker extends CircleMarker {
     }
 
     this.setLatLng([lat, lon])
-  }
-
-  public removeHighlightColor() {
-    this.setStyle({color: "red"})
   }
 
   public removeFromMap() {

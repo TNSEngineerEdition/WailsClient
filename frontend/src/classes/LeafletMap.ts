@@ -7,6 +7,7 @@ import { city } from "@wails/go/models"
 export class LeafletMap {
   private entityCount = 0
   public selectedStop?: StopMarker
+  public selectedTram?: TramMarker
 
   constructor(private map: LMap) {}
 
@@ -65,14 +66,15 @@ export class LeafletMap {
     const result: Record<number, TramMarker> = {}
 
     for (const tramID of tramIDs) {
-      result[tramID] = new TramMarker(
-        this, {
-          radius: 5,
-          fill: true,
-          color: "red",
-        },
-        () => {onClickHandler(tramID)}
-      )
+      const marker = new TramMarker(this)
+      marker.on("click", () => {
+        if (this.selectedTram)
+          this.selectedTram.setSelected(false)
+        this.selectedTram = marker
+        marker.setSelected(true)
+        onClickHandler(tramID)
+      })
+      result[tramID] = marker
     }
 
     return result
@@ -86,6 +88,13 @@ export class LeafletMap {
   public removeTram(tramMarker: TramMarker) {
     this.entityCount--
     tramMarker.removeFrom(this.map)
+  }
+
+  public unselectTram() {
+    if (this.selectedTram) {
+      this.selectedTram.setSelected(false)
+      this.selectedTram = undefined
+    }
   }
 
   public getEntityCount() {
