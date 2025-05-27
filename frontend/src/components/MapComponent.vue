@@ -6,14 +6,12 @@ import {
   GetTramIDs,
   AdvanceTrams,
   FetchData,
-  GetTramDetails,
 } from "@wails/go/simulation/Simulation"
 import { LeafletMap } from "@classes/LeafletMap"
 import { TramMarker } from "@classes/TramMarker"
 import useTimeUtils from "@composables/useTimeUtils"
 import TramSidebarComponent from "@components/sidebar/TramSidebarComponent.vue"
 import StopSidebarComponent from "@components/sidebar/StopSidebarComponent.vue"
-import { simulation } from "@wails/go/models"
 
 const mapHTMLElement = useTemplateRef("map")
 
@@ -33,19 +31,10 @@ const tramMarkerByID = ref<Record<number, TramMarker>>({})
 const tramSidebar = ref(false)
 const stopSidebar = ref(false)
 
+const selectedTramID = ref<number>()
 const selectedStop = ref<city.GraphNode>()
 
-const selectedTramID = ref<number | null>(null)
-const selectedTramDetails = ref<simulation.TramDetails | null>(null)
-
 const timeUtils = useTimeUtils()
-
-
-async function selectTram(id: number) {
-  selectedTramID.value = id
-  tramSidebar.value = true
-  selectedTramDetails.value = await GetTramDetails(id)
-}
 
 async function reset() {
   tramSidebar.value = false
@@ -57,7 +46,10 @@ async function reset() {
   }
 
   tramMarkerByID.value = await GetTramIDs().then(tramIDs =>
-    leafletMap.value!.getTramMarkers(tramIDs, selectTram),
+    leafletMap.value!.getTramMarkers(tramIDs, (id: number) => {
+      selectedTramID.value = id
+      tramSidebar.value = true
+    }),
   )
 
   await GetTimeBounds().then(timeBounds => {
@@ -79,10 +71,8 @@ watch(stopSidebar, isOpen => {
 
 watch(tramSidebar, isOpen => {
   if (!isOpen) {
-    //tramMarkerByID.value[selectedTramID.value!].removeHighlightColor()
     leafletMap.value?.unselectTram()
-    selectedTramID.value = null
-    selectedTramDetails.value = null
+    selectedTramID.value = undefined
   }
 })
 
@@ -114,9 +104,6 @@ onMounted(async () => {
       }
     })
 
-    if (selectedTramID.value !== null)
-      selectTram(selectedTramID.value)
-
     time.value += 1
 
     await timeUtils.sleep(1000 / props.speed)
@@ -138,9 +125,8 @@ onMounted(async () => {
 
   <TramSidebarComponent
     v-model="tramSidebar"
-    v-if="selectedTramID !== null && selectedTramDetails !== null"
     :tram-i-d="selectedTramID"
-    :tram-details="selectedTramDetails"
+    :current-time="time"
   />
   <StopSidebarComponent
     v-model="stopSidebar"
