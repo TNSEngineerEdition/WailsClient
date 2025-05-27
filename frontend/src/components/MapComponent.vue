@@ -45,8 +45,8 @@ async function reset() {
     tramMarker.removeFromMap()
   }
 
-  tramMarkerByID.value = await GetTramIDs().then(tramIDs =>
-    leafletMap.value!.getTramMarkers(tramIDs, (id: number) => {
+  tramMarkerByID.value = await GetTramIDs().then(trams =>
+    leafletMap.value!.getTramMarkers(trams, (id: number) => {
       selectedTramID.value = id
       tramSidebar.value = true
     }),
@@ -89,7 +89,10 @@ onMounted(async () => {
 
   await reset()
 
-  while (time.value <= endTime.value || leafletMap.value!.getEntityCount() > 0) {
+  while (
+    time.value <= endTime.value ||
+    leafletMap.value!.getEntityCount() > 0
+  ) {
     while (!props.isRunning) {
       await timeUtils.sleep(1)
     }
@@ -99,7 +102,11 @@ onMounted(async () => {
         if (tram.lat == 0 && tram.lon == 0) {
           tramMarkerByID.value[tram.id].removeFromMap()
         } else {
-          tramMarkerByID.value[tram.id].updateCoordinates(tram.lat, tram.lon)
+          tramMarkerByID.value[tram.id].updateCoordinates(
+            tram.lat,
+            tram.lon,
+            tram.azimuth,
+          )
         }
       }
     })
@@ -135,9 +142,56 @@ onMounted(async () => {
   ></StopSidebarComponent>
 </template>
 
-<style scoped lang="scss">
+<style lang="scss">
 #map {
   width: 100%;
   height: calc(100vh - 64px);
+}
+
+.tram-marker {
+  position: relative;
+  width: 24px;
+  height: 24px;
+  pointer-events: auto;
+}
+
+.tm-circle-arrow {
+  position: absolute;
+  width: 24px;
+  height: 24px;
+  background-color: #2896f1;
+  border-radius: 50% 50% 50% 0%;
+  transform: rotate(0deg);
+  transition: transform 0.2s ease;
+  z-index: 1;
+}
+
+.tm-circle {
+  position: absolute;
+  width: 18px;
+  height: 18px;
+  top: 3px;
+  left: 3px;
+  background-color: #2896f1;
+  border-radius: 50%;
+  z-index: 2;
+}
+
+.tm-route-label {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%) rotate(0deg);
+  font-size: 12px;
+  font-weight: bold;
+  color: white;
+  pointer-events: none;
+  user-select: none;
+  z-index: 3;
+}
+
+.tram-marker.selected .tm-circle-arrow,
+.tram-marker.selected .tm-circle {
+  background-color: #67ad2f;
 }
 </style>

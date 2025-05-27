@@ -2,7 +2,7 @@ import { GetBounds, GetTramStops } from "@wails/go/city/City"
 import { LatLngBounds, Map as LMap, tileLayer } from "leaflet"
 import { TramMarker } from "@classes/TramMarker"
 import { StopMarker } from "@classes/StopMarker"
-import { city } from "@wails/go/models"
+import { city, simulation } from "@wails/go/models"
 
 export class LeafletMap {
   private entityCount = 0
@@ -62,19 +62,21 @@ export class LeafletMap {
     }
   }
 
-  public getTramMarkers(tramIDs: number[], onClickHandler: (id: number) => void) {
+  public getTramMarkers(
+    trams: simulation.TramBasic[],
+    onClickHandler: (id: number) => void,
+  ) {
     const result: Record<number, TramMarker> = {}
 
-    for (const tramID of tramIDs) {
-      const marker = new TramMarker(this)
+    for (const tram of trams) {
+      const marker = new TramMarker(this, tram.route)
       marker.on("click", () => {
-        if (this.selectedTram)
-          this.selectedTram.setSelected(false)
+        if (this.selectedTram) this.selectedTram.setSelected(false)
         this.selectedTram = marker
         marker.setSelected(true)
-        onClickHandler(tramID)
+        onClickHandler(tram.id)
       })
-      result[tramID] = marker
+      result[tram.id] = marker
     }
 
     return result

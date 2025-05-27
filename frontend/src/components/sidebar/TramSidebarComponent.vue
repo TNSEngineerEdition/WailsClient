@@ -8,7 +8,7 @@ import { ref, watch } from "vue"
 const model = defineModel<boolean>({ required: true })
 
 const props = defineProps<{
-  tramID?: number,
+  tramID?: number
   currentTime: number
 }>()
 
@@ -17,13 +17,13 @@ const timeUtils = useTimeUtils()
 const tramDetails = ref<simulation.TramDetails>()
 
 function formatTime(time: number) {
-  const t = timeUtils.toTimeString(time).split(':')
+  const t = timeUtils.toTimeString(time).split(":")
   return `${t[0]}:${t[1]}`
 }
 
 watch(
   () => props.tramID,
-  async (id) => {
+  async id => {
     if (id) {
       tramDetails.value = await GetTramDetails(id)
     } else {
@@ -31,17 +31,17 @@ watch(
       model.value = false
     }
   },
-  { immediate: true }
+  { immediate: true },
 )
 
 watch(
   () => props.currentTime,
-  async (time) => {
+  async () => {
     if (props.tramID) {
       tramDetails.value = await GetTramDetails(props.tramID)
     }
   },
-  { immediate: true }
+  { immediate: true },
 )
 </script>
 
@@ -49,7 +49,11 @@ watch(
   <SidebarComponent
     v-model="model"
     position="left"
-    :title="tramDetails ? tramDetails.route + ' ➡ ' + tramDetails.trip_head_sign : 'Loading data...'"
+    :title="
+      tramDetails
+        ? tramDetails.route + ' ➡ ' + tramDetails.trip_head_sign
+        : 'Loading data...'
+    "
     title-icon="mdi-tram"
     style="overflow-y: auto"
   >
@@ -57,6 +61,7 @@ watch(
       <div class="sidebarDetails">
         <span><b>TramID</b>: {{ props.tramID }}</span>
         <span><b>Speed</b>: {{ tramDetails.speed }} km/h</span>
+        <span><b>Delay</b>: {{ formatTime(tramDetails.delay) }}</span>
 
         <div class="scrollable mt-4 ml-4">
           <div class="stopDiv">
@@ -104,7 +109,7 @@ watch(
 
 .currentStop {
   font-weight: bold;
-  color: #007bff;
+  color: #2896f1;
 }
 
 .stopDiv {

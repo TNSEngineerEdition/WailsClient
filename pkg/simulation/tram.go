@@ -14,12 +14,28 @@ type tram struct {
 	intermediateIndex   int
 	latitude            float32
 	longitude           float32
+	azimuth             float32
 	coveredDistance     float32
 	distToNextInterNode float32
 	departureTime       uint
 	isFinished          bool
 	state               TramState
 	controlCenter       *controlcenter.ControlCenter
+}
+
+type TramBasic struct {
+	ID    int    `json:"id"`
+	Route string `json:"route"`
+}
+
+type TramDetails struct {
+	Route        string              `json:"route"`
+	TripHeadSign string              `json:"trip_head_sign"`
+	TripIndex    int                 `json:"trip_index"`
+	Stops        []city.TramTripStop `json:"stops"`
+	StopNames    []string            `json:"stop_names"`
+	Speed        uint8               `json:"speed"`
+	Delay        int                 `json:"delay"`
 }
 
 func newTram(id int, trip *city.TramTrip, controlCenter *controlcenter.ControlCenter) *tram {
@@ -37,6 +53,7 @@ type TramPositionChange struct {
 	TramID    int     `json:"id"`
 	Latitude  float32 `json:"lat"`
 	Longitude float32 `json:"lon"`
+	Azimuth   float32 `json:"azimuth"`
 }
 
 func (t *tram) handleTripNotStarted(
@@ -45,10 +62,12 @@ func (t *tram) handleTripNotStarted(
 ) (result TramPositionChange, update bool) {
 	if time == t.departureTime {
 		t.state = StatePassengerTransfer
+		t.azimuth = stopsById[t.trip.Stops[0].ID].Neighbors[0].Azimuth
 		result = TramPositionChange{
 			TramID:    t.id,
 			Latitude:  stopsById[t.trip.Stops[0].ID].Latitude,
 			Longitude: stopsById[t.trip.Stops[0].ID].Longitude,
+			Azimuth:   t.azimuth,
 		}
 		t.departureTime = t.trip.Stops[0].Time
 		update = true
@@ -84,8 +103,9 @@ func (t *tram) handleTravelling(time uint, distanceToDrive float32) (result Tram
 	currentStop := t.trip.Stops[t.tripIndex]
 	nextStop := t.trip.Stops[t.tripIndex+1]
 	path := t.controlCenter.GetRouteBetweenNodes(currentStop.ID, nextStop.ID)
+
 	if t.distToNextInterNode != 0 {
-		t.setDistanceToNextNode(path)
+		t.setAzimuthAndDistanceToNextNode(path)
 	}
 
 	t.findNewLocation(path, distanceToDrive)
@@ -100,6 +120,7 @@ func (t *tram) handleTravelling(time uint, distanceToDrive float32) (result Tram
 		TramID:    t.id,
 		Latitude:  t.latitude,
 		Longitude: t.longitude,
+		Azimuth:   t.azimuth,
 	}
 	update = true
 
@@ -129,7 +150,7 @@ func (t *tram) Advance(time uint, stopsById map[uint64]*city.GraphNode) (result 
 
 func (t *tram) findNewLocation(path []*city.GraphNode, distanceToDrive float32) {
 	for distanceToDrive > 0 && t.intermediateIndex < len(path)-1 {
-		t.setDistanceToNextNode(path)
+		t.setAzimuthAndDistanceToNextNode(path)
 		if t.distToNextInterNode <= distanceToDrive {
 			distanceToDrive -= t.distToNextInterNode
 			t.coveredDistance += t.distToNextInterNode
@@ -154,22 +175,14 @@ func (t *tram) findIntermediateLocation(path []*city.GraphNode, remainingPart fl
 	t.longitude = path[t.intermediateIndex].Longitude + vectorLon*remainingPart
 }
 
-func (t *tram) setDistanceToNextNode(path []*city.GraphNode) {
+func (t *tram) setAzimuthAndDistanceToNextNode(path []*city.GraphNode) {
 	for _, neigbor := range path[t.intermediateIndex].Neighbors {
 		if neigbor.ID == path[t.intermediateIndex+1].ID {
+			t.azimuth = neigbor.Azimuth
 			t.distToNextInterNode = neigbor.Length
 			return
 		}
 	}
-}
-
-type TramDetails struct {
-	Route        string              `json:"route"`
-	TripHeadSign string              `json:"trip_head_sign"`
-	TripIndex    int                 `json:"trip_index"`
-	Stops        []city.TramTripStop `json:"stops"`
-	StopNames    []string            `json:"stop_names"`
-	Speed        uint8               `json:"speed"`
 }
 
 func (t *tram) GetDetails(c *city.City) TramDetails {
@@ -198,5 +211,6 @@ func (t *tram) GetDetails(c *city.City) TramDetails {
 		Stops:        t.trip.Stops,
 		StopNames:    stopNames,
 		Speed:        tramSpeed,
+		Delay:        0,
 	}
 }
