@@ -1,34 +1,22 @@
-import { Marker, DivIcon, LatLngExpression } from "leaflet"
+import { Marker, DivIcon } from "leaflet"
 import { LeafletMap } from "@classes/LeafletMap"
 
 export class TramMarker extends Marker {
   private isOnMap = false
-  private isSelected = false
-  private route: string
-  private azimuth: number
 
   constructor(
     private leafletMap: LeafletMap,
     route: string,
   ) {
-    const position: LatLngExpression = [0, 0]
-    const icon = TramMarker.createIcon(route, 0, false)
-
-    super(position, { icon })
-    this.route = route
-    this.azimuth = 0
+    super([0, 0], { icon: TramMarker.createIcon(route) })
   }
 
-  private static createIcon(
-    route: string,
-    rotateDeg: number,
-    selected: boolean,
-  ): DivIcon {
+  private static createIcon(route: string): DivIcon {
     return new DivIcon({
       className: "",
       html: `
-        <div class="tram-marker ${selected ? "selected" : ""}">
-          <div class="tm-circle-arrow" style="transform: rotate(${135 + rotateDeg}deg);"></div>
+        <div class="tram-marker">
+          <div class="tm-circle-arrow" style="transform: rotate(0);"></div>
           <div class="tm-circle"></div>
           <div class="tm-route-label">${route}</div>
         </div>
@@ -38,9 +26,29 @@ export class TramMarker extends Marker {
     })
   }
 
+  private setAzimuth(azimuth: number) {
+    const circleArrow =
+      this.getElement()?.querySelector<HTMLElement>(".tm-circle-arrow")
+    if (!circleArrow) {
+      throw new Error("Tram marker arrow not found")
+    }
+
+    circleArrow.style.transform = `rotate(${azimuth + 135}deg)`
+  }
+
   public setSelected(isSelected: boolean) {
-    this.isSelected = isSelected
-    this.setIcon(TramMarker.createIcon(this.route, this.azimuth, isSelected))
+    const element =
+      this.getElement()?.querySelector<HTMLElement>(".tram-marker")
+
+    if (!element) {
+      throw new Error("Tram marker not found")
+    }
+
+    if (isSelected) {
+      element?.classList.add("selected")
+    } else {
+      element?.classList.remove("selected")
+    }
   }
 
   public updateCoordinates(lat: number, lon: number, azimuth: number) {
@@ -50,8 +58,7 @@ export class TramMarker extends Marker {
     }
 
     this.setLatLng([lat, lon])
-    this.azimuth = azimuth
-    this.setIcon(TramMarker.createIcon(this.route, azimuth, this.isSelected))
+    this.setAzimuth(azimuth)
   }
 
   public removeFromMap() {

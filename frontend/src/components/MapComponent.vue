@@ -161,8 +161,6 @@ onMounted(async () => {
   height: 24px;
   background-color: #2896f1;
   border-radius: 50% 50% 50% 0%;
-  transform: rotate(0deg);
-  transition: transform 0.2s ease;
   z-index: 1;
 }
 
