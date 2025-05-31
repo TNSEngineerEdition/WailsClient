@@ -2,11 +2,12 @@ import { GetBounds, GetTramStops } from "@wails/go/city/City"
 import { LatLngBounds, Map as LMap, tileLayer } from "leaflet"
 import { TramMarker } from "@classes/TramMarker"
 import { StopMarker } from "@classes/StopMarker"
-import { city } from "@wails/go/models"
+import { city, simulation } from "@wails/go/models"
 
 export class LeafletMap {
   private entityCount = 0
   public selectedStop?: StopMarker
+  public selectedTram?: TramMarker
 
   constructor(private map: LMap) {}
 
@@ -54,22 +55,28 @@ export class LeafletMap {
     return leafletMap
   }
 
-  public unselectStop() {
+  public deselectStop() {
     if (this.selectedStop) {
       this.selectedStop.setSelected(false)
       this.selectedStop = undefined
     }
   }
 
-  public getTramMarkers(tramIDs: number[]) {
+  public getTramMarkers(
+    trams: simulation.TramIdentifier[],
+    onClickHandler: (id: number) => void,
+  ) {
     const result: Record<number, TramMarker> = {}
 
-    for (const tramID of tramIDs) {
-      result[tramID] = new TramMarker(this, {
-        radius: 5,
-        fill: true,
-        color: "red",
+    for (const tram of trams) {
+      const marker = new TramMarker(this, tram.route)
+      marker.on("click", () => {
+        if (this.selectedTram) this.selectedTram.setSelected(false)
+        this.selectedTram = marker
+        marker.setSelected(true)
+        onClickHandler(tram.id)
       })
+      result[tram.id] = marker
     }
 
     return result
@@ -83,6 +90,13 @@ export class LeafletMap {
   public removeTram(tramMarker: TramMarker) {
     this.entityCount--
     tramMarker.removeFrom(this.map)
+  }
+
+  public deselectTram() {
+    if (this.selectedTram) {
+      this.selectedTram.setSelected(false)
+      this.selectedTram = undefined
+    }
   }
 
   public getEntityCount() {

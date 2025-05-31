@@ -30,10 +30,18 @@ func (s *Simulation) FetchData(url string) {
 	s.ResetTrams()
 }
 
-func (s *Simulation) GetTramIDs() (result []int) {
-	result = make([]int, len(s.trams))
+type TramIdentifier struct {
+	ID    int    `json:"id"`
+	Route string `json:"route"`
+}
+
+func (s *Simulation) GetTramIDs() (result []TramIdentifier) {
+	result = make([]TramIdentifier, len(s.trams))
 	for i, tram := range s.trams {
-		result[i] = tram.id
+		result[i] = TramIdentifier{
+			ID:    tram.id,
+			Route: tram.trip.Route,
+		}
 	}
 
 	return result
@@ -49,4 +57,17 @@ func (s *Simulation) AdvanceTrams(time uint) (result []TramPositionChange) {
 	}
 
 	return result
+}
+
+func (s *Simulation) GetTramDetails(id int) TramDetails {
+	var myTram *tram
+
+	for _, tram := range s.trams {
+		if tram.id == id {
+			myTram = tram
+			break
+		}
+	}
+
+	return myTram.GetDetails(s.city)
 }

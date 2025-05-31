@@ -113,6 +113,9 @@ watch(
     <v-data-table
       v-if="arrivalsInfo.length"
       :headers="headers"
+      :header-props="{
+        style: 'font-weight: bold;',
+      }"
       :items="arrivalsInfo"
       class="arrivals-table"
       density="compact"
