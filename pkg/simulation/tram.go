@@ -23,21 +23,6 @@ type tram struct {
 	controlCenter       *controlcenter.ControlCenter
 }
 
-type TramBasic struct {
-	ID    int    `json:"id"`
-	Route string `json:"route"`
-}
-
-type TramDetails struct {
-	Route        string              `json:"route"`
-	TripHeadSign string              `json:"trip_head_sign"`
-	TripIndex    int                 `json:"trip_index"`
-	Stops        []city.TramTripStop `json:"stops"`
-	StopNames    []string            `json:"stop_names"`
-	Speed        uint8               `json:"speed"`
-	Delay        int                 `json:"delay"`
-}
-
 func newTram(id int, trip *city.TramTrip, controlCenter *controlcenter.ControlCenter) *tram {
 	startTime := trip.Stops[0].Time
 	return &tram{
@@ -185,23 +170,28 @@ func (t *tram) setAzimuthAndDistanceToNextNode(path []*city.GraphNode) {
 	}
 }
 
+type TramDetails struct {
+	Route        string              `json:"route"`
+	TripHeadSign string              `json:"trip_head_sign"`
+	TripIndex    int                 `json:"trip_index"`
+	Stops        []city.TramTripStop `json:"stops"`
+	StopNames    []string            `json:"stop_names"`
+	Speed        uint8               `json:"speed"`
+	Delay        int                 `json:"delay"`
+}
+
 func (t *tram) GetDetails(c *city.City) TramDetails {
 	stopsByID := c.GetStopsByID()
-	var stopNames []string
+	stopNames := make([]string, len(t.trip.Stops))
 
-	for _, stop := range t.trip.Stops {
-		stopNames = append(stopNames, *stopsByID[stop.ID].Name)
+	for i, stop := range t.trip.Stops {
+		stopNames[i] = *stopsByID[stop.ID].Name
 	}
 
 	var tramSpeed uint8
 
-	switch t.state {
-	case StatePassengerTransfer:
-		tramSpeed = 0
-	case StateTravelling:
+	if t.state == StateTravelling {
 		tramSpeed = 50
-	default:
-		tramSpeed = 0
 	}
 
 	return TramDetails{

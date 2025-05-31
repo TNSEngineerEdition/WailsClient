@@ -55,7 +55,7 @@ export class LeafletMap {
     return leafletMap
   }
 
-  public unselectStop() {
+  public deselectStop() {
     if (this.selectedStop) {
       this.selectedStop.setSelected(false)
       this.selectedStop = undefined
@@ -63,7 +63,7 @@ export class LeafletMap {
   }
 
   public getTramMarkers(
-    trams: simulation.TramBasic[],
+    trams: simulation.TramIdentifier[],
     onClickHandler: (id: number) => void,
   ) {
     const result: Record<number, TramMarker> = {}
@@ -92,7 +92,7 @@ export class LeafletMap {
     tramMarker.removeFrom(this.map)
   }
 
-  public unselectTram() {
+  public deselectTram() {
     if (this.selectedTram) {
       this.selectedTram.setSelected(false)
       this.selectedTram = undefined

@@ -64,14 +64,14 @@ watch(() => props.resetCounter, reset)
 
 watch(stopSidebar, isOpen => {
   if (!isOpen) {
-    leafletMap.value?.unselectStop()
+    leafletMap.value?.deselectStop()
     selectedStop.value = undefined
   }
 })
 
 watch(tramSidebar, isOpen => {
   if (!isOpen) {
-    leafletMap.value?.unselectTram()
+    leafletMap.value?.deselectTram()
     selectedTramID.value = undefined
   }
 })
@@ -132,7 +132,7 @@ onMounted(async () => {
 
   <TramSidebarComponent
     v-model="tramSidebar"
-    :tram-i-d="selectedTramID"
+    :tram-id="selectedTramID"
     :current-time="time"
   />
   <StopSidebarComponent

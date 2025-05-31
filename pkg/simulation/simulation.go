@@ -30,10 +30,15 @@ func (s *Simulation) FetchData(url string) {
 	s.ResetTrams()
 }
 
-func (s *Simulation) GetTramIDs() (result []TramBasic) {
-	result = make([]TramBasic, len(s.trams))
+type TramIdentifier struct {
+	ID    int    `json:"id"`
+	Route string `json:"route"`
+}
+
+func (s *Simulation) GetTramIDs() (result []TramIdentifier) {
+	result = make([]TramIdentifier, len(s.trams))
 	for i, tram := range s.trams {
-		result[i] = TramBasic{
+		result[i] = TramIdentifier{
 			ID:    tram.id,
 			Route: tram.trip.Route,
 		}

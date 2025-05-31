@@ -37,6 +37,8 @@ export class TramMarker extends Marker {
   }
 
   public setSelected(isSelected: boolean) {
+    if (!this.isOnMap) return
+
     const element =
       this.getElement()?.querySelector<HTMLElement>(".tram-marker")
 

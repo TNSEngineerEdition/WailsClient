@@ -3,12 +3,12 @@ import SidebarComponent from "@components/sidebar/SidebarComponent.vue"
 import useTimeUtils from "@composables/useTimeUtils"
 import { simulation } from "@wails/go/models"
 import { GetTramDetails } from "@wails/go/simulation/Simulation"
-import { ref, watch } from "vue"
+import { computed, ref, watch } from "vue"
 
 const model = defineModel<boolean>({ required: true })
 
 const props = defineProps<{
-  tramID?: number
+  tramId?: number
   currentTime: number
 }>()
 
@@ -16,13 +16,41 @@ const timeUtils = useTimeUtils()
 
 const tramDetails = ref<simulation.TramDetails>()
 
-function formatTime(time: number) {
-  const t = timeUtils.toTimeString(time).split(":")
-  return `${t[0]}:${t[1]}`
+const headers = [
+  { title: "Stop name", key: "stop", align: "center", sortable: false },
+  { title: "Departure", key: "time", align: "center", sortable: false },
+  { title: "Delay", key: "delay", align: "center", sortable: false },
+] as const
+
+const formattedStops = computed(
+  () =>
+    tramDetails.value?.stop_names.map((stop, index) => {
+      const stopTime = tramDetails.value?.stops[index]?.time
+      return {
+        stop,
+        time:
+          stopTime !== undefined
+            ? timeUtils.toShortTimeString(stopTime)
+            : "Unknown",
+        delay: "00:00",
+      }
+    }) ?? [],
+)
+
+function getRowProps(data: any) {
+  if (data.index === tramDetails.value?.trip_index)
+    return {
+      style:
+        "background-color: rgba(40, 150, 241, 0.2); transition: background-color 0.3s ease, font-weight 0.3s ease;",
+    }
+  else
+    return {
+      style: "transition: background-color 0.3s ease;",
+    }
 }
 
 watch(
-  () => props.tramID,
+  () => props.tramId,
   async id => {
     if (id) {
       tramDetails.value = await GetTramDetails(id)
@@ -37,8 +65,8 @@ watch(
 watch(
   () => props.currentTime,
   async () => {
-    if (props.tramID) {
-      tramDetails.value = await GetTramDetails(props.tramID)
+    if (props.tramId) {
+      tramDetails.value = await GetTramDetails(props.tramId)
     }
   },
   { immediate: true },
@@ -55,69 +83,95 @@ watch(
         : 'Loading data...'
     "
     title-icon="mdi-tram"
-    style="overflow-y: auto"
   >
-    <template v-if="props.tramID !== undefined && tramDetails !== undefined">
-      <div class="sidebarDetails">
-        <span><b>TramID</b>: {{ props.tramID }}</span>
-        <span><b>Speed</b>: {{ tramDetails.speed }} km/h</span>
-        <span><b>Delay</b>: {{ formatTime(tramDetails.delay) }}</span>
-
-        <div class="scrollable mt-4 ml-4">
-          <div class="stopDiv">
-            <b>Stop:</b>
-            <b>Scheduled time:</b>
-          </div>
-          <ul>
-            <li
-              v-for="(stop, index) in tramDetails.stop_names"
-              :key="index"
-              :class="{ currentStop: index === tramDetails.trip_index }"
-            >
-              <div class="stopDiv">
-                <span>{{ stop }}</span>
-                <span>{{ formatTime(tramDetails.stops[index].time) }}</span>
-              </div>
-            </li>
-          </ul>
-        </div>
+    <div class="section">
+      <div class="label">
+        <v-icon icon="mdi-identifier" class="mr-2"></v-icon>
+        Tram ID
       </div>
-    </template>
+      <div class="value">{{ props.tramId }}</div>
+    </div>
+
+    <div class="section">
+      <div class="label">
+        <v-icon icon="mdi-speedometer" class="mr-2"></v-icon>
+        Speed
+      </div>
+      <div class="value">{{ tramDetails?.speed }} km/h</div>
+    </div>
+
+    <div class="section">
+      <div class="label">
+        <v-icon icon="mdi-map-marker-path" class="mr-2"></v-icon>
+        Stops
+      </div>
+    </div>
+
+    <div class="scrollable">
+      <v-data-table-virtual
+        v-if="tramDetails?.stop_names.length"
+        :headers="headers"
+        :header-props="{
+          style: 'font-weight: bold;',
+        }"
+        :items="formattedStops"
+        :row-props="getRowProps"
+        class="stops-table"
+        density="compact"
+        hide-default-footer
+        hover
+      >
+        <template v-slot:item.stop="{ item }">
+          {{ item.stop }}
+        </template>
+
+        <template v-slot:item.time="{ item }">
+          {{ item.time }}
+        </template>
+      </v-data-table-virtual>
+    </div>
   </SidebarComponent>
 </template>
 
 <style scoped lang="scss">
-.sidebarDetails {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
 .scrollable {
   overflow-y: auto;
   max-height: 60vh;
-  padding-right: 8px;
 }
 
 .scrollable::-webkit-scrollbar {
   width: 6px;
 }
+
 .scrollable::-webkit-scrollbar-thumb {
-  background-color: rgba(0, 0, 0, 0.15);
+  background-color: rgba(0, 0, 0, 0.2);
   border-radius: 3px;
 }
 
-.currentStop {
-  font-weight: bold;
-  color: #2896f1;
+.section {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 0.4rem;
 }
 
-.stopDiv {
-  width: 100%;
-  display: flex;
-  flex-direction: row;
-  justify-content: space-between;
+.label,
+.value {
+  font-size: clamp(0.8rem, 0.75rem + 0.2vw, 1rem);
+  color: #111;
+}
+
+.label {
+  display: inline-flex;
   align-items: center;
-  gap: 10px;
+  gap: 0.4rem;
+  font-weight: bold;
+  margin-bottom: 0.25rem;
+}
+
+.stops-table {
+  width: 100%;
+  background-color: transparent;
 }
 </style>
