@@ -29,8 +29,10 @@ const leafletMap = ref<LeafletMap>()
 const tramMarkerByID = ref<Record<number, TramMarker>>({})
 
 const tramSidebar = ref(false)
-const selectedStop = ref<city.GraphNode>()
 const stopSidebar = ref(false)
+
+const selectedTramID = ref<number>()
+const selectedStop = ref<city.GraphNode>()
 
 const timeUtils = useTimeUtils()
 
@@ -43,8 +45,11 @@ async function reset() {
     tramMarker.removeFromMap()
   }
 
-  tramMarkerByID.value = await GetTramIDs().then(tramIDs =>
-    leafletMap.value!.getTramMarkers(tramIDs),
+  tramMarkerByID.value = await GetTramIDs().then(trams =>
+    leafletMap.value!.getTramMarkers(trams, (id: number) => {
+      selectedTramID.value = id
+      tramSidebar.value = true
+    }),
   )
 
   await GetTimeBounds().then(timeBounds => {
@@ -59,8 +64,15 @@ watch(() => props.resetCounter, reset)
 
 watch(stopSidebar, isOpen => {
   if (!isOpen) {
-    leafletMap.value?.unselectStop()
+    leafletMap.value?.deselectStop()
     selectedStop.value = undefined
+  }
+})
+
+watch(tramSidebar, isOpen => {
+  if (!isOpen) {
+    leafletMap.value?.deselectTram()
+    selectedTramID.value = undefined
   }
 })
 
@@ -86,11 +98,15 @@ onMounted(async () => {
     }
 
     await AdvanceTrams(time.value).then(tramPositionChanges => {
-      for (const stop of tramPositionChanges) {
-        if (stop.lat == 0 && stop.lon == 0) {
-          tramMarkerByID.value[stop.id].removeFromMap()
+      for (const tram of tramPositionChanges) {
+        if (tram.lat == 0 && tram.lon == 0) {
+          tramMarkerByID.value[tram.id].removeFromMap()
         } else {
-          tramMarkerByID.value[stop.id].updateCoordinates(stop.lat, stop.lon)
+          tramMarkerByID.value[tram.id].updateCoordinates(
+            tram.lat,
+            tram.lon,
+            tram.azimuth,
+          )
         }
       }
     })
@@ -114,7 +130,11 @@ onMounted(async () => {
 
   <div id="map" ref="map"></div>
 
-  <TramSidebarComponent v-model="tramSidebar"></TramSidebarComponent>
+  <TramSidebarComponent
+    v-model="tramSidebar"
+    :tram-id="selectedTramID"
+    :current-time="time"
+  />
   <StopSidebarComponent
     v-model="stopSidebar"
     :stop="selectedStop"
@@ -122,9 +142,54 @@ onMounted(async () => {
   ></StopSidebarComponent>
 </template>
 
-<style scoped lang="scss">
+<style lang="scss">
 #map {
   width: 100%;
   height: calc(100vh - 64px);
+}
+
+.tram-marker {
+  position: relative;
+  width: 24px;
+  height: 24px;
+  pointer-events: auto;
+}
+
+.tm-circle-arrow {
+  position: absolute;
+  width: 24px;
+  height: 24px;
+  background-color: #2896f1;
+  border-radius: 50% 50% 50% 0%;
+  z-index: 1;
+}
+
+.tm-circle {
+  position: absolute;
+  width: 18px;
+  height: 18px;
+  top: 3px;
+  left: 3px;
+  background-color: #2896f1;
+  border-radius: 50%;
+  z-index: 2;
+}
+
+.tm-route-label {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%) rotate(0deg);
+  font-size: 12px;
+  font-weight: bold;
+  color: white;
+  pointer-events: none;
+  user-select: none;
+  z-index: 3;
+}
+
+.tram-marker.selected .tm-circle-arrow,
+.tram-marker.selected .tm-circle {
+  background-color: #67ad2f;
 }
 </style>

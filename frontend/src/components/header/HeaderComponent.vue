@@ -71,12 +71,12 @@ async function reset() {
 
       <v-col cols="2" class="text-center text-capitalize">
         Current time <br />
-        {{ timeUtils.toTimeString(props.time) }}
+        {{ timeUtils.toFullTimeString(props.time) }}
       </v-col>
 
       <v-col cols="2" class="text-center text-capitalize">
         Elapsed time <br />
-        {{ timeUtils.toTimeString(timer.timer.value) }}
+        {{ timeUtils.toFullTimeString(timer.timer.value) }}
       </v-col>
     </v-row>
   </v-footer>
