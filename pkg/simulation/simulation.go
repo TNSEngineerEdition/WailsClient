@@ -36,14 +36,12 @@ type TramIdentifier struct {
 }
 
 func (s *Simulation) GetTramIDs() (result []TramIdentifier) {
-	result = make([]TramIdentifier, len(s.trams))
-	i := 0
+	result = make([]TramIdentifier, 0, len(s.trams))
 	for id, tram := range s.trams {
-		result[i] = TramIdentifier{
+		result = append(result, TramIdentifier{
 			ID:    id,
 			Route: tram.trip.Route,
-		}
-		i++
+		})
 	}
 	return result
 }
@@ -60,9 +58,8 @@ func (s *Simulation) AdvanceTrams(time uint) (result []TramPositionChange) {
 }
 
 func (s *Simulation) GetTramDetails(id int) TramDetails {
-	tram, exists := s.trams[id]
-	if !exists {
-		return TramDetails{}
+	if tram, ok := s.trams[id]; ok {
+		return tram.GetDetails(s.city)
 	}
-	return tram.GetDetails(s.city)
+	return TramDetails{}
 }

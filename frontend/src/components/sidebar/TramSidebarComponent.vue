@@ -79,7 +79,7 @@ watch(
     position="left"
     :title="
       tramDetails
-        ? tramDetails.route + ' ➡ ' + tramDetails.trip_head_sign
+        ? `${tramDetails.route} ➡ ${tramDetails.trip_head_sign}`
         : 'Loading data...'
     "
     title-icon="mdi-tram"
