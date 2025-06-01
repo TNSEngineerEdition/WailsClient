@@ -7,7 +7,7 @@ import (
 
 type Simulation struct {
 	city          *city.City
-	trams         []*tram
+	trams         map[int]*tram
 	controlCenter controlcenter.ControlCenter
 }
 
@@ -18,7 +18,7 @@ func NewSimulation(city *city.City) Simulation {
 }
 
 func (s *Simulation) ResetTrams() {
-	s.trams = make([]*tram, len(s.city.GetTramTrips()))
+	s.trams = make(map[int]*tram, len(s.city.GetTramTrips()))
 	for i, trip := range s.city.GetTramTrips() {
 		s.trams[i] = newTram(i, &trip, &s.controlCenter)
 	}
@@ -37,13 +37,14 @@ type TramIdentifier struct {
 
 func (s *Simulation) GetTramIDs() (result []TramIdentifier) {
 	result = make([]TramIdentifier, len(s.trams))
-	for i, tram := range s.trams {
+	i := 0
+	for id, tram := range s.trams {
 		result[i] = TramIdentifier{
-			ID:    tram.id,
+			ID:    id,
 			Route: tram.trip.Route,
 		}
+		i++
 	}
-
 	return result
 }
 
@@ -55,19 +56,13 @@ func (s *Simulation) AdvanceTrams(time uint) (result []TramPositionChange) {
 			result = append(result, positionChange)
 		}
 	}
-
 	return result
 }
 
 func (s *Simulation) GetTramDetails(id int) TramDetails {
-	var myTram *tram
-
-	for _, tram := range s.trams {
-		if tram.id == id {
-			myTram = tram
-			break
-		}
+	tram, exists := s.trams[id]
+	if !exists {
+		return TramDetails{}
 	}
-
-	return myTram.GetDetails(s.city)
+	return tram.GetDetails(s.city)
 }
