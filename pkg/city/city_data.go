@@ -2,11 +2,14 @@ package city
 
 import (
 	"encoding/json"
-	"github.com/facette/natsort"
 	"math"
 	"net/http"
 	"sort"
+
+	"github.com/facette/natsort"
 )
+
+var ServerURL = "http://localhost:8000"
 
 type CityData struct {
 	TramTrackGraph []GraphNode `json:"tram_track_graph"`
@@ -14,10 +17,10 @@ type CityData struct {
 	LastUpdated    string      `json:"last_updated"`
 }
 
-func (c *CityData) FetchCity(url string) {
+func (c *CityData) FetchCity(cityID string) {
 	client := &http.Client{}
 
-	resp, err := client.Get(url)
+	resp, err := client.Get(ServerURL + "/cities/" + cityID)
 	if err != nil {
 		panic(err)
 	}

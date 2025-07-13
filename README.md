@@ -71,3 +71,16 @@ wails dev
 ```
 
 It might be necessary to use `webkit2_41` tag if the above command fails.
+
+### Building binary using Wails
+In order to build the binary, you need to specify the below `ldflags`:
+| Value | Description | Example value | Default value |
+| ----- | ----------- | ------------- | ------------- |
+| `<module>/pkg/city.ServerURL` | Server URL base | https://tns-ee.rcralph.me | http://localhost:8000 |
+
+Below you can find an example command which uses `ldflags`:
+```bash
+wails build -ldflags "-X github.com/TNSEngineerEdition/WailsClient/pkg/city.ServerURL=https://tns-ee.rcralph.me"
+```
+
+As above, it might be necessary to use `webkit2_41` tag if the above command fails.
