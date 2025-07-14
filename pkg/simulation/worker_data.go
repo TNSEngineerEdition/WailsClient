@@ -8,12 +8,12 @@ type workerData[I any, O any] struct {
 	wg            sync.WaitGroup
 }
 
-func (w *workerData[I, O]) reset(outputBufferSize int) {
+func (w *workerData[I, O]) reset(bufferSize int) {
 	if w.inputChannel != nil {
 		close(w.inputChannel)
 	}
 
-	w.inputChannel = make(chan I)
-	w.outputChannel = make(chan O, outputBufferSize)
+	w.inputChannel = make(chan I, bufferSize)
+	w.outputChannel = make(chan O, bufferSize)
 	w.wg = sync.WaitGroup{}
 }
