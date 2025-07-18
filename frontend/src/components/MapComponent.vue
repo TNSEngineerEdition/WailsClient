@@ -81,7 +81,7 @@ onMounted(async () => {
     throw new Error("Map element not found")
   }
 
-  await FetchData("krakow")
+  await FetchData("krakow", 0)
   leafletMap.value = await LeafletMap.init(mapHTMLElement.value, stop => {
     selectedStop.value = stop
     stopSidebar.value = true

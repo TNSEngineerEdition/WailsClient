@@ -39,13 +39,17 @@ func (s *Simulation) ResetTrams() {
 	}
 }
 
-func (s *Simulation) FetchData(url string) {
+func (s *Simulation) FetchData(url string, tramWorkerCount int) {
 	s.city.FetchCityData(url)
 	s.controlCenter = controlcenter.NewControlCenter(s.city)
 	s.ResetTrams()
 	s.tramWorkersData.reset(len(s.trams))
 
-	for range runtime.NumCPU() {
+	if tramWorkerCount == 0 {
+		tramWorkerCount = runtime.NumCPU() * 11 / 10
+	}
+
+	for range tramWorkerCount {
 		go s.tramWorker()
 	}
 }
