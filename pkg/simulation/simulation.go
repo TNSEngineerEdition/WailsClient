@@ -1,19 +1,34 @@
 package simulation
 
 import (
+	"runtime"
+
 	"github.com/TNSEngineerEdition/WailsClient/pkg/city"
 	"github.com/TNSEngineerEdition/WailsClient/pkg/controlcenter"
 )
 
 type Simulation struct {
-	city          *city.City
-	trams         map[int]*tram
-	controlCenter controlcenter.ControlCenter
+	city            *city.City
+	trams           map[int]*tram
+	tramWorkersData workerData[*tram, TramPositionChange]
+	controlCenter   controlcenter.ControlCenter
+	time            uint
 }
 
 func NewSimulation(city *city.City) Simulation {
 	return Simulation{
 		city: city,
+	}
+}
+
+func (s *Simulation) tramWorker() {
+	for tram := range s.tramWorkersData.inputChannel {
+		positionChange, update := tram.Advance(s.time, s.city.GetStopsByID())
+		if update {
+			s.tramWorkersData.outputChannel <- positionChange
+		}
+
+		s.tramWorkersData.wg.Done()
 	}
 }
 
@@ -24,10 +39,19 @@ func (s *Simulation) ResetTrams() {
 	}
 }
 
-func (s *Simulation) FetchData(url string) {
+func (s *Simulation) FetchData(url string, tramWorkerCount uint) {
 	s.city.FetchCityData(url)
 	s.controlCenter = controlcenter.NewControlCenter(s.city)
 	s.ResetTrams()
+	s.tramWorkersData.reset(len(s.trams))
+
+	if tramWorkerCount == 0 {
+		tramWorkerCount = uint(runtime.NumCPU()) * 11 / 10
+	}
+
+	for range tramWorkerCount {
+		go s.tramWorker()
+	}
 }
 
 type TramIdentifier struct {
@@ -47,13 +71,20 @@ func (s *Simulation) GetTramIDs() (result []TramIdentifier) {
 }
 
 func (s *Simulation) AdvanceTrams(time uint) (result []TramPositionChange) {
-	result = make([]TramPositionChange, 0)
+	s.time = time
+
+	s.tramWorkersData.wg.Add(len(s.trams))
 	for _, tram := range s.trams {
-		positionChange, update := tram.Advance(time, s.city.GetStopsByID())
-		if update {
-			result = append(result, positionChange)
-		}
+		s.tramWorkersData.inputChannel <- tram
 	}
+
+	s.tramWorkersData.wg.Wait()
+
+	result = make([]TramPositionChange, 0)
+	for range len(s.tramWorkersData.outputChannel) {
+		result = append(result, <-s.tramWorkersData.outputChannel)
+	}
+
 	return result
 }
 
