@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import SidebarComponent from "@components/sidebar/SidebarComponent.vue"
-import useTimeUtils from "@composables/useTimeUtils"
+import { Time } from "@classes/Time"
 import { simulation } from "@wails/go/models"
 import { GetTramDetails } from "@wails/go/simulation/Simulation"
 import { computed, ref, watch } from "vue"
@@ -11,8 +11,6 @@ const props = defineProps<{
   tramId?: number
   currentTime: number
 }>()
-
-const timeUtils = useTimeUtils()
 
 const tramDetails = ref<simulation.TramDetails>()
 
@@ -30,7 +28,7 @@ const formattedStops = computed(
         stop,
         time:
           stopTime !== undefined
-            ? timeUtils.toShortTimeString(stopTime)
+            ? new Time(stopTime).toShortMinuteString()
             : "Unknown",
         delay: "00:00",
       }

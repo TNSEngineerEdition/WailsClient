@@ -46,6 +46,7 @@ func (s *Simulation) FetchData(url string, tramWorkerCount uint) {
 	s.tramWorkersData.reset(len(s.trams))
 
 	if tramWorkerCount == 0 {
+		// CPU count * 110% for more efficiency
 		tramWorkerCount = uint(runtime.NumCPU()) * 11 / 10
 	}
 
