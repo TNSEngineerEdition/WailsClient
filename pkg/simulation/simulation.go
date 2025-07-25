@@ -65,7 +65,7 @@ func (s *Simulation) GetTramIDs() (result []TramIdentifier) {
 	for id, tram := range s.trams {
 		result = append(result, TramIdentifier{
 			ID:    id,
-			Route: tram.trip.Route,
+			Route: tram.tripData.trip.Route,
 		})
 	}
 	return result

@@ -58,24 +58,27 @@ func (c *City) GetArrivalsForStop(stopID uint64, currentTime uint, numberOfArriv
 	upcoming = []Arrival{}
 
 	for _, arrival := range c.arrivalsByStopID[stopID] {
-		if arrival.ETA+30 >= currentTime {
-			diff := arrival.ETA - currentTime
-
-			var eta uint
-			if diff > 0 {
-				eta = uint((diff + 59) / 60)
-			}
-
-			upcoming = append(upcoming, Arrival{
-				Route:    arrival.Route,
-				Headsign: arrival.Headsign,
-				ETA:      eta,
-			})
+		if arrival.ETA+30 < currentTime {
+			continue
 		}
+
+		diff := arrival.ETA - currentTime
+
+		var eta uint
+		if diff > 0 {
+			eta = uint((diff + 59) / 60)
+		}
+
+		upcoming = append(upcoming, Arrival{
+			Route:    arrival.Route,
+			Headsign: arrival.Headsign,
+			ETA:      eta,
+		})
 
 		if len(upcoming) == numberOfArrivals {
 			return
 		}
 	}
+
 	return
 }
