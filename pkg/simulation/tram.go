@@ -70,11 +70,12 @@ func (t *tram) onPassengerLoading(time uint) {
 		return
 	}
 
-	t.tripData.saveDeparture(time)
-	if t.tripData.index < len(t.tripData.trip.Stops) {
-		t.state = StateTravelling
-	} else {
+	if len(t.tripData.trip.Stops) <= 1 {
+		// Handle trips with a single stop
 		t.state = StatePassengerUnloading
+	} else {
+		t.tripData.saveDeparture(time)
+		t.state = StateTravelling
 	}
 }
 
