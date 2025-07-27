@@ -33,6 +33,75 @@ func newTram(id int, trip *city.TramTrip, controlCenter *controlcenter.ControlCe
 	}
 }
 
+func (t *tram) isAtStop() bool {
+	return t.state == StatePassengerLoading ||
+		t.state == StatePassengerUnloading
+}
+
+func (t *tram) getTravelPath() controlcenter.Path {
+	previousStop := t.tripData.trip.Stops[t.tripData.index-1]
+	nextStop := t.tripData.trip.Stops[t.tripData.index]
+	return t.controlCenter.GetPath(previousStop.ID, nextStop.ID)
+}
+
+func (t *tram) findNewLocation(path []*city.GraphNode, distanceToDrive float32) {
+	for distanceToDrive > 0 && t.intermediateIndex < len(path)-1 {
+		t.setAzimuthAndDistanceToNextNode(path)
+
+		if t.distToNextInterNode <= distanceToDrive {
+			distanceToDrive -= t.distToNextInterNode
+			t.coveredDistance += t.distToNextInterNode
+			t.intermediateIndex += 1
+			t.distToNextInterNode = 0
+			t.latitude = path[t.intermediateIndex].Latitude
+			t.longitude = path[t.intermediateIndex].Longitude
+		} else {
+			remainingPart := distanceToDrive / t.distToNextInterNode
+			t.coveredDistance += distanceToDrive
+			t.distToNextInterNode -= distanceToDrive
+			t.findIntermediateLocation(path, remainingPart)
+			distanceToDrive = 0
+		}
+	}
+}
+
+func (t *tram) findIntermediateLocation(path []*city.GraphNode, remainingPart float32) {
+	vectorLat := path[t.intermediateIndex+1].Latitude - path[t.intermediateIndex].Latitude
+	vectorLon := path[t.intermediateIndex+1].Longitude - path[t.intermediateIndex].Longitude
+	t.latitude = path[t.intermediateIndex].Latitude + vectorLat*remainingPart
+	t.longitude = path[t.intermediateIndex].Longitude + vectorLon*remainingPart
+}
+
+func (t *tram) setAzimuthAndDistanceToNextNode(path []*city.GraphNode) {
+	for _, neighbor := range path[t.intermediateIndex].Neighbors {
+		if neighbor.ID == path[t.intermediateIndex+1].ID {
+			t.azimuth = neighbor.Azimuth
+			t.distToNextInterNode = neighbor.Length
+			return
+		}
+	}
+}
+
+func (t *tram) getExpectedArrival(time uint) uint {
+	if t.isAtStop() {
+		return t.tripData.arrivals[t.tripData.index]
+	}
+
+	lastDeparture := t.tripData.departures[t.tripData.index-1]
+	timeSinceLastDeparture := float32(time - lastDeparture)
+
+	pathDistanceProgress := t.coveredDistance / t.getTravelPath().Distance
+
+	estimatedTravelTime := uint(timeSinceLastDeparture / pathDistanceProgress)
+	expectedTravelTime := t.tripData.getExpectedTravelTime()
+
+	if t.coveredDistance > 0 {
+		return lastDeparture + estimatedTravelTime
+	} else {
+		return lastDeparture + expectedTravelTime
+	}
+}
+
 type TramPositionChange struct {
 	TramID    int     `json:"id"`
 	Latitude  float32 `json:"lat"`
@@ -75,6 +144,7 @@ func (t *tram) onPassengerLoading(time uint) {
 		t.state = StatePassengerUnloading
 	} else {
 		t.tripData.saveDeparture(time)
+		t.coveredDistance = 0
 		t.state = StateTravelling
 	}
 }
@@ -101,20 +171,21 @@ func (t *tram) onTripFinished() (result TramPositionChange, update bool) {
 }
 
 func (t *tram) onTravelling(time uint, distanceToDrive float32) (result TramPositionChange, update bool) {
-	previousStop := t.tripData.trip.Stops[t.tripData.index-1]
-	nextStop := t.tripData.trip.Stops[t.tripData.index]
-	path := t.controlCenter.GetRouteBetweenNodes(previousStop.ID, nextStop.ID)
+	path := t.getTravelPath()
 
 	if t.distToNextInterNode != 0 {
-		t.setAzimuthAndDistanceToNextNode(path)
+		t.setAzimuthAndDistanceToNextNode(path.Nodes)
 	}
 
-	t.findNewLocation(path, distanceToDrive)
-	if t.intermediateIndex == len(path)-1 {
+	t.findNewLocation(path.Nodes, distanceToDrive)
+	if t.intermediateIndex == len(path.Nodes)-1 {
 		// Tram arrived to the next stop
 		t.tripData.saveArrival(time)
 		t.intermediateIndex = 0
-		t.departureTime = max(nextStop.Time, time+uint(rand.IntN(11))+15)
+		t.departureTime = max(
+			t.tripData.trip.Stops[t.tripData.index].Time,
+			time+uint(rand.IntN(11))+15,
+		)
 		t.state = StatePassengerUnloading
 	}
 
@@ -149,44 +220,6 @@ func (t *tram) Advance(time uint, stopsById map[uint64]*city.GraphNode) (result 
 	return result, update
 }
 
-func (t *tram) findNewLocation(path []*city.GraphNode, distanceToDrive float32) {
-	for distanceToDrive > 0 && t.intermediateIndex < len(path)-1 {
-		t.setAzimuthAndDistanceToNextNode(path)
-
-		if t.distToNextInterNode <= distanceToDrive {
-			distanceToDrive -= t.distToNextInterNode
-			t.coveredDistance += t.distToNextInterNode
-			t.intermediateIndex += 1
-			t.distToNextInterNode = 0
-			t.latitude = path[t.intermediateIndex].Latitude
-			t.longitude = path[t.intermediateIndex].Longitude
-		} else {
-			remainingPart := distanceToDrive / t.distToNextInterNode
-			t.coveredDistance += distanceToDrive
-			t.distToNextInterNode -= distanceToDrive
-			t.findIntermediateLocation(path, remainingPart)
-			distanceToDrive = 0
-		}
-	}
-}
-
-func (t *tram) findIntermediateLocation(path []*city.GraphNode, remainingPart float32) {
-	vectorLat := path[t.intermediateIndex+1].Latitude - path[t.intermediateIndex].Latitude
-	vectorLon := path[t.intermediateIndex+1].Longitude - path[t.intermediateIndex].Longitude
-	t.latitude = path[t.intermediateIndex].Latitude + vectorLat*remainingPart
-	t.longitude = path[t.intermediateIndex].Longitude + vectorLon*remainingPart
-}
-
-func (t *tram) setAzimuthAndDistanceToNextNode(path []*city.GraphNode) {
-	for _, neighbor := range path[t.intermediateIndex].Neighbors {
-		if neighbor.ID == path[t.intermediateIndex+1].ID {
-			t.azimuth = neighbor.Azimuth
-			t.distToNextInterNode = neighbor.Length
-			return
-		}
-	}
-}
-
 type TramDetails struct {
 	Route        string              `json:"route"`
 	TripHeadSign string              `json:"trip_head_sign"`
@@ -198,7 +231,7 @@ type TramDetails struct {
 	Speed        uint8               `json:"speed"`
 }
 
-func (t *tram) GetDetails(c *city.City) TramDetails {
+func (t *tram) GetDetails(c *city.City, time uint) TramDetails {
 	stopsByID := c.GetStopsByID()
 	stopNames := make([]string, len(t.tripData.trip.Stops))
 
@@ -210,6 +243,8 @@ func (t *tram) GetDetails(c *city.City) TramDetails {
 	if t.state == StateTravelling {
 		tramSpeed = 50
 	}
+
+	t.tripData.arrivals[t.tripData.index] = t.getExpectedArrival(time)
 
 	return TramDetails{
 		Route:        t.tripData.trip.Route,

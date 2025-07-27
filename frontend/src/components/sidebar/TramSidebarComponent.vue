@@ -145,7 +145,7 @@ watch(
             v-if="item.arrival != null"
             :class="getDelayTextColorClass(item.arrival)"
           >
-            {{ new Time(item.arrival).toShortSecondString() }}
+            {{ new Time(item.arrival, true).toShortSecondString() }}
           </span>
         </template>
 
@@ -154,7 +154,7 @@ watch(
             v-if="item.departure != null"
             :class="getDelayTextColorClass(item.departure)"
           >
-            {{ new Time(item.departure).toShortSecondString() }}
+            {{ new Time(item.departure, true).toShortSecondString() }}
           </span>
         </template>
       </v-data-table-virtual>

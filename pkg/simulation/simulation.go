@@ -91,7 +91,7 @@ func (s *Simulation) AdvanceTrams(time uint) (result []TramPositionChange) {
 
 func (s *Simulation) GetTramDetails(id int) TramDetails {
 	if tram, ok := s.trams[id]; ok {
-		return tram.GetDetails(s.city)
+		return tram.GetDetails(s.city, s.time)
 	}
 	return TramDetails{}
 }
