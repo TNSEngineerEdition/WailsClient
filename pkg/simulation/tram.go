@@ -15,7 +15,6 @@ type tram struct {
 	latitude            float32
 	longitude           float32
 	azimuth             float32
-	coveredDistance     float32
 	distToNextInterNode float32
 	departureTime       uint
 	isFinished          bool
@@ -38,7 +37,7 @@ func (t *tram) isAtStop() bool {
 		t.state == StatePassengerUnloading
 }
 
-func (t *tram) getTravelPath() controlcenter.Path {
+func (t *tram) getTravelPath() *controlcenter.Path {
 	previousStop := t.tripData.trip.Stops[t.tripData.index-1]
 	nextStop := t.tripData.trip.Stops[t.tripData.index]
 	return t.controlCenter.GetPath(previousStop.ID, nextStop.ID)
@@ -50,14 +49,12 @@ func (t *tram) findNewLocation(path []*city.GraphNode, distanceToDrive float32) 
 
 		if t.distToNextInterNode <= distanceToDrive {
 			distanceToDrive -= t.distToNextInterNode
-			t.coveredDistance += t.distToNextInterNode
-			t.intermediateIndex += 1
+			t.intermediateIndex++
 			t.distToNextInterNode = 0
 			t.latitude = path[t.intermediateIndex].Latitude
 			t.longitude = path[t.intermediateIndex].Longitude
 		} else {
 			remainingPart := distanceToDrive / t.distToNextInterNode
-			t.coveredDistance += distanceToDrive
 			t.distToNextInterNode -= distanceToDrive
 			t.findIntermediateLocation(path, remainingPart)
 			distanceToDrive = 0
@@ -90,16 +87,13 @@ func (t *tram) getExpectedArrival(time uint) uint {
 	lastDeparture := t.tripData.departures[t.tripData.index-1]
 	timeSinceLastDeparture := float32(time - lastDeparture)
 
-	pathDistanceProgress := t.coveredDistance / t.getTravelPath().Distance
+	pathDistanceProgress := t.getTravelPath().GetProgressForIndex(t.intermediateIndex)
+	if pathDistanceProgress == 0 {
+		return lastDeparture + t.tripData.getExpectedTravelTime()
+	}
 
 	estimatedTravelTime := uint(timeSinceLastDeparture / pathDistanceProgress)
-	expectedTravelTime := t.tripData.getExpectedTravelTime()
-
-	if t.coveredDistance > 0 {
-		return lastDeparture + estimatedTravelTime
-	} else {
-		return lastDeparture + expectedTravelTime
-	}
+	return lastDeparture + estimatedTravelTime
 }
 
 type TramPositionChange struct {
@@ -144,7 +138,7 @@ func (t *tram) onPassengerLoading(time uint) {
 		t.state = StatePassengerUnloading
 	} else {
 		t.tripData.saveDeparture(time)
-		t.coveredDistance = 0
+		t.intermediateIndex = 0
 		t.state = StateTravelling
 	}
 }
@@ -181,7 +175,6 @@ func (t *tram) onTravelling(time uint, distanceToDrive float32) (result TramPosi
 	if t.intermediateIndex == len(path.Nodes)-1 {
 		// Tram arrived to the next stop
 		t.tripData.saveArrival(time)
-		t.intermediateIndex = 0
 		t.departureTime = max(
 			t.tripData.trip.Stops[t.tripData.index].Time,
 			time+uint(rand.IntN(11))+15,

@@ -10,8 +10,12 @@ import (
 )
 
 type Path struct {
-	Nodes    []*city.GraphNode
-	Distance float32
+	Nodes             []*city.GraphNode
+	DistancePrefixSum []float32
+}
+
+func (p *Path) GetProgressForIndex(index int) float32 {
+	return p.DistancePrefixSum[index] / p.DistancePrefixSum[len(p.DistancePrefixSum)-1]
 }
 
 func getShortestPath(city *city.City, stops stopPair) (result Path) {
@@ -30,7 +34,7 @@ func getShortestPath(city *city.City, stops stopPair) (result Path) {
 
 		if currentID == stops.destination {
 			result.Nodes = reconstructPath(predecessors, tramStops, currentID)
-			result.Distance = getPathDistance(result.Nodes)
+			result.DistancePrefixSum = getPathDistancePrefixSum(result.Nodes)
 			return
 		}
 
@@ -100,9 +104,21 @@ func getDistanceInMeters(source, destination *city.GraphNode) float32 {
 	return float32(kilometers * 1000)
 }
 
-func getPathDistance(nodes []*city.GraphNode) (result float32) {
+func getPathDistancePrefixSum(nodes []*city.GraphNode) []float32 {
+	prefixSum := make([]float32, len(nodes)-1)
+
 	for i := 0; i < len(nodes)-1; i++ {
-		result += getDistanceInMeters(nodes[i], nodes[i+1])
+		for _, neighbor := range nodes[i].Neighbors {
+			if neighbor.ID != nodes[i+1].ID {
+				continue
+			}
+
+			prefixSum[i] = neighbor.Length
+			if i > 0 {
+				prefixSum[i] += prefixSum[i-1]
+			}
+		}
 	}
-	return
+
+	return prefixSum
 }

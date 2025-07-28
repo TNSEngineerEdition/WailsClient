@@ -37,9 +37,9 @@ func NewControlCenter(cityPointer *city.City) ControlCenter {
 	return c
 }
 
-func (c *ControlCenter) GetPath(sourceNodeID, destinationNodeID uint64) Path {
+func (c *ControlCenter) GetPath(sourceNodeID, destinationNodeID uint64) *Path {
 	if path, ok := c.paths[stopPair{source: sourceNodeID, destination: destinationNodeID}]; ok {
-		return path
+		return &path
 	}
 
 	panic(fmt.Sprintf("No path found between %d and %d nodes", sourceNodeID, destinationNodeID))
