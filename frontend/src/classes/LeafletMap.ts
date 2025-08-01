@@ -13,7 +13,7 @@ export class LeafletMap {
 
   static async init(
     mapHTMLElement: HTMLElement,
-    handleStopSelection: (stop: city.GraphNode) => void,
+    handleStopSelection: (stop: city.TramStop) => void,
   ) {
     const leafletMap = new LeafletMap(
       await GetBounds()
