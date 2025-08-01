@@ -95,7 +95,7 @@ func (t *tram) handlePassangerTransfer(time uint) {
 }
 
 func (t *tram) handleTripFinished() (result TramPositionChange, update bool) {
-	t.unblockAllBlockedNodes()
+	t.unblockNodesBehind()
 	result = TramPositionChange{
 		TramID: t.id,
 	}
@@ -115,9 +115,9 @@ func (t *tram) handleTravelling(time uint) (result TramPositionChange, update bo
 		t.setAzimuthAndDistanceToNextNode(path)
 	}
 
-	// set pathIndex to the next position (node) of a tram
-	t.findNewLocation(path)
-
+	availableDistance := t.blockNodesAhead(path)
+	distanceToDrive := min(t.speed, availableDistance)
+	t.findNewLocation(path, distanceToDrive)
 	t.blockNodesBehind()
 
 	if t.pathIndex == len(path)-1 {
@@ -139,14 +139,9 @@ func (t *tram) handleTravelling(time uint) (result TramPositionChange, update bo
 	return
 }
 
-func (t *tram) findNewLocation(path []*city.GraphNode) {
-	distanceToDrive := t.speed
+func (t *tram) findNewLocation(path []*city.GraphNode, distanceToDrive float32) {
 	for distanceToDrive > 0 && t.pathIndex < len(path)-1 {
 		t.setAzimuthAndDistanceToNextNode(path)
-
-		if path[t.pathIndex+1].IsBlocked() {
-			break
-		}
 
 		if t.distToNextInterNode <= distanceToDrive {
 			distanceToDrive -= t.distToNextInterNode
@@ -181,7 +176,7 @@ func (t *tram) setAzimuthAndDistanceToNextNode(path []*city.GraphNode) {
 	}
 }
 
-func (t *tram) getDistanceBetweenNeighboringNodes(v *city.GraphNode, u *city.GraphNode) float32 {
+func (t *tram) getDistanceToNeighbor(v *city.GraphNode, u *city.GraphNode) float32 {
 	for _, neigbor := range v.Neighbors {
 		if neigbor.ID == u.ID {
 			return neigbor.Distance
@@ -193,6 +188,34 @@ func (t *tram) getDistanceBetweenNeighboringNodes(v *city.GraphNode, u *city.Gra
 		}
 	}
 	return 0
+}
+
+func (t *tram) blockNodesAhead(path []*city.GraphNode) (availableDistance float32) {
+	deceleration := 1
+	stoppingDistance := t.speed * t.speed / float32(2*deceleration)
+	maxBlockingDistance := t.speed + stoppingDistance
+	i := t.pathIndex
+
+	for availableDistance < maxBlockingDistance && i < len(path)-1 {
+		v := path[i]
+		u := path[i+1]
+
+		if u.IsBlockedByOtherTram(t.id) {
+			break
+		}
+
+		distanceToNextNode := t.getDistanceToNeighbor(v, u)
+		if availableDistance+distanceToNextNode <= maxBlockingDistance {
+			availableDistance += distanceToNextNode
+			u.Block(t.id)
+			i++
+		} else {
+			availableDistance = maxBlockingDistance
+			break
+		}
+	}
+
+	return availableDistance
 }
 
 func (t *tram) blockNodesBehind() {
@@ -210,13 +233,13 @@ func (t *tram) blockNodesBehind() {
 	distanceLeft := t.length
 	for distanceLeft > 0 && idx >= 0 {
 		v := t.blockedNodesBehind[idx]
-		distanceLeft -= t.getDistanceBetweenNeighboringNodes(v, u)
+		distanceLeft -= t.getDistanceToNeighbor(v, u)
 		v.Block(t.id)
 		u = v
 		idx--
 	}
 
-	// unblock and remove nodes left behind by a tram
+	// unblock (and remove from the slice) nodes left behind by a tram
 	p := idx + 1
 	for idx >= 0 {
 		t.blockedNodesBehind[idx].Unblock(t.id)
@@ -225,8 +248,21 @@ func (t *tram) blockNodesBehind() {
 	t.blockedNodesBehind = t.blockedNodesBehind[p:]
 }
 
-func (t *tram) unblockAllBlockedNodes() {
+func (t *tram) unblockNodesBehind() {
 	for _, node := range t.blockedNodesBehind {
+		node.Unblock(t.id)
+	}
+}
+
+func (t *tram) unblockWholePath() {
+	t.unblockNodesBehind()
+	if t.state != StateTravelling {
+		return
+	}
+	currentStop := t.trip.Stops[t.tripIndex]
+	nextStop := t.trip.Stops[t.tripIndex+1]
+	path := t.controlCenter.GetRouteBetweenNodes(currentStop.ID, nextStop.ID)
+	for _, node := range path {
 		node.Unblock(t.id)
 	}
 }

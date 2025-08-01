@@ -34,7 +34,7 @@ func (s *Simulation) tramWorker() {
 
 func (s *Simulation) ResetTrams() {
 	for _, tram := range s.trams {
-		tram.unblockAllBlockedNodes()
+		tram.unblockWholePath()
 	}
 
 	s.trams = make(map[int]*tram, len(s.city.GetTramTrips()))
