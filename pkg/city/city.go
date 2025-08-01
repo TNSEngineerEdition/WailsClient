@@ -18,7 +18,7 @@ func (c *City) FetchCityData(url string) {
 	c.arrivalsByStopID = c.cityData.GetArrivalsByStopID()
 }
 
-func (c *City) GetTramStops() []GraphNode {
+func (c *City) GetTramStops() []TramStop {
 	return c.cityData.GetTramStops()
 }
 
