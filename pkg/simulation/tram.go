@@ -9,7 +9,7 @@ import (
 
 type tram struct {
 	id                  int
-	speed               uint8
+	speed               float32
 	length              float32
 	trip                *city.TramTrip
 	tripIndex           int
@@ -28,7 +28,7 @@ func newTram(id int, trip *city.TramTrip, controlCenter *controlcenter.ControlCe
 	startTime := trip.Stops[0].Time
 	return &tram{
 		id:                 id,
-		speed:              50,
+		speed:              0,
 		length:             30,
 		trip:               trip,
 		departureTime:      startTime - uint(rand.IntN(11)) - 15,
@@ -83,8 +83,6 @@ func (t *tram) handleTripNotStarted(
 }
 
 func (t *tram) handlePassangerTransfer(time uint) {
-	t.speed = 0
-
 	if time != t.departureTime {
 		return
 	}
@@ -107,8 +105,7 @@ func (t *tram) handleTripFinished() (result TramPositionChange, update bool) {
 
 func (t *tram) handleTravelling(time uint) (result TramPositionChange, update bool) {
 	//50 is the velocity, and *5/18 is used to convert velocity from km/h to m/s
-	t.speed = 50
-	distanceToDrive := float32(t.speed*5) / float32(18)
+	t.speed = float32(50*5) / float32(18)
 
 	currentStop := t.trip.Stops[t.tripIndex]
 	nextStop := t.trip.Stops[t.tripIndex+1]
@@ -118,7 +115,9 @@ func (t *tram) handleTravelling(time uint) (result TramPositionChange, update bo
 		t.setAzimuthAndDistanceToNextNode(path)
 	}
 
-	t.findNewLocation(path, distanceToDrive)
+	// set pathIndex to the next position (node) of a tram
+	t.findNewLocation(path)
+
 	t.blockNodesBehind()
 
 	if t.pathIndex == len(path)-1 {
@@ -126,6 +125,7 @@ func (t *tram) handleTravelling(time uint) (result TramPositionChange, update bo
 		t.pathIndex = 0
 		t.departureTime = max(nextStop.Time, time+uint(rand.IntN(11))+15)
 		t.state = StatePassengerTransfer
+		t.speed = 0
 	}
 
 	result = TramPositionChange{
@@ -139,7 +139,8 @@ func (t *tram) handleTravelling(time uint) (result TramPositionChange, update bo
 	return
 }
 
-func (t *tram) findNewLocation(path []*city.GraphNode, distanceToDrive float32) {
+func (t *tram) findNewLocation(path []*city.GraphNode) {
+	distanceToDrive := t.speed
 	for distanceToDrive > 0 && t.pathIndex < len(path)-1 {
 		t.setAzimuthAndDistanceToNextNode(path)
 
@@ -198,13 +199,15 @@ func (t *tram) blockNodesBehind() {
 	if len(t.blockedNodesBehind) == 0 {
 		return
 	}
-
 	idx := len(t.blockedNodesBehind) - 1
+
+	// block current position of a tram marker
 	u := t.blockedNodesBehind[idx]
 	u.Block(t.id)
 	idx--
-	distanceLeft := t.length
 
+	// block nodes behind a tram marker simulating tram length
+	distanceLeft := t.length
 	for distanceLeft > 0 && idx >= 0 {
 		v := t.blockedNodesBehind[idx]
 		distanceLeft -= t.getDistanceBetweenNeighboringNodes(v, u)
@@ -213,6 +216,7 @@ func (t *tram) blockNodesBehind() {
 		idx--
 	}
 
+	// unblock and remove nodes left behind by a tram
 	p := idx + 1
 	for idx >= 0 {
 		t.blockedNodesBehind[idx].Unblock(t.id)
@@ -251,7 +255,7 @@ func (t *tram) GetDetails(c *city.City) TramDetails {
 		TripIndex:    t.tripIndex,
 		Stops:        t.trip.Stops,
 		StopNames:    stopNames,
-		Speed:        t.speed,
+		Speed:        uint8((t.speed * 18) / 5), // m/s -> km/h
 		Delay:        0,
 	}
 }
