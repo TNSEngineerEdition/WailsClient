@@ -25,7 +25,7 @@ func (t *tripData) saveDeparture(time uint) {
 	t.index += 1
 }
 
-func (t *tripData) getExpectedTravelTime() uint {
+func (t *tripData) getScheduledTravelTime() uint {
 	lastStopTime := t.trip.Stops[t.index-1].Time
 	nextStopTime := t.trip.Stops[t.index].Time
 	return nextStopTime - lastStopTime

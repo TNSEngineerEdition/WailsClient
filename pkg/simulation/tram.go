@@ -1,6 +1,7 @@
 package simulation
 
 import (
+	"math"
 	"math/rand/v2"
 
 	"github.com/TNSEngineerEdition/WailsClient/pkg/city"
@@ -79,20 +80,20 @@ func (t *tram) setAzimuthAndDistanceToNextNode(path []*city.GraphNode) {
 	}
 }
 
-func (t *tram) getExpectedArrival(time uint) uint {
-	if t.isAtStop() {
-		return t.tripData.arrivals[t.tripData.index]
+func (t *tram) getEstimatedArrival(stopIndex int, time uint) uint {
+	if t.tripData.index < stopIndex || t.isAtStop() && t.tripData.index == stopIndex {
+		return t.tripData.arrivals[stopIndex]
 	}
 
 	lastDeparture := t.tripData.departures[t.tripData.index-1]
-	timeSinceLastDeparture := float32(time - lastDeparture)
+	timeSinceLastDeparture := float64(time - lastDeparture)
 
 	pathDistanceProgress := t.getTravelPath().GetProgressForIndex(t.intermediateIndex)
 	if pathDistanceProgress == 0 {
-		return lastDeparture + t.tripData.getExpectedTravelTime()
+		return lastDeparture + t.tripData.getScheduledTravelTime()
 	}
 
-	estimatedTravelTime := uint(timeSinceLastDeparture / pathDistanceProgress)
+	estimatedTravelTime := uint(math.Round(timeSinceLastDeparture / float64(pathDistanceProgress)))
 	return lastDeparture + estimatedTravelTime
 }
 
@@ -105,7 +106,7 @@ type TramPositionChange struct {
 
 func (t *tram) onTripNotStarted(
 	time uint,
-	stopsById map[uint64]*city.GraphNode,
+	stopsByID map[uint64]*city.GraphNode,
 ) (result TramPositionChange, update bool) {
 	if time != t.departureTime {
 		return
@@ -113,13 +114,13 @@ func (t *tram) onTripNotStarted(
 
 	t.state = StatePassengerLoading
 	t.tripData.saveArrival(time)
-	t.azimuth = stopsById[t.tripData.trip.Stops[0].ID].Neighbors[0].Azimuth
+	t.azimuth = stopsByID[t.tripData.trip.Stops[0].ID].Neighbors[0].Azimuth
 	t.departureTime = t.tripData.trip.Stops[0].Time
 
 	result = TramPositionChange{
 		TramID:    t.id,
-		Latitude:  stopsById[t.tripData.trip.Stops[0].ID].Latitude,
-		Longitude: stopsById[t.tripData.trip.Stops[0].ID].Longitude,
+		Latitude:  stopsByID[t.tripData.trip.Stops[0].ID].Latitude,
+		Longitude: stopsByID[t.tripData.trip.Stops[0].ID].Longitude,
 		Azimuth:   t.azimuth,
 	}
 
@@ -193,13 +194,13 @@ func (t *tram) onTravelling(time uint, distanceToDrive float32) (result TramPosi
 	return
 }
 
-func (t *tram) Advance(time uint, stopsById map[uint64]*city.GraphNode) (result TramPositionChange, update bool) {
+func (t *tram) Advance(time uint, stopsByID map[uint64]*city.GraphNode) (result TramPositionChange, update bool) {
 	// 50 is the velocity, and *5/18 is used to convert velocity from km/h to m/s
 	distanceToDrive := float32(50*5) / float32(18)
 
 	switch t.state {
 	case StateTripNotStarted:
-		result, update = t.onTripNotStarted(time, stopsById)
+		result, update = t.onTripNotStarted(time, stopsByID)
 	case StatePassengerLoading:
 		t.onPassengerLoading(time)
 	case StatePassengerUnloading:
@@ -237,7 +238,7 @@ func (t *tram) GetDetails(c *city.City, time uint) TramDetails {
 		tramSpeed = 50
 	}
 
-	t.tripData.arrivals[t.tripData.index] = t.getExpectedArrival(time)
+	t.tripData.arrivals[t.tripData.index] = t.getEstimatedArrival(t.tripData.index, time)
 
 	return TramDetails{
 		Route:        t.tripData.trip.Route,

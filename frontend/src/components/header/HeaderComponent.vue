@@ -2,7 +2,7 @@
 import { Time } from "@classes/Time"
 import HeaderIconButtonComponent from "@components/header/HeaderIconButtonComponent.vue"
 import useCycle from "@composables/useCycle"
-import { ResetTrams } from "@wails/go/simulation/Simulation"
+import { ResetSimulation } from "@wails/go/simulation/Simulation"
 import HeaderRestartConfirmationDialogComponent from "@components/header/HeaderRestartConfirmationDialogComponent.vue"
 import useTimer from "@composables/useTimer"
 
@@ -36,7 +36,7 @@ function updateIsRunning() {
 async function reset() {
   speedsCycle.reset()
   timer.reset()
-  await ResetTrams()
+  await ResetSimulation()
   resetCounter.value++
 }
 </script>

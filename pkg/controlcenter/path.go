@@ -19,7 +19,7 @@ func (p *Path) GetProgressForIndex(index int) float32 {
 }
 
 func getShortestPath(city *city.City, stops stopPair) (result Path) {
-	tramStops := city.GetStopsByID()
+	nodesByID := city.GetNodesByID()
 
 	nodesToProcess := &priorityQueue{}
 	heap.Init(nodesToProcess)
@@ -33,7 +33,7 @@ func getShortestPath(city *city.City, stops stopPair) (result Path) {
 		currentID := heap.Pop(nodesToProcess).(*nodeRecord).ID
 
 		if currentID == stops.destination {
-			result.Nodes = reconstructPath(predecessors, tramStops, currentID)
+			result.Nodes = reconstructPath(predecessors, nodesByID, currentID)
 			result.DistancePrefixSum = getPathDistancePrefixSum(result.Nodes)
 			return
 		}
@@ -44,7 +44,7 @@ func getShortestPath(city *city.City, stops stopPair) (result Path) {
 
 		visitedNodes[currentID] = true
 
-		for _, neighbor := range tramStops[currentID].Neighbors {
+		for _, neighbor := range nodesByID[currentID].Neighbors {
 			tentativeDistance := tentativeDistFromSource[currentID] + neighbor.Length
 			cost, wasVisited := tentativeDistFromSource[neighbor.ID]
 
@@ -56,7 +56,7 @@ func getShortestPath(city *city.City, stops stopPair) (result Path) {
 			tentativeDistFromSource[neighbor.ID] = tentativeDistance
 
 			heuristicDistance := getDistanceInMeters(
-				tramStops[neighbor.ID], tramStops[stops.destination],
+				nodesByID[neighbor.ID], nodesByID[stops.destination],
 			)
 			heap.Push(
 				nodesToProcess,
@@ -72,11 +72,11 @@ func getShortestPath(city *city.City, stops stopPair) (result Path) {
 
 func reconstructPath(
 	predecessors map[uint64]uint64,
-	stops map[uint64]*city.GraphNode,
+	nodesByID map[uint64]*city.GraphNode,
 	currentID uint64,
 ) (nodes []*city.GraphNode) {
 	for {
-		nodes = append(nodes, stops[currentID])
+		nodes = append(nodes, nodesByID[currentID])
 
 		if previousNodeID, ok := predecessors[currentID]; ok {
 			currentID = previousNodeID

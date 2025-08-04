@@ -1,21 +1,27 @@
 package city
 
 import (
+	"fmt"
 	"slices"
 )
 
 type City struct {
-	cityData         CityData
-	stopsById        map[uint64]*GraphNode
-	linesByStopID    map[uint64][]string
-	arrivalsByStopID map[uint64][]Arrival
+	cityData             CityData
+	nodesByID, stopsByID map[uint64]*GraphNode
+	linesByStopID        map[uint64][]string
+	plannedArrivals      map[uint64][]PlannedArrival
 }
 
 func (c *City) FetchCityData(url string) {
 	c.cityData.FetchCity(url)
-	c.stopsById = c.cityData.GetStopsByID()
+	c.nodesByID = c.cityData.GetNodesByID()
+	c.stopsByID = c.cityData.GetStopsByID()
 	c.linesByStopID = c.cityData.GetLinesByStopID()
-	c.arrivalsByStopID = c.cityData.GetArrivalsByStopID()
+	c.ResetPlannedArrivals()
+}
+
+func (c *City) ResetPlannedArrivals() {
+	c.plannedArrivals = c.cityData.GetPlannedArrivals()
 }
 
 func (c *City) GetTramStops() []GraphNode {
@@ -26,12 +32,24 @@ func (c *City) GetTramTrips() []TramTrip {
 	return c.cityData.TramTrips
 }
 
+func (c *City) GetPlannedArrivals(stopID uint64) *[]PlannedArrival {
+	if arrivals, ok := c.plannedArrivals[stopID]; ok {
+		return &arrivals
+	}
+
+	panic(fmt.Sprintf("Stop ID %d not found", stopID))
+}
+
 func (c *City) GetBounds() LatLonBounds {
 	return c.cityData.GetBounds()
 }
 
+func (c *City) GetNodesByID() map[uint64]*GraphNode {
+	return c.nodesByID
+}
+
 func (c *City) GetStopsByID() map[uint64]*GraphNode {
-	return c.stopsById
+	return c.stopsByID
 }
 
 func (c *City) GetTimeBounds() TimeBounds {
@@ -52,33 +70,4 @@ func (c *City) GetLinesForStop(stopID uint64, chipPerRowSize int) []string {
 		slices.Reverse(processedLines[start:end])
 	}
 	return processedLines
-}
-
-func (c *City) GetArrivalsForStop(stopID uint64, currentTime uint, numberOfArrivals int) (upcoming []Arrival) {
-	upcoming = []Arrival{}
-
-	for _, arrival := range c.arrivalsByStopID[stopID] {
-		if arrival.ETA+30 < currentTime {
-			continue
-		}
-
-		diff := arrival.ETA - currentTime
-
-		var eta uint
-		if diff > 0 {
-			eta = uint((diff + 59) / 60)
-		}
-
-		upcoming = append(upcoming, Arrival{
-			Route:    arrival.Route,
-			Headsign: arrival.Headsign,
-			ETA:      eta,
-		})
-
-		if len(upcoming) == numberOfArrivals {
-			return
-		}
-	}
-
-	return
 }
