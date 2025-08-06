@@ -125,7 +125,7 @@ func (s *Simulation) GetArrivalsForStop(stopID uint64, count int) []Arrival {
 
 		var expectedTime uint
 		if tram.tripData.index < arrival.StopIndex || !tram.isAtStop() {
-			expectedTime = s.time - tram.getEstimatedArrival(arrival.StopIndex, s.time)
+			expectedTime = tram.getEstimatedArrival(arrival.StopIndex, s.time) - s.time
 		}
 
 		arrivals = append(arrivals, Arrival{

@@ -15,6 +15,10 @@ type Path struct {
 }
 
 func (p *Path) GetProgressForIndex(index int) float32 {
+	if index >= len(p.DistancePrefixSum) {
+		return 1
+	}
+
 	return p.DistancePrefixSum[index] / p.DistancePrefixSum[len(p.DistancePrefixSum)-1]
 }
 

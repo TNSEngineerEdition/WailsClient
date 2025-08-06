@@ -10,3 +10,7 @@ type TramTrip struct {
 	TripHeadSign string         `json:"trip_head_sign"`
 	Stops        []TramTripStop `json:"stops"`
 }
+
+func (t *TramTrip) GetScheduledTravelTime(start, end int) uint {
+	return t.Stops[end].Time - t.Stops[start].Time
+}

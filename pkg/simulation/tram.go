@@ -39,8 +39,14 @@ func (t *tram) isAtStop() bool {
 }
 
 func (t *tram) getTravelPath() *controlcenter.Path {
-	previousStop := t.tripData.trip.Stops[t.tripData.index-1]
-	nextStop := t.tripData.trip.Stops[t.tripData.index]
+	startStopID, endStopID := 0, 1
+	if t.tripData.index > 0 {
+		startStopID, endStopID = t.tripData.index-1, t.tripData.index
+	}
+
+	previousStop := t.tripData.trip.Stops[startStopID]
+	nextStop := t.tripData.trip.Stops[endStopID]
+
 	return t.controlCenter.GetPath(previousStop.ID, nextStop.ID)
 }
 
@@ -81,20 +87,39 @@ func (t *tram) setAzimuthAndDistanceToNextNode(path []*city.GraphNode) {
 }
 
 func (t *tram) getEstimatedArrival(stopIndex int, time uint) uint {
-	if t.tripData.index < stopIndex || t.isAtStop() && t.tripData.index == stopIndex {
+	if t.tripData.index > stopIndex || t.tripData.index == stopIndex && t.isAtStop() {
 		return t.tripData.arrivals[stopIndex]
 	}
 
-	lastDeparture := t.tripData.departures[t.tripData.index-1]
-	timeSinceLastDeparture := float64(time - lastDeparture)
-
-	pathDistanceProgress := t.getTravelPath().GetProgressForIndex(t.intermediateIndex)
-	if pathDistanceProgress == 0 {
-		return lastDeparture + t.tripData.getScheduledTravelTime()
+	// For not yet started trips, default to scheduled departure time
+	lastDeparture := t.tripData.trip.Stops[0].Time
+	if t.tripData.index > 0 {
+		lastDeparture = t.tripData.departures[t.tripData.index-1]
 	}
 
-	estimatedTravelTime := uint(math.Round(timeSinceLastDeparture / float64(pathDistanceProgress)))
-	return lastDeparture + estimatedTravelTime
+	pathDistanceProgress := t.getTravelPath().GetProgressForIndex(t.intermediateIndex)
+
+	if t.tripData.index == 0 || stopIndex == 0 {
+		return lastDeparture + t.tripData.trip.GetScheduledTravelTime(0, stopIndex)
+	} else if t.tripData.index == stopIndex && pathDistanceProgress == 0 {
+		return lastDeparture + t.tripData.trip.GetScheduledTravelTime(stopIndex-1, stopIndex)
+	}
+
+	timeSinceLastDeparture := float64(time - lastDeparture)
+	estimatedTravelTimeToNextStop := uint(math.Round(timeSinceLastDeparture / float64(pathDistanceProgress)))
+	estimatedArrivalToNextStop := lastDeparture + estimatedTravelTimeToNextStop
+
+	if t.tripData.index == stopIndex {
+		return estimatedArrivalToNextStop
+	}
+
+	var estimatedPositiveDelay uint
+	if estimatedArrivalToNextStop > t.tripData.trip.Stops[t.tripData.index].Time {
+		estimatedPositiveDelay = estimatedArrivalToNextStop - t.tripData.trip.Stops[t.tripData.index].Time
+	}
+
+	scheduledTravelTime := t.tripData.trip.GetScheduledTravelTime(t.tripData.index, stopIndex)
+	return t.tripData.trip.Stops[t.tripData.index].Time + scheduledTravelTime + estimatedPositiveDelay
 }
 
 type TramPositionChange struct {
