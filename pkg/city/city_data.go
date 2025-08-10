@@ -31,23 +31,24 @@ func (c *CityData) FetchCity(cityID string) {
 	}
 }
 
-func (c *CityData) GetTramStops() (result []GraphNode) {
-	result = make([]GraphNode, 0)
+func (c *CityData) GetTramStops() (result []TramStop) {
+	result = make([]TramStop, 0)
 
-	for _, node := range c.TramTrackGraph {
+	for i := range c.TramTrackGraph {
+		node := &c.TramTrackGraph[i]
 		if node.isTramStop() {
-			result = append(result, node)
+			result = append(result, node.getTramStopDetails())
 		}
 	}
 
 	return result
 }
 
-func (c *CityData) GetNodesByID() map[uint64]*GraphNode {
-	result := make(map[uint64]*GraphNode, len(c.TramTrackGraph))
-
-	for _, node := range c.TramTrackGraph {
-		result[node.ID] = &node
+func (c *CityData) GetNodesByID() (result map[uint64]*GraphNode) {
+	result = make(map[uint64]*GraphNode, len(c.TramTrackGraph))
+	for i := range c.TramTrackGraph {
+		node := &c.TramTrackGraph[i]
+		result[node.ID] = node
 	}
 
 	return result
@@ -56,9 +57,10 @@ func (c *CityData) GetNodesByID() map[uint64]*GraphNode {
 func (c *CityData) GetStopsByID() map[uint64]*GraphNode {
 	result := make(map[uint64]*GraphNode)
 
-	for _, node := range c.TramTrackGraph {
+	for i := range c.TramTrackGraph {
+		node := &c.TramTrackGraph[i]
 		if node.isTramStop() {
-			result[node.ID] = &node
+			result[node.ID] = node
 		}
 	}
 
@@ -76,7 +78,8 @@ func (c *CityData) GetBounds() LatLonBounds {
 	minLat, minLon := float32(math.Inf(1)), float32(math.Inf(1))
 	maxLat, maxLon := float32(math.Inf(-1)), float32(math.Inf(-1))
 
-	for _, node := range c.TramTrackGraph {
+	for i := range c.TramTrackGraph {
+		node := &c.TramTrackGraph[i]
 		minLat = min(minLat, node.Latitude)
 		minLon = min(minLon, node.Longitude)
 		maxLat = max(maxLat, node.Latitude)

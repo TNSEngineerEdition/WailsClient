@@ -24,7 +24,7 @@ func (c *City) ResetPlannedArrivals() {
 	c.plannedArrivals = c.cityData.GetPlannedArrivals()
 }
 
-func (c *City) GetTramStops() []GraphNode {
+func (c *City) GetTramStops() []TramStop {
 	return c.cityData.GetTramStops()
 }
 

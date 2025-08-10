@@ -21,7 +21,7 @@ const headers = [
 const model = defineModel<boolean>({ required: true })
 
 const props = defineProps<{
-  stop?: city.GraphNode
+  stop?: city.TramStop
   currentTime: number
 }>()
 

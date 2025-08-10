@@ -35,7 +35,12 @@ func (s *Simulation) tramWorker() {
 }
 
 func (s *Simulation) resetTrams() {
+	for _, tram := range s.trams {
+		tram.unblockWholePath()
+	}
+
 	s.trams = make(map[int]*tram, len(s.city.GetTramTrips()))
+
 	for i, trip := range s.city.GetTramTrips() {
 		s.trams[i] = newTram(i, &trip, &s.controlCenter)
 	}

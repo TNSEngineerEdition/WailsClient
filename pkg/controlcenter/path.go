@@ -45,7 +45,7 @@ func getShortestPath(city *city.City, stops stopPair) (result Path) {
 		visitedNodes[currentID] = true
 
 		for _, neighbor := range nodesByID[currentID].Neighbors {
-			tentativeDistance := tentativeDistFromSource[currentID] + neighbor.Length
+			tentativeDistance := tentativeDistFromSource[currentID] + neighbor.Distance
 			cost, wasVisited := tentativeDistFromSource[neighbor.ID]
 
 			if wasVisited && tentativeDistance >= cost {
@@ -113,7 +113,7 @@ func getPathDistancePrefixSum(nodes []*city.GraphNode) []float32 {
 				continue
 			}
 
-			prefixSum[i] = neighbor.Length + prefixSum[i-1]
+			prefixSum[i] = neighbor.Distance + prefixSum[i-1]
 		}
 	}
 
