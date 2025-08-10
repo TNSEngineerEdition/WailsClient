@@ -191,10 +191,8 @@ func (t *tram) getEstimatedArrival(stopIndex int, time uint) uint {
 
 	pathDistanceProgress := t.getTravelPath().GetProgressForIndex(t.pathIndex)
 
-	if t.tripData.index == 0 || stopIndex == 0 {
-		return lastDeparture + t.tripData.trip.GetScheduledTravelTime(0, stopIndex)
-	} else if t.tripData.index == stopIndex && pathDistanceProgress == 0 {
-		return lastDeparture + t.tripData.trip.GetScheduledTravelTime(stopIndex-1, stopIndex)
+	if t.tripData.index == 0 || stopIndex == 0 || pathDistanceProgress == 0 {
+		return lastDeparture + t.tripData.trip.GetScheduledTravelTime(t.tripData.index, stopIndex)
 	}
 
 	timeSinceLastDeparture := float64(time - lastDeparture)
