@@ -44,17 +44,17 @@ func (g *GraphNode) getTramStopDetails() TramStop {
 	}
 }
 
-func (g *GraphNode) IsBlockedByOtherTram(tramID int) bool {
+func (g *GraphNode) TryBlocking(tramID int) bool {
 	g.mu.Lock()
 	defer g.mu.Unlock()
-	return g.isBlocked && g.blockingTramID != tramID
-}
 
-func (g *GraphNode) Block(tramID int) {
-	g.mu.Lock()
-	defer g.mu.Unlock()
+	if g.isBlocked && g.blockingTramID != tramID {
+		return false
+	}
+
 	g.isBlocked = true
 	g.blockingTramID = tramID
+	return true
 }
 
 func (g *GraphNode) Unblock(tramID int) {

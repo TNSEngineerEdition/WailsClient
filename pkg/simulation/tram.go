@@ -110,7 +110,7 @@ func (t *tram) handleTripFinished() (result TramPositionChange, update bool) {
 }
 
 func (t *tram) handleTravelling(time uint) (result TramPositionChange, update bool) {
-	//50 is the velocity, and *5/18 is used to convert velocity from km/h to m/s
+	// km/h -> m/s
 	t.speed = float32(50*5) / float32(18)
 
 	currentStop := t.trip.Stops[t.tripIndex]
@@ -183,14 +183,14 @@ func (t *tram) setAzimuthAndDistanceToNextNode(path []*city.GraphNode) {
 }
 
 func (t *tram) getDistanceToNeighbor(v *city.GraphNode, u *city.GraphNode) float32 {
-	for _, neigbor := range v.Neighbors {
-		if neigbor.ID == u.ID {
-			return neigbor.Distance
+	for _, neighbor := range v.Neighbors {
+		if neighbor.ID == u.ID {
+			return neighbor.Distance
 		}
 	}
-	for _, neigbor := range u.Neighbors {
-		if neigbor.ID == v.ID {
-			return neigbor.Distance
+	for _, neighbor := range u.Neighbors {
+		if neighbor.ID == v.ID {
+			return neighbor.Distance
 		}
 	}
 	panic("Distance between nodes not found")
@@ -206,14 +206,12 @@ func (t *tram) blockNodesAhead(path []*city.GraphNode) (availableDistance float3
 		v := path[i]
 		u := path[i+1]
 
-		if u.IsBlockedByOtherTram(t.id) {
-			break
-		}
-
 		distanceToNextNode := t.getDistanceToNeighbor(v, u)
 		if availableDistance+distanceToNextNode <= maxBlockingDistance {
+			if !u.TryBlocking(t.id) {
+				break
+			}
 			availableDistance += distanceToNextNode
-			u.Block(t.id)
 			i++
 		} else {
 			availableDistance = maxBlockingDistance
@@ -232,7 +230,7 @@ func (t *tram) blockNodesBehind() {
 
 	// block current position of a tram marker
 	u := t.blockedNodesBehind[idx]
-	u.Block(t.id)
+	u.TryBlocking(t.id)
 	idx--
 
 	// block nodes behind a tram marker simulating tram length
@@ -240,7 +238,7 @@ func (t *tram) blockNodesBehind() {
 	for distanceLeft > 0 && idx >= 0 {
 		v := t.blockedNodesBehind[idx]
 		distanceLeft -= t.getDistanceToNeighbor(v, u)
-		v.Block(t.id)
+		v.TryBlocking(t.id)
 		u = v
 		idx--
 	}
