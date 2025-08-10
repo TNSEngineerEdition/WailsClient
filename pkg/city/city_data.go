@@ -106,7 +106,8 @@ func (c *CityData) GetTimeBounds() (result TimeBounds) {
 		}
 	}
 
-	return result
+	result.StartTime -= 60
+	return
 }
 
 func (c *CityData) getLineSetsByStopID() map[uint64]map[string]struct{} {

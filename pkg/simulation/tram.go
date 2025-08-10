@@ -183,10 +183,12 @@ func (t *tram) onTripFinished() (result TramPositionChange, update bool) {
 		return
 	}
 
+	t.isFinished = true
 	result = TramPositionChange{
 		TramID: t.id,
 	}
 	update = true
+
 	return
 }
 
@@ -236,7 +238,7 @@ func (t *tram) Advance(time uint, stopsByID map[uint64]*city.GraphNode) (result 
 		result, update = t.onTripFinished()
 	}
 
-	return result, update
+	return
 }
 
 type TramDetails struct {
