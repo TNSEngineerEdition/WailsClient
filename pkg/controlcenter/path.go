@@ -15,10 +15,6 @@ type Path struct {
 }
 
 func (p *Path) GetProgressForIndex(index int) float32 {
-	if index >= len(p.DistancePrefixSum) {
-		return 1
-	}
-
 	return p.DistancePrefixSum[index] / p.DistancePrefixSum[len(p.DistancePrefixSum)-1]
 }
 
@@ -109,18 +105,15 @@ func getDistanceInMeters(source, destination *city.GraphNode) float32 {
 }
 
 func getPathDistancePrefixSum(nodes []*city.GraphNode) []float32 {
-	prefixSum := make([]float32, len(nodes)-1)
+	prefixSum := make([]float32, len(nodes))
 
-	for i := 0; i < len(nodes)-1; i++ {
-		for _, neighbor := range nodes[i].Neighbors {
-			if neighbor.ID != nodes[i+1].ID {
+	for i := 1; i < len(nodes); i++ {
+		for _, neighbor := range nodes[i-1].Neighbors {
+			if neighbor.ID != nodes[i].ID {
 				continue
 			}
 
-			prefixSum[i] = neighbor.Length
-			if i > 0 {
-				prefixSum[i] += prefixSum[i-1]
-			}
+			prefixSum[i] = neighbor.Length + prefixSum[i-1]
 		}
 	}
 
