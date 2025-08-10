@@ -73,7 +73,7 @@ func (c *ControlCenter) getShortestPath(sourceID, destID uint64) []*city.GraphNo
 		currentNode := tramStops[currentID]
 
 		for _, neighbor := range currentNode.Neighbors {
-			tentativeDist := tentativeDistFromSource[currentID] + neighbor.Length
+			tentativeDist := tentativeDistFromSource[currentID] + neighbor.Distance
 			cost, wasVisited := tentativeDistFromSource[neighbor.ID]
 			if wasVisited && tentativeDist >= cost {
 				continue

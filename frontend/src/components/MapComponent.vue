@@ -32,7 +32,7 @@ const tramSidebar = ref(false)
 const stopSidebar = ref(false)
 
 const selectedTramID = ref<number>()
-const selectedStop = ref<city.GraphNode>()
+const selectedStop = ref<city.TramStop>()
 
 const timeUtils = useTimeUtils()
 
