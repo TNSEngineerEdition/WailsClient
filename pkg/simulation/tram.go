@@ -20,6 +20,7 @@ type tram struct {
 	azimuth             float32
 	distToNextInterNode float32
 	departureTime       uint
+	isFinished          bool
 	state               TramState
 	controlCenter       *controlcenter.ControlCenter
 }
@@ -95,6 +96,11 @@ func (t *tram) handlePassangerTransfer(time uint) {
 }
 
 func (t *tram) handleTripFinished() (result TramPositionChange, update bool) {
+	if t.isFinished {
+		return
+	}
+
+	t.isFinished = true
 	t.unblockNodesBehind()
 	result = TramPositionChange{
 		TramID: t.id,
@@ -187,7 +193,7 @@ func (t *tram) getDistanceToNeighbor(v *city.GraphNode, u *city.GraphNode) float
 			return neigbor.Distance
 		}
 	}
-	return 0
+	panic("Distance between nodes not found")
 }
 
 func (t *tram) blockNodesAhead(path []*city.GraphNode) (availableDistance float32) {
