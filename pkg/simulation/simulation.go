@@ -118,6 +118,16 @@ func (s *Simulation) GetArrivalsForStop(stopID uint64, count int) []Arrival {
 	plannedArrivals := s.city.GetPlannedArrivals(stopID)
 	arrivals := make([]Arrival, 0)
 
+	// Skip trams which have already departed for future iterations
+	for i, arrival := range *plannedArrivals {
+		if s.trams[arrival.TramID].tripData.index <= arrival.StopIndex {
+			continue
+		}
+
+		*plannedArrivals = (*plannedArrivals)[i:]
+		break
+	}
+
 	for _, arrival := range *plannedArrivals {
 		if arrival.Time > s.time+30*60 {
 			break
