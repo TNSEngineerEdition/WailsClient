@@ -9,7 +9,7 @@ import {
 } from "@wails/go/simulation/Simulation"
 import { LeafletMap } from "@classes/LeafletMap"
 import { TramMarker } from "@classes/TramMarker"
-import useTimeUtils from "@composables/useTimeUtils"
+import { Time } from "@classes/Time"
 import TramSidebarComponent from "@components/sidebar/TramSidebarComponent.vue"
 import StopSidebarComponent from "@components/sidebar/StopSidebarComponent.vue"
 
@@ -33,8 +33,6 @@ const stopSidebar = ref(false)
 
 const selectedTramID = ref<number>()
 const selectedStop = ref<city.TramStop>()
-
-const timeUtils = useTimeUtils()
 
 async function reset() {
   tramSidebar.value = false
@@ -94,7 +92,7 @@ onMounted(async () => {
     leafletMap.value!.getEntityCount() > 0
   ) {
     while (!props.isRunning) {
-      await timeUtils.sleep(1)
+      await Time.sleep(1)
     }
 
     await AdvanceTrams(time.value).then(tramPositionChanges => {
@@ -113,7 +111,7 @@ onMounted(async () => {
 
     time.value += 1
 
-    await timeUtils.sleep(1000 / props.speed)
+    await Time.sleep(1000 / props.speed)
   }
 })
 </script>

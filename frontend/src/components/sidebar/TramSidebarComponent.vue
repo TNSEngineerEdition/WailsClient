@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import SidebarComponent from "@components/sidebar/SidebarComponent.vue"
-import useTimeUtils from "@composables/useTimeUtils"
+import { Time } from "@classes/Time"
 import { simulation } from "@wails/go/models"
 import { GetTramDetails } from "@wails/go/simulation/Simulation"
 import { computed, ref, watch } from "vue"
@@ -12,27 +12,32 @@ const props = defineProps<{
   currentTime: number
 }>()
 
-const timeUtils = useTimeUtils()
-
 const tramDetails = ref<simulation.TramDetails>()
 
 const headers = [
   { title: "Stop name", key: "stop", align: "center", sortable: false },
   { title: "Departure", key: "time", align: "center", sortable: false },
-  { title: "Delay", key: "delay", align: "center", sortable: false },
+  { title: "Arrival", key: "arrival", align: "center", sortable: false },
+  { title: "Departure", key: "departure", align: "center", sortable: false },
 ] as const
 
-const formattedStops = computed(
+const stopsTableData = computed(
   () =>
     tramDetails.value?.stop_names.map((stop, index) => {
-      const stopTime = tramDetails.value?.stops[index]?.time
+      const time = tramDetails.value?.stops[index]?.time ?? 0
+      const tripIndex = tramDetails.value?.trip_index ?? 0
+
       return {
         stop,
-        time:
-          stopTime !== undefined
-            ? timeUtils.toShortTimeString(stopTime)
-            : "Unknown",
-        delay: "00:00",
+        time,
+        arrival:
+          index <= tripIndex
+            ? (tramDetails.value?.arrivals[index] ?? 0) - time
+            : null,
+        departure:
+          index <= tripIndex - 1
+            ? (tramDetails.value?.departures[index] ?? 0) - time
+            : null,
       }
     }) ?? [],
 )
@@ -47,6 +52,16 @@ function getRowProps(data: any) {
     return {
       style: "transition: background-color 0.3s ease;",
     }
+}
+
+function getDelayTextColorClass(delay: number) {
+  if (delay > 0) {
+    return "text-red font-weight-bold"
+  } else if (delay < 0) {
+    return "text-info font-weight-bold"
+  } else {
+    return ""
+  }
 }
 
 watch(
@@ -114,19 +129,33 @@ watch(
         :header-props="{
           style: 'font-weight: bold;',
         }"
-        :items="formattedStops"
+        :items="stopsTableData"
         :row-props="getRowProps"
         class="stops-table"
         density="compact"
         hide-default-footer
         hover
       >
-        <template v-slot:item.stop="{ item }">
-          {{ item.stop }}
+        <template v-slot:item.time="{ item }">
+          {{ new Time(item.time).toShortMinuteString() }}
         </template>
 
-        <template v-slot:item.time="{ item }">
-          {{ item.time }}
+        <template v-slot:item.arrival="{ item }">
+          <span
+            v-if="item.arrival != null"
+            :class="getDelayTextColorClass(item.arrival)"
+          >
+            {{ new Time(item.arrival, true).toShortSecondString() }}
+          </span>
+        </template>
+
+        <template v-slot:item.departure="{ item }">
+          <span
+            v-if="item.departure != null"
+            :class="getDelayTextColorClass(item.departure)"
+          >
+            {{ new Time(item.departure, true).toShortSecondString() }}
+          </span>
         </template>
       </v-data-table-virtual>
     </div>

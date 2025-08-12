@@ -1,7 +1,9 @@
 package simulation
 
 import (
+	"math"
 	"runtime"
+	"slices"
 
 	"github.com/TNSEngineerEdition/WailsClient/pkg/city"
 	"github.com/TNSEngineerEdition/WailsClient/pkg/controlcenter"
@@ -32,7 +34,7 @@ func (s *Simulation) tramWorker() {
 	}
 }
 
-func (s *Simulation) ResetTrams() {
+func (s *Simulation) resetTrams() {
 	for _, tram := range s.trams {
 		tram.unblockWholePath()
 	}
@@ -44,13 +46,19 @@ func (s *Simulation) ResetTrams() {
 	}
 }
 
+func (s *Simulation) ResetSimulation() {
+	s.resetTrams()
+	s.city.ResetPlannedArrivals()
+}
+
 func (s *Simulation) FetchData(url string, tramWorkerCount uint) {
 	s.city.FetchCityData(url)
 	s.controlCenter = controlcenter.NewControlCenter(s.city)
-	s.ResetTrams()
+	s.ResetSimulation()
 	s.tramWorkersData.reset(len(s.trams))
 
 	if tramWorkerCount == 0 {
+		// CPU count * 110% for more efficiency
 		tramWorkerCount = uint(runtime.NumCPU()) * 11 / 10
 	}
 
@@ -69,7 +77,7 @@ func (s *Simulation) GetTramIDs() (result []TramIdentifier) {
 	for id, tram := range s.trams {
 		result = append(result, TramIdentifier{
 			ID:    id,
-			Route: tram.trip.Route,
+			Route: tram.tripData.trip.Route,
 		})
 	}
 	return result
@@ -95,7 +103,56 @@ func (s *Simulation) AdvanceTrams(time uint) (result []TramPositionChange) {
 
 func (s *Simulation) GetTramDetails(id int) TramDetails {
 	if tram, ok := s.trams[id]; ok {
-		return tram.GetDetails(s.city)
+		return tram.GetDetails(s.city, s.time)
 	}
 	return TramDetails{}
+}
+
+type Arrival struct {
+	Route        string `json:"route"`
+	TripHeadSign string `json:"tripHeadSign"`
+	Minutes      uint   `json:"time"`
+}
+
+func (s *Simulation) GetArrivalsForStop(stopID uint64, count int) []Arrival {
+	plannedArrivals := s.city.GetPlannedArrivals(stopID)
+	arrivals := make([]Arrival, 0)
+
+	// Skip trams which have already departed for future iterations
+	for i, arrival := range *plannedArrivals {
+		if s.trams[arrival.TramID].tripData.index <= arrival.StopIndex {
+			continue
+		}
+
+		*plannedArrivals = (*plannedArrivals)[i:]
+		break
+	}
+
+	for _, arrival := range *plannedArrivals {
+		if arrival.Time > s.time+30*60 {
+			break
+		}
+
+		tram := s.trams[arrival.TramID]
+		if tram.tripData.index > arrival.StopIndex {
+			continue
+		}
+
+		var expectedTime uint
+		if tram.tripData.index < arrival.StopIndex || !tram.isAtStop() {
+			expectedTime = tram.getEstimatedArrival(arrival.StopIndex, s.time) - s.time
+		}
+
+		arrivals = append(arrivals, Arrival{
+			Route:        tram.tripData.trip.Route,
+			TripHeadSign: tram.tripData.trip.TripHeadSign,
+			Minutes:      uint(math.Ceil(float64(expectedTime) / 60)),
+		})
+	}
+
+	slices.SortFunc(arrivals, func(a1, a2 Arrival) int {
+		return int(a1.Minutes) - int(a2.Minutes)
+	})
+
+	return arrivals[:min(len(arrivals), count)]
 }

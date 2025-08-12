@@ -1,116 +1,46 @@
 package controlcenter
 
 import (
-	"container/heap"
 	"fmt"
-	"slices"
 
 	"github.com/TNSEngineerEdition/WailsClient/pkg/city"
-	"github.com/umahmood/haversine"
 )
 
+type stopPair struct {
+	source, destination uint64
+}
+
 type ControlCenter struct {
-	city               *city.City
-	routesBetweenNodes map[[2]uint64][]*city.GraphNode
+	city  *city.City
+	paths map[stopPair]Path
 }
 
 func NewControlCenter(cityPointer *city.City) ControlCenter {
 	c := ControlCenter{
-		city:               cityPointer,
-		routesBetweenNodes: make(map[[2]uint64][]*city.GraphNode),
+		city:  cityPointer,
+		paths: make(map[stopPair]Path),
 	}
 
 	tramTrips := cityPointer.GetTramTrips()
 	for _, tripData := range tramTrips {
 		for i := 0; i < len(tripData.Stops)-1; i++ {
-			firstStop, secondStop := tripData.Stops[i], tripData.Stops[i+1]
-			tramStopPair := [2]uint64{firstStop.ID, secondStop.ID}
-			if _, ok := c.routesBetweenNodes[tramStopPair]; ok {
-				continue
+			stopPair := stopPair{
+				source:      tripData.Stops[i].ID,
+				destination: tripData.Stops[i+1].ID,
 			}
 
-			c.routesBetweenNodes[tramStopPair] = c.getShortestPath(firstStop.ID, secondStop.ID)
+			if _, ok := c.paths[stopPair]; !ok {
+				c.paths[stopPair] = getShortestPath(c.city, stopPair)
+			}
 		}
 	}
 	return c
 }
 
-func (c *ControlCenter) GetRouteBetweenNodes(sourceID, destID uint64) []*city.GraphNode {
-	key := [2]uint64{sourceID, destID}
-	path, exist := c.routesBetweenNodes[key]
-	if !exist {
-		panic(fmt.Sprintf("No path found between %d and %d nodes", sourceID, destID))
-	}
-	return path
-}
-
-func (c *ControlCenter) getShortestPath(sourceID, destID uint64) []*city.GraphNode {
-	tramStopPair := [2]uint64{sourceID, destID}
-	tramStops := c.city.GetStopsByID()
-	destNode := tramStops[destID]
-
-	nodesToProcess := &priorityQueue{}
-	heap.Init(nodesToProcess)
-	heap.Push(nodesToProcess, &nodeRecord{ID: sourceID})
-
-	predecessors := make(map[uint64]uint64)
-	tentativeDistFromSource := make(map[uint64]float32)
-	visitedNodes := make(map[uint64]bool)
-
-	for nodesToProcess.Len() > 0 {
-		currentID := heap.Pop(nodesToProcess).(*nodeRecord).ID
-		if currentID == destID {
-			c.routesBetweenNodes[tramStopPair] = c.reconstructPath(predecessors, tramStops, currentID)
-			return c.routesBetweenNodes[tramStopPair]
-		}
-
-		if visitedNodes[currentID] {
-			continue
-		}
-
-		visitedNodes[currentID] = true
-
-		currentNode := tramStops[currentID]
-
-		for _, neighbor := range currentNode.Neighbors {
-			tentativeDist := tentativeDistFromSource[currentID] + neighbor.Distance
-			cost, wasVisited := tentativeDistFromSource[neighbor.ID]
-			if wasVisited && tentativeDist >= cost {
-				continue
-			}
-
-			predecessors[neighbor.ID] = currentID
-			tentativeDistFromSource[neighbor.ID] = tentativeDist
-			heuristicDistance := c.heuristic(tramStops[neighbor.ID], destNode)
-			expectedDistFromSrcToDest := heuristicDistance + tentativeDist
-			heap.Push(nodesToProcess, &nodeRecord{ID: neighbor.ID, Priority: expectedDistFromSrcToDest})
-		}
+func (c *ControlCenter) GetPath(sourceNodeID, destinationNodeID uint64) *Path {
+	if path, ok := c.paths[stopPair{source: sourceNodeID, destination: destinationNodeID}]; ok {
+		return &path
 	}
 
-	panic(fmt.Sprintf("No path found between %d and %d nodes", sourceID, destID))
-}
-
-func (c *ControlCenter) heuristic(a, b *city.GraphNode) float32 {
-	sourceCoords := haversine.Coord{Lat: float64(a.Latitude), Lon: float64(a.Longitude)}
-	goalCoords := haversine.Coord{Lat: float64(b.Latitude), Lon: float64(b.Longitude)}
-	_, km := haversine.Distance(sourceCoords, goalCoords)
-	return float32(km * 1000)
-}
-
-func (c *ControlCenter) reconstructPath(
-	predecessors map[uint64]uint64,
-	stops map[uint64]*city.GraphNode,
-	currentID uint64,
-) (path []*city.GraphNode) {
-	for {
-		path = append(path, stops[currentID])
-		prev, ok := predecessors[currentID]
-		if !ok {
-			break
-		}
-		currentID = prev
-	}
-
-	slices.Reverse(path)
-	return
+	panic(fmt.Sprintf("No path found between %d and %d nodes", sourceNodeID, destinationNodeID))
 }

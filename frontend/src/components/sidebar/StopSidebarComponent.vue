@@ -1,20 +1,21 @@
 <script setup lang="ts">
 import SidebarComponent from "@components/sidebar/SidebarComponent.vue"
 import { ref, watch } from "vue"
-import { city } from "@wails/go/models"
-import { GetLinesForStop, GetArrivalsForStop } from "@wails/go/city/City"
+import { city, simulation } from "@wails/go/models"
+import { GetLinesForStop } from "@wails/go/city/City"
+import { GetArrivalsForStop } from "@wails/go/simulation/Simulation"
 
 const ARRIVALS_IN_TABLE = 5
 
 const headers = [
-  { title: "Route", key: "Route", align: "center", sortable: false },
+  { title: "Route", key: "route", align: "center", sortable: false },
   {
     title: "Trip head-sign",
-    key: "Headsign",
+    key: "tripHeadSign",
     align: "center",
     sortable: false,
   },
-  { title: "ETA", key: "eta", align: "center", sortable: false },
+  { title: "ETA", key: "time", align: "center", sortable: false },
 ] as const
 
 const model = defineModel<boolean>({ required: true })
@@ -25,7 +26,7 @@ const props = defineProps<{
 }>()
 
 const lines = ref<string[]>([])
-const arrivalsInfo = ref<city.Arrival[]>([])
+const arrivalsInfo = ref<simulation.Arrival[]>([])
 const lineChipColumns = ref(5)
 
 watch(
@@ -33,11 +34,7 @@ watch(
   async id => {
     if (id) {
       lines.value = await GetLinesForStop(id, lineChipColumns.value)
-      arrivalsInfo.value = await GetArrivalsForStop(
-        id,
-        props.currentTime,
-        ARRIVALS_IN_TABLE,
-      )
+      arrivalsInfo.value = await GetArrivalsForStop(id, ARRIVALS_IN_TABLE)
     } else {
       lines.value = []
       arrivalsInfo.value = []
@@ -48,11 +45,10 @@ watch(
 
 watch(
   () => props.currentTime,
-  async currentTime => {
+  async () => {
     if (props.stop?.id) {
       arrivalsInfo.value = await GetArrivalsForStop(
         props.stop.id,
-        currentTime,
         ARRIVALS_IN_TABLE,
       )
     }
@@ -129,10 +125,10 @@ watch(
         </div>
       </template>
 
-      <template v-slot:item.eta="{ item }">
-        <span v-if="item.ETA === 0" class="blinking"> &gt;&gt;&gt; </span>
+      <template v-slot:item.time="{ item }">
+        <span v-if="item.time === 0" class="blinking"> &gt;&gt;&gt; </span>
 
-        <span v-else>{{ item.ETA }} min</span>
+        <span v-else>{{ item.time }} min</span>
       </template>
     </v-data-table>
   </SidebarComponent>

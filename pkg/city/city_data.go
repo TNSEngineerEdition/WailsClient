@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"math"
 	"net/http"
-	"sort"
+	"slices"
 
 	"github.com/facette/natsort"
 )
@@ -44,11 +44,24 @@ func (c *CityData) GetTramStops() (result []TramStop) {
 	return result
 }
 
-func (c *CityData) GetStopsByID() (result map[uint64]*GraphNode) {
+func (c *CityData) GetNodesByID() (result map[uint64]*GraphNode) {
 	result = make(map[uint64]*GraphNode, len(c.TramTrackGraph))
 	for i := range c.TramTrackGraph {
 		node := &c.TramTrackGraph[i]
 		result[node.ID] = node
+	}
+
+	return result
+}
+
+func (c *CityData) GetStopsByID() map[uint64]*GraphNode {
+	result := make(map[uint64]*GraphNode)
+
+	for i := range c.TramTrackGraph {
+		node := &c.TramTrackGraph[i]
+		if node.isTramStop() {
+			result[node.ID] = node
+		}
 	}
 
 	return result
@@ -96,7 +109,8 @@ func (c *CityData) GetTimeBounds() (result TimeBounds) {
 		}
 	}
 
-	return result
+	result.StartTime -= 60
+	return
 }
 
 func (c *CityData) getLineSetsByStopID() map[uint64]map[string]struct{} {
@@ -126,33 +140,31 @@ func (c *CityData) GetLinesByStopID() map[uint64][]string {
 	return linesByStopID
 }
 
-type Arrival struct {
-	Route    string
-	Headsign string
-	ETA      uint
+type PlannedArrival struct {
+	TramID    int
+	StopIndex int
+	Time      uint
 }
 
-func (c *CityData) GetArrivalsByStopID() map[uint64][]Arrival {
-	arrivalsByStopID := make(map[uint64][]Arrival)
+func (c *CityData) GetPlannedArrivals() map[uint64][]PlannedArrival {
+	stops := c.GetStopsByID()
+	plannedArrivals := make(map[uint64][]PlannedArrival, len(stops))
 
-	for _, trip := range c.TramTrips {
-		for _, s := range trip.Stops {
-			stopID := s.ID
-			arrival := Arrival{
-				Route:    trip.Route,
-				Headsign: trip.TripHeadSign,
-				ETA:      s.Time,
-			}
-			arrivalsByStopID[stopID] = append(arrivalsByStopID[stopID], arrival)
+	for tramID, trip := range c.TramTrips {
+		for stopIndex, stop := range trip.Stops {
+			plannedArrivals[stop.ID] = append(plannedArrivals[stop.ID], PlannedArrival{
+				TramID:    tramID,
+				StopIndex: stopIndex,
+				Time:      stop.Time,
+			})
 		}
 	}
 
-	for stopID, arrivals := range arrivalsByStopID {
-		sort.Slice(arrivals, func(i, j int) bool {
-			return arrivals[i].ETA < arrivals[j].ETA
+	for _, arrivals := range plannedArrivals {
+		slices.SortFunc(arrivals, func(a1, a2 PlannedArrival) int {
+			return int(a1.Time) - int(a2.Time)
 		})
-		arrivalsByStopID[stopID] = arrivals
 	}
 
-	return arrivalsByStopID
+	return plannedArrivals
 }

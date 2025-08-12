@@ -4,7 +4,8 @@ type TramState uint8
 
 const (
 	StateTripNotStarted TramState = iota
-	StatePassengerTransfer
+	StatePassengerLoading
 	StateTravelling
+	StatePassengerUnloading
 	StateTripFinished
 )
