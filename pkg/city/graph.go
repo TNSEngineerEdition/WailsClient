@@ -34,6 +34,10 @@ func (g *GraphNode) isTramStop() bool {
 	return g.Name != nil && g.GTFSStopIDs != nil
 }
 
+func (g *GraphNode) IsTramStop() bool {
+	return g.Name != nil && g.GTFSStopIDs != nil
+}
+
 func (g *GraphNode) getTramStopDetails() TramStop {
 	return TramStop{
 		ID:          g.ID,
@@ -64,4 +68,17 @@ func (g *GraphNode) Unblock(tramID int) {
 		g.isBlocked = false
 		g.blockingTramID = -1
 	}
+}
+
+// func (g *GraphNode) IsBlocked(tramID int) bool {
+// 	g.mu.Lock()
+// 	defer g.mu.Unlock()
+
+// 	return g.isBlocked && g.blockingTramID != tramID //???
+// }
+
+func (g *GraphNode) IsFree(tramID int) bool {
+	g.mu.Lock()
+	defer g.mu.Unlock()
+	return !g.isBlocked || g.blockingTramID == tramID
 }
