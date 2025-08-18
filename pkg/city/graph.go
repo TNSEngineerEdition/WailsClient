@@ -70,13 +70,6 @@ func (g *GraphNode) Unblock(tramID int) {
 	}
 }
 
-// func (g *GraphNode) IsBlocked(tramID int) bool {
-// 	g.mu.Lock()
-// 	defer g.mu.Unlock()
-
-// 	return g.isBlocked && g.blockingTramID != tramID //???
-// }
-
 func (g *GraphNode) IsFree(tramID int) bool {
 	g.mu.Lock()
 	defer g.mu.Unlock()
