@@ -15,7 +15,6 @@ type tram struct {
 	tripData                           tripData
 	controlCenter                      *controlcenter.ControlCenter
 	blockedNodesBehind                 []*city.GraphNode
-	blockedNodesAhead                  []*city.GraphNode
 	departureTime                      uint
 	isFinished                         bool
 	state                              TramState
@@ -115,30 +114,6 @@ func (t *tram) nextNodeDistance(path []*city.GraphNode, i int) float32 {
 		return t.distToNextInterNode
 	}
 	return d
-}
-
-func (t *tram) blockNodesAhead(path []*city.GraphNode) (availableDistance float32) {
-	stoppingDistance := t.speed * t.speed / (2 * acceleration)
-	maxBlockingDistance := t.speed + stoppingDistance
-	i := t.pathIndex
-
-	for availableDistance < maxBlockingDistance && i < len(path)-1 {
-		u := path[i+1]
-
-		distanceToNextNode := t.nextNodeDistance(path, i)
-		if availableDistance+distanceToNextNode <= maxBlockingDistance {
-			if !u.TryBlocking(t.id) {
-				break
-			}
-			availableDistance += distanceToNextNode
-			i++
-		} else {
-			availableDistance = maxBlockingDistance
-			break
-		}
-	}
-
-	return availableDistance
 }
 
 func (t *tram) unblockNodesAhead(path []*city.GraphNode, firstToUnblock, lastToUnblock int) {
