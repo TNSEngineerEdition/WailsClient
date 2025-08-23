@@ -30,10 +30,6 @@ type GraphNode struct {
 	mu             sync.Mutex
 }
 
-func (g *GraphNode) isTramStop() bool {
-	return g.Name != nil && g.GTFSStopIDs != nil
-}
-
 func (g *GraphNode) IsTramStop() bool {
 	return g.Name != nil && g.GTFSStopIDs != nil
 }
@@ -68,10 +64,4 @@ func (g *GraphNode) Unblock(tramID int) {
 		g.isBlocked = false
 		g.blockingTramID = -1
 	}
-}
-
-func (g *GraphNode) IsFree(tramID int) bool {
-	g.mu.Lock()
-	defer g.mu.Unlock()
-	return !g.isBlocked || g.blockingTramID == tramID
 }

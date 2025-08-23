@@ -1,7 +1,6 @@
 package simulation
 
 import (
-	"fmt"
 	"math"
 	"math/rand/v2"
 
@@ -77,8 +76,10 @@ func (t *tram) findNewLocation(path []*city.GraphNode, distanceToDrive float32) 
 }
 
 func (t *tram) findIntermediateLocation(path []*city.GraphNode, remainingPart float32) {
-	t.latitude += (path[t.pathIndex+1].Latitude - t.latitude) * remainingPart
-	t.longitude += (path[t.pathIndex+1].Longitude - t.longitude) * remainingPart
+	vectorLat := path[t.pathIndex+1].Latitude - path[t.pathIndex].Latitude
+	vectorLon := path[t.pathIndex+1].Longitude - path[t.pathIndex].Longitude
+	t.latitude = path[t.pathIndex].Latitude + vectorLat*remainingPart
+	t.longitude = path[t.pathIndex].Longitude + vectorLon*remainingPart
 }
 
 func (t *tram) setAzimuthAndDistanceToNextNode(path []*city.GraphNode) {
@@ -105,50 +106,15 @@ func (t *tram) getDistanceToNeighbor(v *city.GraphNode, u *city.GraphNode) float
 	panic("Distance between nodes not found")
 }
 
-func (t *tram) nextHopDistance(path []*city.GraphNode, i int) float32 {
+func (t *tram) nextNodeDistance(path []*city.GraphNode, i int) float32 {
 	v := path[i]
 	u := path[i+1]
 	d := t.getDistanceToNeighbor(v, u)
-	// if t.id == 2667 {
-	// 	fmt.Println("d: ", d, " t.distToNextInterNode: ", t.distToNextInterNode)
-	// }
-	// if d != t.distToNextInterNode {
-	if i == t.pathIndex && t.distToNextInterNode > 0 && t.distToNextInterNode < d {
+
+	if i == t.pathIndex && t.distToNextInterNode > 0 {
 		return t.distToNextInterNode
 	}
 	return d
-}
-
-func (t *tram) nodesWithin(path []*city.GraphNode, maxDist float32) ([]*city.GraphNode, float32) {
-	var nodes []*city.GraphNode
-	covered := float32(0)
-	for i := t.pathIndex; i < len(path)-1 && covered < maxDist; i++ {
-		seg := t.nextHopDistance(path, i)
-		nodes = append(nodes, path[i+1])
-		covered += seg
-	}
-	return nodes, covered
-}
-
-func (t *tram) blockMinDistance(path []*city.GraphNode) {
-	minSpeed := min(t.speed-acceleration, 1.5)
-	minStoppingDistance := minSpeed + minSpeed*minSpeed/(2*acceleration)
-	i := t.pathIndex
-
-	for i < len(path)-1 && minStoppingDistance > 0 {
-		// v := path[i]
-		u := path[i+1]
-
-		distanceToNextNode := t.nextHopDistance(path, i)
-		if minStoppingDistance >= distanceToNextNode {
-			if !u.TryBlocking(t.id) {
-				break
-			}
-			minStoppingDistance -= distanceToNextNode
-			i++
-		}
-	}
-	return
 }
 
 func (t *tram) blockNodesAhead(path []*city.GraphNode) (availableDistance float32) {
@@ -157,11 +123,9 @@ func (t *tram) blockNodesAhead(path []*city.GraphNode) (availableDistance float3
 	i := t.pathIndex
 
 	for availableDistance < maxBlockingDistance && i < len(path)-1 {
-		// v := path[i]
 		u := path[i+1]
 
-		// distanceToNextNode := t.getDistanceToNeighbor(v, u)
-		distanceToNextNode := t.nextHopDistance(path, i)
+		distanceToNextNode := t.nextNodeDistance(path, i)
 		if availableDistance+distanceToNextNode <= maxBlockingDistance {
 			if !u.TryBlocking(t.id) {
 				break
@@ -177,46 +141,9 @@ func (t *tram) blockNodesAhead(path []*city.GraphNode) (availableDistance float3
 	return availableDistance
 }
 
-func (t *tram) canAccelerate(path []*city.GraphNode) (can bool) {
-	newSpeed := min(t.speed+acceleration, maxSpeed)
-	necessaryFree := newSpeed + newSpeed*newSpeed/(2*acceleration)
-	i := t.pathIndex
-
-	for necessaryFree > 0 && i < len(path)-1 {
-		u := path[i+1]
-
-		seg := t.nextHopDistance(path, i)
-		if necessaryFree >= seg {
-			if !u.IsFree(t.id) {
-				break
-			}
-			necessaryFree -= seg
-			i++
-		} else {
-			can = true
-			break
-		}
-	}
-	return
-}
-
-func (t *tram) shouldDecelerate(path []*city.GraphNode) {
-	necessaryFree := t.speed + t.speed*t.speed/(2*acceleration)
-	i := t.pathIndex
-	for necessaryFree > 0 && i < len(path)-1 {
-		u := path[i+1]
-
-		seg := t.nextHopDistance(path, i)
-		if necessaryFree >= seg {
-			if !u.IsFree(t.id) || u.IsTramStop() {
-				t.speed = max(t.speed-acceleration, 1.5)
-				break
-			}
-			necessaryFree -= seg
-			i++
-		} else {
-			break
-		}
+func (t *tram) unblockNodesAhead(path []*city.GraphNode, firstToUnblock, lastToUnblock int) {
+	for i := firstToUnblock; i <= lastToUnblock; i++ {
+		path[i].Unblock(t.id)
 	}
 }
 
@@ -378,8 +305,120 @@ func (t *tram) onTripFinished() (result TramPositionChange, update bool) {
 	return
 }
 
+func (t *tram) updateSpeedAndReserveNodes(path []*city.GraphNode) (availableDistance float32) {
+	v0 := t.speed
+	newSpeed := min(t.speed+acceleration, maxSpeed)
+	needReserveAtV0 := t.speed + t.speed*t.speed/(2*acceleration) + 2*t.length
+	needReserveIfAccel := newSpeed + newSpeed*newSpeed/(2*acceleration) + 2*t.length
+
+	i := t.pathIndex
+	var reservedDistanceAtV0, reservedDistanceIfAccel float32
+	lastBlockedNodeIndex := t.pathIndex
+	mustKeepLockedNodeIndex := t.pathIndex
+
+	var reservedDistanceAhead float32
+	var distanceToStop, distanceToObstacle float32
+
+	for i < len(path)-1 && reservedDistanceIfAccel < needReserveIfAccel {
+		u := path[i+1]
+		distanceToNextNode := t.nextNodeDistance(path, i)
+
+		if u.IsTramStop() && u.TryBlocking(t.id) {
+			reservedDistanceAhead += distanceToNextNode
+			distanceToStop = reservedDistanceAhead
+			lastBlockedNodeIndex = i + 1
+			if reservedDistanceIfAccel+distanceToNextNode <= needReserveIfAccel {
+				reservedDistanceIfAccel += distanceToNextNode
+			} else {
+				reservedDistanceIfAccel = needReserveIfAccel
+			}
+			if reservedDistanceAtV0+distanceToNextNode <= needReserveAtV0 {
+				reservedDistanceAtV0 += distanceToNextNode
+				mustKeepLockedNodeIndex = i + 1
+			} else {
+				reservedDistanceAtV0 = needReserveAtV0
+			}
+			break
+		}
+
+		if !u.TryBlocking(t.id) {
+			distanceToObstacle = reservedDistanceAhead
+			break
+		}
+
+		reservedDistanceAhead += distanceToNextNode
+		if reservedDistanceIfAccel+distanceToNextNode <= needReserveIfAccel {
+			reservedDistanceIfAccel += distanceToNextNode
+			lastBlockedNodeIndex = i + 1
+		} else {
+			reservedDistanceIfAccel = needReserveIfAccel
+		}
+		if reservedDistanceAtV0+distanceToNextNode <= needReserveAtV0 {
+			reservedDistanceAtV0 += distanceToNextNode
+			mustKeepLockedNodeIndex = i + 1
+		} else {
+			reservedDistanceAtV0 = needReserveAtV0
+		}
+		i++
+	}
+
+	var targetDistance float32
+	if distanceToStop > 0 {
+		targetDistance = distanceToStop
+	}
+	if distanceToObstacle > 0 && (targetDistance == 0 || distanceToObstacle < targetDistance) {
+		targetDistance = distanceToObstacle
+	}
+
+	var v1 float32
+	if targetDistance > 0 {
+		// (v0+v1Target)/2 + v1Target^2/(2a) = targetDistance =>
+		// v1Target^2 + v1Target*a + v0*a - 2*a*targetDistance = 0
+		A := 1.0
+		B := float64(acceleration)
+		C := float64(acceleration * (v0 - 2*targetDistance))
+		delta := B*B - 4*A*C
+		// sometimes delta < 0 due to numerical errors
+		if delta < 0 {
+			delta = 0
+		}
+		v1Target := float32((-B + math.Sqrt(delta)) / (2 * A))
+
+		v1min := max(v0-acceleration, 0)
+		v1max := v0
+		if v0 == 0 {
+			v1max = newSpeed
+		}
+		if v1Target < v1min {
+			v1 = v1min
+		} else if v1Target > v1max {
+			v1 = v1max
+		} else {
+			v1 = v1Target
+		}
+
+		t.unblockNodesAhead(path, mustKeepLockedNodeIndex+1, lastBlockedNodeIndex)
+	} else {
+		canAccelerate := (reservedDistanceIfAccel >= needReserveIfAccel)
+		canConst := (reservedDistanceAtV0 < needReserveIfAccel) &&
+			(reservedDistanceAtV0 >= needReserveAtV0)
+		if canAccelerate {
+			v1 = newSpeed
+		} else if canConst {
+			v1 = v0
+			t.unblockNodesAhead(path, mustKeepLockedNodeIndex+1, lastBlockedNodeIndex)
+		} else {
+			v1 = max(v0-acceleration, 0)
+			t.unblockNodesAhead(path, mustKeepLockedNodeIndex+1, lastBlockedNodeIndex)
+		}
+	}
+
+	t.speed = v1
+	distance := (v0 + t.speed) * 0.5
+	return distance
+}
+
 func (t *tram) onTravelling(time uint) (result TramPositionChange, update bool) {
-	// t.speed = float32(50*5) / float32(18) // km/h -> m/s
 
 	path := t.getTravelPath()
 
@@ -387,16 +426,7 @@ func (t *tram) onTravelling(time uint) (result TramPositionChange, update bool) 
 		t.setAzimuthAndDistanceToNextNode(path.Nodes)
 	}
 
-	// t.blockMinDistance(path.Nodes)
-
-	if t.speed != maxSpeed && t.canAccelerate(path.Nodes) {
-		t.speed = min(t.speed+acceleration, maxSpeed)
-	} else {
-		t.shouldDecelerate(path.Nodes)
-	}
-
-	availableDistance := t.blockNodesAhead(path.Nodes)
-	distanceToDrive := min(t.speed, availableDistance)
+	distanceToDrive := t.updateSpeedAndReserveNodes(path.Nodes)
 
 	t.findNewLocation(path.Nodes, distanceToDrive)
 	t.blockNodesBehind()
@@ -408,7 +438,6 @@ func (t *tram) onTravelling(time uint) (result TramPositionChange, update bool) 
 			time+uint(rand.IntN(11))+15,
 		)
 		t.state = StatePassengerUnloading
-		t.speed = 0
 	}
 
 	result = TramPositionChange{
@@ -423,9 +452,6 @@ func (t *tram) onTravelling(time uint) (result TramPositionChange, update bool) 
 }
 
 func (t *tram) Advance(time uint, stopsByID map[uint64]*city.GraphNode) (result TramPositionChange, update bool) {
-	if t.id == 2667 {
-		fmt.Println(time, t.state, t.speed)
-	}
 	switch t.state {
 	case StateTripNotStarted:
 		result, update = t.onTripNotStarted(time, stopsByID)
