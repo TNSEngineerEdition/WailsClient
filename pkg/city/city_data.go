@@ -36,7 +36,7 @@ func (c *CityData) GetTramStops() (result []TramStop) {
 
 	for i := range c.TramTrackGraph {
 		node := &c.TramTrackGraph[i]
-		if node.isTramStop() {
+		if node.IsTramStop() {
 			result = append(result, node.getTramStopDetails())
 		}
 	}
@@ -59,7 +59,7 @@ func (c *CityData) GetStopsByID() map[uint64]*GraphNode {
 
 	for i := range c.TramTrackGraph {
 		node := &c.TramTrackGraph[i]
-		if node.isTramStop() {
+		if node.IsTramStop() {
 			result[node.ID] = node
 		}
 	}
