@@ -20,7 +20,7 @@ type tram struct {
 	state                              TramState
 }
 
-const maxSpeed = float32(50*5) / float32(18) // km/h -> m/s
+const maxSpeed = float32(50*5) / float32(18) // 50 km/h -> m/s
 const acceleration = 1.5
 
 func newTram(id int, trip *city.TramTrip, controlCenter *controlcenter.ControlCenter) *tram {
@@ -283,8 +283,8 @@ func (t *tram) onTripFinished() (result TramPositionChange, update bool) {
 func (t *tram) updateSpeedAndReserveNodes(path []*city.GraphNode) (availableDistance float32) {
 	v0 := t.speed
 	newSpeed := min(t.speed+acceleration, maxSpeed)
-	needReserveAtV0 := t.speed + t.speed*t.speed/(2*acceleration) + 2*t.length
-	needReserveIfAccel := newSpeed + newSpeed*newSpeed/(2*acceleration) + 2*t.length
+	neededReserveAtV0 := t.speed + t.speed*t.speed/(2*acceleration) + 2*t.length
+	neededReserveIfAccel := newSpeed + newSpeed*newSpeed/(2*acceleration) + 2*t.length
 
 	i := t.pathIndex
 	var reservedDistanceAtV0, reservedDistanceIfAccel float32
