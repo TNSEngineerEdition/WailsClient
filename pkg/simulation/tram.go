@@ -20,8 +20,8 @@ type tram struct {
 	state                              TramState
 }
 
-const maxSpeed = float32(50*5) / float32(18) // 50 km/h -> m/s
-const acceleration = 1.5
+const MAX_SPEED = float32(50*5) / float32(18) // 50 km/h -> m/s
+const MAX_ACCELERATION = 1.5
 
 func newTram(id int, trip *city.TramTrip, controlCenter *controlcenter.ControlCenter) *tram {
 	startTime := trip.Stops[0].Time
@@ -106,13 +106,14 @@ func (t *tram) getDistanceToNeighbor(v *city.GraphNode, u *city.GraphNode) float
 }
 
 func (t *tram) nextNodeDistance(path []*city.GraphNode, i int) float32 {
+	if i == t.pathIndex && t.distToNextInterNode > 0 {
+		return t.distToNextInterNode
+	}
+
 	v := path[i]
 	u := path[i+1]
 	d := t.getDistanceToNeighbor(v, u)
 
-	if i == t.pathIndex && t.distToNextInterNode > 0 {
-		return t.distToNextInterNode
-	}
 	return d
 }
 
@@ -280,116 +281,113 @@ func (t *tram) onTripFinished() (result TramPositionChange, update bool) {
 	return
 }
 
-func (t *tram) updateSpeedAndReserveNodes(path []*city.GraphNode) (availableDistance float32) {
-	v0 := t.speed
-	newSpeed := min(t.speed+acceleration, maxSpeed)
-	neededReserveAtV0 := t.speed + t.speed*t.speed/(2*acceleration) + 2*t.length
-	neededReserveIfAccel := newSpeed + newSpeed*newSpeed/(2*acceleration) + 2*t.length
+func (t *tram) handleStopReaching(targetDistance float32) (nextSpeed float32) {
+	// (v0+v1Target)/2 + v1Target^2/(2a) = targetDistance =>
+	// v1Target^2 + v1Target*a + v0*a - 2*a*targetDistance = 0
+	A := 1.0
+	B := float64(MAX_ACCELERATION)
+	C := float64(MAX_ACCELERATION * (t.speed - 2*targetDistance))
+	// sometimes delta < 0 due to numerical errors
+	delta := max(0, B*B-4*A*C)
+	v1target := float32((-B + math.Sqrt(delta)) / (2 * A))
 
-	i := t.pathIndex
+	v1min := max(t.speed-MAX_ACCELERATION, 0)
+	v1max := min(t.speed+MAX_ACCELERATION, MAX_SPEED)
+	if v1target < v1min {
+		nextSpeed = v1min
+	} else if v1target > v1max {
+		nextSpeed = v1max
+	} else {
+		nextSpeed = v1target
+	}
+	return
+}
+
+func (t *tram) calculateBlockingDistance(speed float32) float32 {
+	return speed + speed*speed/(2*MAX_ACCELERATION) + 2*t.length
+}
+
+func (t *tram) updateSpeedAndReserveNodes(path []*city.GraphNode) (availableDistance float32) {
+	newSpeed := min(t.speed+MAX_ACCELERATION, MAX_SPEED)
+	neededReserveAtV0 := t.calculateBlockingDistance(t.speed)
+	neededReserveIfAccel := t.calculateBlockingDistance(newSpeed)
+
 	var reservedDistanceAtV0, reservedDistanceIfAccel float32
-	lastBlockedNodeIndex := t.pathIndex
-	mustKeepLockedNodeIndex := t.pathIndex
+
+	//variables which are used to unblocked nodes ahead which we dont want to block
+	//they are used when we decelerate or maintain speed
+	lastBlockedIndex := t.pathIndex
+	mustKeepLockedIndex := t.pathIndex
 
 	var reservedDistanceAhead float32
-	var distanceToStop, distanceToObstacle float32
+	var distanceToStop float32
 
-	for i < len(path)-1 && reservedDistanceIfAccel < needReserveIfAccel {
+	for i := t.pathIndex; i < len(path)-1 && reservedDistanceIfAccel < neededReserveIfAccel; i++ {
 		u := path[i+1]
 		distanceToNextNode := t.nextNodeDistance(path, i)
 
+		//handle tram stop
 		if u.IsTramStop() && u.TryBlocking(t.id) {
 			reservedDistanceAhead += distanceToNextNode
 			distanceToStop = reservedDistanceAhead
-			lastBlockedNodeIndex = i + 1
-			if reservedDistanceIfAccel+distanceToNextNode <= needReserveIfAccel {
+			lastBlockedIndex = i + 1
+			if reservedDistanceIfAccel+distanceToNextNode <= neededReserveIfAccel {
 				reservedDistanceIfAccel += distanceToNextNode
 			} else {
-				reservedDistanceIfAccel = needReserveIfAccel
+				reservedDistanceIfAccel = neededReserveIfAccel
 			}
-			if reservedDistanceAtV0+distanceToNextNode <= needReserveAtV0 {
+			if reservedDistanceAtV0+distanceToNextNode <= neededReserveAtV0 {
 				reservedDistanceAtV0 += distanceToNextNode
-				mustKeepLockedNodeIndex = i + 1
+				mustKeepLockedIndex = i + 1
 			} else {
-				reservedDistanceAtV0 = needReserveAtV0
+				reservedDistanceAtV0 = neededReserveAtV0
 			}
 			break
 		}
 
+		//handle blocked node (tram ahead)
 		if !u.TryBlocking(t.id) {
-			distanceToObstacle = reservedDistanceAhead
+			distanceToStop = reservedDistanceAhead
 			break
 		}
 
+		//handle free node
 		reservedDistanceAhead += distanceToNextNode
-		if reservedDistanceIfAccel+distanceToNextNode <= needReserveIfAccel {
+		if reservedDistanceIfAccel+distanceToNextNode <= neededReserveIfAccel {
 			reservedDistanceIfAccel += distanceToNextNode
-			lastBlockedNodeIndex = i + 1
+			lastBlockedIndex = i + 1
 		} else {
-			reservedDistanceIfAccel = needReserveIfAccel
+			reservedDistanceIfAccel = neededReserveIfAccel
 		}
-		if reservedDistanceAtV0+distanceToNextNode <= needReserveAtV0 {
+		if reservedDistanceAtV0+distanceToNextNode <= neededReserveAtV0 {
 			reservedDistanceAtV0 += distanceToNextNode
-			mustKeepLockedNodeIndex = i + 1
+			mustKeepLockedIndex = i + 1
 		} else {
-			reservedDistanceAtV0 = needReserveAtV0
+			reservedDistanceAtV0 = neededReserveAtV0
 		}
-		i++
 	}
 
-	var targetDistance float32
+	// update speed
+	var nextSpeed float32
 	if distanceToStop > 0 {
-		targetDistance = distanceToStop
-	}
-	if distanceToObstacle > 0 && (targetDistance == 0 || distanceToObstacle < targetDistance) {
-		targetDistance = distanceToObstacle
-	}
-
-	var v1 float32
-	if targetDistance > 0 {
-		// (v0+v1Target)/2 + v1Target^2/(2a) = targetDistance =>
-		// v1Target^2 + v1Target*a + v0*a - 2*a*targetDistance = 0
-		A := 1.0
-		B := float64(acceleration)
-		C := float64(acceleration * (v0 - 2*targetDistance))
-		delta := B*B - 4*A*C
-		// sometimes delta < 0 due to numerical errors
-		if delta < 0 {
-			delta = 0
-		}
-		v1Target := float32((-B + math.Sqrt(delta)) / (2 * A))
-
-		v1min := max(v0-acceleration, 0)
-		v1max := v0
-		if v0 == 0 {
-			v1max = newSpeed
-		}
-		if v1Target < v1min {
-			v1 = v1min
-		} else if v1Target > v1max {
-			v1 = v1max
-		} else {
-			v1 = v1Target
-		}
-
-		t.unblockNodesAhead(path, mustKeepLockedNodeIndex+1, lastBlockedNodeIndex)
+		nextSpeed = t.handleStopReaching(distanceToStop)
+		t.unblockNodesAhead(path, mustKeepLockedIndex+1, lastBlockedIndex)
 	} else {
-		canAccelerate := (reservedDistanceIfAccel >= needReserveIfAccel)
-		canConst := (reservedDistanceAtV0 < needReserveIfAccel) &&
-			(reservedDistanceAtV0 >= needReserveAtV0)
+		canAccelerate := (reservedDistanceIfAccel >= neededReserveIfAccel)
+		canMaintainSpeed := (reservedDistanceAtV0 < neededReserveIfAccel) &&
+			(reservedDistanceAtV0 >= neededReserveAtV0)
 		if canAccelerate {
-			v1 = newSpeed
-		} else if canConst {
-			v1 = v0
-			t.unblockNodesAhead(path, mustKeepLockedNodeIndex+1, lastBlockedNodeIndex)
-		} else {
-			v1 = max(v0-acceleration, 0)
-			t.unblockNodesAhead(path, mustKeepLockedNodeIndex+1, lastBlockedNodeIndex)
+			nextSpeed = newSpeed
+		} else if canMaintainSpeed {
+			nextSpeed = t.speed
+			t.unblockNodesAhead(path, mustKeepLockedIndex+1, lastBlockedIndex)
 		}
 	}
 
-	t.speed = v1
-	distance := (v0 + t.speed) * 0.5
+	//this is the distance the tram will actually travel (consulting changing speed)
+	distance := (nextSpeed + t.speed) * 0.5
+	t.speed = nextSpeed
+
 	return distance
 }
 
