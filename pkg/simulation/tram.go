@@ -303,7 +303,7 @@ func (t *tram) handleStopReaching(targetDistance float32) (nextSpeed float32) {
 	return
 }
 
-func (t *tram) calculateBlockingDistance(speed float32) float32 {
+func (t *tram) getBlockingDistance(speed float32) float32 {
 	return speed + speed*speed/(2*MAX_ACCELERATION) + 2*t.length
 }
 
