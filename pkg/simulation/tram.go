@@ -110,17 +110,7 @@ func (t *tram) nextNodeDistance(path []*city.GraphNode, i int) float32 {
 		return t.distToNextInterNode
 	}
 
-	v := path[i]
-	u := path[i+1]
-	d := t.getDistanceToNeighbor(v, u)
-
-	return d
-}
-
-func (t *tram) unblockNodesAhead(path []*city.GraphNode, firstToUnblock, lastToUnblock int) {
-	for i := firstToUnblock; i <= lastToUnblock; i++ {
-		path[i].Unblock(t.id)
-	}
+	return t.getDistanceToNeighbor(path[i], path[i+1])
 }
 
 func (t *tram) blockNodesBehind() {
@@ -281,6 +271,8 @@ func (t *tram) onTripFinished() (result TramPositionChange, update bool) {
 	return
 }
 
+// Guarantees smooth arrival and deceleration to another tram or stop
+// by solving a quadratic equation whose result is the new speed
 func (t *tram) handleStopReaching(targetDistance float32) (nextSpeed float32) {
 	// (v0+v1Target)/2 + v1Target^2/(2a) = targetDistance =>
 	// v1Target^2 + v1Target*a + v0*a - 2*a*targetDistance = 0
@@ -307,17 +299,21 @@ func (t *tram) getBlockingDistance(speed float32) float32 {
 	return speed + speed*speed/(2*MAX_ACCELERATION) + 2*t.length
 }
 
+func (t *tram) extendReservedDistance(reservedDistance, neededDistance, distanceToNextNode float32) float32 {
+	if reservedDistance+distanceToNextNode <= neededDistance {
+		reservedDistance += distanceToNextNode
+	} else {
+		reservedDistance = neededDistance
+	}
+	return reservedDistance
+}
+
 func (t *tram) updateSpeedAndReserveNodes(path []*city.GraphNode) (availableDistance float32) {
 	newSpeed := min(t.speed+MAX_ACCELERATION, MAX_SPEED)
-	neededReserveAtV0 := t.calculateBlockingDistance(t.speed)
-	neededReserveIfAccel := t.calculateBlockingDistance(newSpeed)
+	neededReserveAtCurrentSpeed := t.getBlockingDistance(t.speed)
+	neededReserveIfAccel := t.getBlockingDistance(newSpeed)
 
-	var reservedDistanceAtV0, reservedDistanceIfAccel float32
-
-	//variables which are used to unblocked nodes ahead which we dont want to block
-	//they are used when we decelerate or maintain speed
-	lastBlockedIndex := t.pathIndex
-	mustKeepLockedIndex := t.pathIndex
+	var reservedDistanceAtCurrentSpeed, reservedDistanceIfAccel float32
 
 	var reservedDistanceAhead float32
 	var distanceToStop float32
@@ -330,18 +326,10 @@ func (t *tram) updateSpeedAndReserveNodes(path []*city.GraphNode) (availableDist
 		if u.IsTramStop() && u.TryBlocking(t.id) {
 			reservedDistanceAhead += distanceToNextNode
 			distanceToStop = reservedDistanceAhead
-			lastBlockedIndex = i + 1
-			if reservedDistanceIfAccel+distanceToNextNode <= neededReserveIfAccel {
-				reservedDistanceIfAccel += distanceToNextNode
-			} else {
-				reservedDistanceIfAccel = neededReserveIfAccel
-			}
-			if reservedDistanceAtV0+distanceToNextNode <= neededReserveAtV0 {
-				reservedDistanceAtV0 += distanceToNextNode
-				mustKeepLockedIndex = i + 1
-			} else {
-				reservedDistanceAtV0 = neededReserveAtV0
-			}
+
+			reservedDistanceIfAccel = t.extendReservedDistance(reservedDistanceIfAccel, neededReserveIfAccel, distanceToNextNode)
+			reservedDistanceAtCurrentSpeed = t.extendReservedDistance(reservedDistanceAtCurrentSpeed, neededReserveAtCurrentSpeed, distanceToNextNode)
+
 			break
 		}
 
@@ -353,34 +341,23 @@ func (t *tram) updateSpeedAndReserveNodes(path []*city.GraphNode) (availableDist
 
 		//handle free node
 		reservedDistanceAhead += distanceToNextNode
-		if reservedDistanceIfAccel+distanceToNextNode <= neededReserveIfAccel {
-			reservedDistanceIfAccel += distanceToNextNode
-			lastBlockedIndex = i + 1
-		} else {
-			reservedDistanceIfAccel = neededReserveIfAccel
-		}
-		if reservedDistanceAtV0+distanceToNextNode <= neededReserveAtV0 {
-			reservedDistanceAtV0 += distanceToNextNode
-			mustKeepLockedIndex = i + 1
-		} else {
-			reservedDistanceAtV0 = neededReserveAtV0
-		}
+
+		reservedDistanceIfAccel = t.extendReservedDistance(reservedDistanceIfAccel, neededReserveIfAccel, distanceToNextNode)
+		reservedDistanceAtCurrentSpeed = t.extendReservedDistance(reservedDistanceAtCurrentSpeed, neededReserveAtCurrentSpeed, distanceToNextNode)
 	}
 
 	// update speed
 	var nextSpeed float32
 	if distanceToStop > 0 {
 		nextSpeed = t.handleStopReaching(distanceToStop)
-		t.unblockNodesAhead(path, mustKeepLockedIndex+1, lastBlockedIndex)
 	} else {
 		canAccelerate := (reservedDistanceIfAccel >= neededReserveIfAccel)
-		canMaintainSpeed := (reservedDistanceAtV0 < neededReserveIfAccel) &&
-			(reservedDistanceAtV0 >= neededReserveAtV0)
+
 		if canAccelerate {
 			nextSpeed = newSpeed
-		} else if canMaintainSpeed {
-			nextSpeed = t.speed
-			t.unblockNodesAhead(path, mustKeepLockedIndex+1, lastBlockedIndex)
+		} else {
+			// handles situation when tram is waiting for free node
+			nextSpeed = 0
 		}
 	}
 
