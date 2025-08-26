@@ -326,7 +326,7 @@ func (t *tram) updateSpeedAndReserveNodes(path []*city.GraphNode) (availableDist
 			distanceToStop = reservedDistanceAhead
 			break
 		}
-		
+
 		if u.IsTramStop() {
 			reservedDistanceAhead += distanceToNextNode
 			distanceToStop = reservedDistanceAhead
@@ -334,27 +334,27 @@ func (t *tram) updateSpeedAndReserveNodes(path []*city.GraphNode) (availableDist
 			reservedDistanceIfAccel = t.extendReservedDistance(
 				reservedDistanceIfAccel,
 				neededReserveIfAccel,
-				distanceToNextNode
+				distanceToNextNode,
 			)
 			reservedDistanceAtCurrentSpeed = t.extendReservedDistance(
 				reservedDistanceAtCurrentSpeed,
 				neededReserveAtCurrentSpeed,
-				distanceToNextNode
+				distanceToNextNode,
 			)
 			break
 		}
-			
+
 		reservedDistanceAhead += distanceToNextNode
 
 		reservedDistanceIfAccel = t.extendReservedDistance(
 			reservedDistanceIfAccel,
 			neededReserveIfAccel,
-			distanceToNextNode
+			distanceToNextNode,
 		)
 		reservedDistanceAtCurrentSpeed = t.extendReservedDistance(
 			reservedDistanceAtCurrentSpeed,
 			neededReserveAtCurrentSpeed,
-			distanceToNextNode
+			distanceToNextNode,
 		)
 	}
 
