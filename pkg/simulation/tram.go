@@ -322,31 +322,26 @@ func (t *tram) updateSpeedAndReserveNodes(path []*city.GraphNode) (availableDist
 		u := path[i+1]
 		distanceToNextNode := t.nextNodeDistance(path, i)
 
-		//handle tram stop
-		if u.IsTramStop() && u.TryBlocking(t.id) {
-			reservedDistanceAhead += distanceToNextNode
+		if u.TryBlocking(t.id) {
+			if u.IsTramStop() {
+				reservedDistanceAhead += distanceToNextNode
+				distanceToStop = reservedDistanceAhead
+
+				reservedDistanceIfAccel = t.extendReservedDistance(reservedDistanceIfAccel, neededReserveIfAccel, distanceToNextNode)
+				reservedDistanceAtCurrentSpeed = t.extendReservedDistance(reservedDistanceAtCurrentSpeed, neededReserveAtCurrentSpeed, distanceToNextNode)
+				break
+			} else {
+				reservedDistanceAhead += distanceToNextNode
+
+				reservedDistanceIfAccel = t.extendReservedDistance(reservedDistanceIfAccel, neededReserveIfAccel, distanceToNextNode)
+				reservedDistanceAtCurrentSpeed = t.extendReservedDistance(reservedDistanceAtCurrentSpeed, neededReserveAtCurrentSpeed, distanceToNextNode)
+			}
+		} else {
 			distanceToStop = reservedDistanceAhead
-
-			reservedDistanceIfAccel = t.extendReservedDistance(reservedDistanceIfAccel, neededReserveIfAccel, distanceToNextNode)
-			reservedDistanceAtCurrentSpeed = t.extendReservedDistance(reservedDistanceAtCurrentSpeed, neededReserveAtCurrentSpeed, distanceToNextNode)
-
 			break
 		}
-
-		//handle blocked node (tram ahead)
-		if !u.TryBlocking(t.id) {
-			distanceToStop = reservedDistanceAhead
-			break
-		}
-
-		//handle free node
-		reservedDistanceAhead += distanceToNextNode
-
-		reservedDistanceIfAccel = t.extendReservedDistance(reservedDistanceIfAccel, neededReserveIfAccel, distanceToNextNode)
-		reservedDistanceAtCurrentSpeed = t.extendReservedDistance(reservedDistanceAtCurrentSpeed, neededReserveAtCurrentSpeed, distanceToNextNode)
 	}
 
-	// update speed
 	var nextSpeed float32
 	if distanceToStop > 0 {
 		nextSpeed = t.handleStopReaching(distanceToStop)
