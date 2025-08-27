@@ -9,9 +9,11 @@ import (
 )
 
 type tram struct {
-	id, pathIndex                      int
+	id                                 uint
+	pathIndex                          int
 	speed, length, distToNextInterNode float32
 	latitude, longitude, azimuth       float32
+	route                              *city.TramRoute
 	tripData                           tripData
 	controlCenter                      *controlcenter.ControlCenter
 	blockedNodesBehind                 []*city.GraphNode
@@ -23,11 +25,17 @@ type tram struct {
 const MAX_SPEED = float32(50*5) / float32(18) // 50 km/h -> m/s
 const MAX_ACCELERATION = 1.5
 
-func newTram(id int, trip *city.TramTrip, controlCenter *controlcenter.ControlCenter) *tram {
+func newTram(
+	id uint,
+	route *city.TramRoute,
+	trip *city.TramTrip,
+	controlCenter *controlcenter.ControlCenter,
+) *tram {
 	startTime := trip.Stops[0].Time
 	return &tram{
 		id:            id,
 		length:        30,
+		route:         route,
 		tripData:      newTripData(trip),
 		departureTime: startTime - uint(rand.IntN(11)) - 15,
 		state:         StateTripNotStarted,
@@ -82,27 +90,20 @@ func (t *tram) findIntermediateLocation(path []*city.GraphNode, remainingPart fl
 }
 
 func (t *tram) setAzimuthAndDistanceToNextNode(path []*city.GraphNode) {
-	for _, neighbor := range path[t.pathIndex].Neighbors {
-		if neighbor.ID == path[t.pathIndex+1].ID {
-			t.azimuth = neighbor.Azimuth
-			t.distToNextInterNode = neighbor.Distance
-			return
-		}
+	if nextNode, ok := path[t.pathIndex].Neighbors[path[t.pathIndex+1].ID]; ok {
+		t.azimuth = nextNode.Azimuth
+		t.distToNextInterNode = nextNode.Distance
 	}
 }
 
 func (t *tram) getDistanceToNeighbor(v *city.GraphNode, u *city.GraphNode) float32 {
-	for _, neighbor := range v.Neighbors {
-		if neighbor.ID == u.ID {
-			return neighbor.Distance
-		}
+	if neighbor, ok := v.Neighbors[u.ID]; ok {
+		return neighbor.Distance
+	} else if neighbor, ok := u.Neighbors[v.ID]; ok {
+		return neighbor.Distance
+	} else {
+		panic("Distance between nodes not found")
 	}
-	for _, neighbor := range u.Neighbors {
-		if neighbor.ID == v.ID {
-			return neighbor.Distance
-		}
-	}
-	panic("Distance between nodes not found")
 }
 
 func (t *tram) nextNodeDistance(path []*city.GraphNode, i int) float32 {
@@ -200,7 +201,7 @@ func (t *tram) getEstimatedArrival(stopIndex int, time uint) uint {
 }
 
 type TramPositionChange struct {
-	TramID    int     `json:"id"`
+	TramID    uint    `json:"id"`
 	Latitude  float32 `json:"lat"`
 	Longitude float32 `json:"lon"`
 	Azimuth   float32 `json:"azimuth"`
@@ -451,7 +452,7 @@ func (t *tram) GetDetails(c *city.City, time uint) TramDetails {
 	t.tripData.arrivals[t.tripData.index] = t.getEstimatedArrival(t.tripData.index, time)
 
 	return TramDetails{
-		Route:        t.tripData.trip.Route,
+		Route:        t.route.Name,
 		TripHeadSign: t.tripData.trip.TripHeadSign,
 		TripIndex:    t.tripData.index,
 		Stops:        t.tripData.trip.Stops,

@@ -11,7 +11,7 @@ import (
 
 type Simulation struct {
 	city            *city.City
-	trams           map[int]*tram
+	trams           map[uint]*tram
 	tramWorkersData workerData[*tram, TramPositionChange]
 	controlCenter   controlcenter.ControlCenter
 	time            uint
@@ -39,10 +39,11 @@ func (s *Simulation) resetTrams() {
 		tram.unblockWholePath()
 	}
 
-	s.trams = make(map[int]*tram, len(s.city.GetTramTrips()))
-
-	for i, trip := range s.city.GetTramTrips() {
-		s.trams[i] = newTram(i, &trip, &s.controlCenter)
+	s.trams = make(map[uint]*tram)
+	for _, route := range s.city.GetTramRoutes() {
+		for _, trip := range route.Trips {
+			s.trams[trip.ID] = newTram(trip.ID, &route, &trip, &s.controlCenter)
+		}
 	}
 }
 
@@ -68,7 +69,7 @@ func (s *Simulation) FetchData(url string, tramWorkerCount uint) {
 }
 
 type TramIdentifier struct {
-	ID    int    `json:"id"`
+	ID    uint   `json:"id"`
 	Route string `json:"route"`
 }
 
@@ -77,7 +78,7 @@ func (s *Simulation) GetTramIDs() (result []TramIdentifier) {
 	for id, tram := range s.trams {
 		result = append(result, TramIdentifier{
 			ID:    id,
-			Route: tram.tripData.trip.Route,
+			Route: tram.route.Name,
 		})
 	}
 	return result
@@ -101,7 +102,7 @@ func (s *Simulation) AdvanceTrams(time uint) (result []TramPositionChange) {
 	return result
 }
 
-func (s *Simulation) GetTramDetails(id int) TramDetails {
+func (s *Simulation) GetTramDetails(id uint) TramDetails {
 	if tram, ok := s.trams[id]; ok {
 		return tram.GetDetails(s.city, s.time)
 	}
@@ -120,7 +121,7 @@ func (s *Simulation) GetArrivalsForStop(stopID uint64, count int) []Arrival {
 
 	// Skip trams which have already departed for future iterations
 	for i, arrival := range *plannedArrivals {
-		if s.trams[arrival.TramID].tripData.index <= arrival.StopIndex {
+		if s.trams[arrival.TripID].tripData.index <= arrival.StopIndex {
 			continue
 		}
 
@@ -133,7 +134,7 @@ func (s *Simulation) GetArrivalsForStop(stopID uint64, count int) []Arrival {
 			break
 		}
 
-		tram := s.trams[arrival.TramID]
+		tram := s.trams[arrival.TripID]
 		if tram.tripData.index > arrival.StopIndex {
 			continue
 		}
@@ -144,7 +145,7 @@ func (s *Simulation) GetArrivalsForStop(stopID uint64, count int) []Arrival {
 		}
 
 		arrivals = append(arrivals, Arrival{
-			Route:        tram.tripData.trip.Route,
+			Route:        tram.route.Name,
 			TripHeadSign: tram.tripData.trip.TripHeadSign,
 			Minutes:      uint(math.Ceil(float64(expectedTime) / 60)),
 		})

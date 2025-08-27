@@ -75,7 +75,7 @@ async function reset() {
 
       <v-col cols="2" class="text-center text-capitalize">
         Elapsed time <br />
-        {{ new Time(timer.timer.value).toFullString() }}
+        {{ new Time(Math.floor(timer.timer.value)).toFullString() }}
       </v-col>
     </v-row>
   </v-footer>

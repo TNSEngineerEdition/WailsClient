@@ -21,19 +21,21 @@ func NewControlCenter(cityPointer *city.City) ControlCenter {
 		paths: make(map[stopPair]Path),
 	}
 
-	tramTrips := cityPointer.GetTramTrips()
-	for _, tripData := range tramTrips {
-		for i := 0; i < len(tripData.Stops)-1; i++ {
-			stopPair := stopPair{
-				source:      tripData.Stops[i].ID,
-				destination: tripData.Stops[i+1].ID,
-			}
+	for _, route := range cityPointer.GetTramRoutes() {
+		for _, trip := range route.Trips {
+			for i := 0; i < len(trip.Stops)-1; i++ {
+				stopPair := stopPair{
+					source:      trip.Stops[i].ID,
+					destination: trip.Stops[i+1].ID,
+				}
 
-			if _, ok := c.paths[stopPair]; !ok {
-				c.paths[stopPair] = getShortestPath(c.city, stopPair)
+				if _, ok := c.paths[stopPair]; !ok {
+					c.paths[stopPair] = getShortestPath(c.city, stopPair)
+				}
 			}
 		}
 	}
+
 	return c
 }
 

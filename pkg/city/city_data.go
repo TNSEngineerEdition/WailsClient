@@ -13,7 +13,7 @@ var ServerURL = "http://localhost:8000"
 
 type CityData struct {
 	TramTrackGraph []GraphNode `json:"tram_track_graph"`
-	TramTrips      []TramTrip  `json:"tram_trips"`
+	TramRoutes     []TramRoute `json:"tram_routes"`
 	LastUpdated    string      `json:"last_updated"`
 }
 
@@ -28,6 +28,12 @@ func (c *CityData) FetchCity(cityID string) {
 
 	if err := json.NewDecoder(resp.Body).Decode(c); err != nil {
 		panic(err)
+	}
+
+	startTripID := uint(1)
+	for i := range c.TramRoutes {
+		c.TramRoutes[i].assignTripIDs(startTripID)
+		startTripID += uint(len(c.TramRoutes[i].Trips))
 	}
 }
 
@@ -102,10 +108,10 @@ type TimeBounds struct {
 func (c *CityData) GetTimeBounds() (result TimeBounds) {
 	result.StartTime = math.MaxUint
 
-	for _, trip := range c.TramTrips {
-		for _, stop := range trip.Stops {
-			result.StartTime = min(result.StartTime, stop.Time)
-			result.EndTime = max(result.EndTime, stop.Time)
+	for _, route := range c.TramRoutes {
+		for _, trip := range route.Trips {
+			result.StartTime = min(result.StartTime, trip.Stops[0].Time)
+			result.EndTime = max(result.EndTime, trip.Stops[len(trip.Stops)-1].Time)
 		}
 	}
 
@@ -113,35 +119,66 @@ func (c *CityData) GetTimeBounds() (result TimeBounds) {
 	return
 }
 
-func (c *CityData) getLineSetsByStopID() map[uint64]map[string]struct{} {
-	set := make(map[uint64]map[string]struct{})
-	for _, trip := range c.TramTrips {
-		for _, stop := range trip.Stops {
-			if _, ok := set[stop.ID]; !ok {
-				set[stop.ID] = make(map[string]struct{})
+func (c *CityData) getRouteSetsByStopID() map[uint64]map[string]struct{} {
+	routeSetByStopID := make(map[uint64]map[string]struct{})
+
+	for _, route := range c.TramRoutes {
+		for _, trip := range route.Trips {
+			for _, stop := range trip.Stops {
+				if _, ok := routeSetByStopID[stop.ID]; !ok {
+					routeSetByStopID[stop.ID] = make(map[string]struct{})
+				}
+
+				routeSetByStopID[stop.ID][route.Name] = struct{}{}
 			}
-			set[stop.ID][trip.Route] = struct{}{}
 		}
 	}
-	return set
+
+	return routeSetByStopID
 }
 
-func (c *CityData) GetLinesByStopID() map[uint64][]string {
-	routeSets := c.getLineSetsByStopID()
-	linesByStopID := make(map[uint64][]string)
-	for stopID, routeSet := range routeSets {
+type RouteInfo struct {
+	Name            string `json:"name"`
+	TextColor       string `json:"text_color"`
+	BackgroundColor string `json:"background_color"`
+}
+
+func (c *CityData) GetRoutesByStopID() map[uint64][]RouteInfo {
+	routeSetByStopID := c.getRouteSetsByStopID()
+	routeNamesByStopID := make(map[uint64][]string, len(routeSetByStopID))
+
+	for stopID, routeSet := range routeSetByStopID {
 		routes := make([]string, 0, len(routeSet))
 		for r := range routeSet {
 			routes = append(routes, r)
 		}
 		natsort.Sort(routes)
-		linesByStopID[stopID] = routes
+		routeNamesByStopID[stopID] = routes
 	}
-	return linesByStopID
+
+	routesByName := make(map[string]TramRoute, len(c.TramRoutes))
+	for _, route := range c.TramRoutes {
+		routesByName[route.Name] = route
+	}
+
+	routesByStopID := make(map[uint64][]RouteInfo, len(routeNamesByStopID))
+	for stopID, routeNames := range routeNamesByStopID {
+		for _, routeName := range routeNames {
+			if route, ok := routesByName[routeName]; ok {
+				routesByStopID[stopID] = append(routesByStopID[stopID], RouteInfo{
+					Name:            route.Name,
+					TextColor:       "#" + route.TextColor,
+					BackgroundColor: "#" + route.BackgroundColor,
+				})
+			}
+		}
+	}
+
+	return routesByStopID
 }
 
 type PlannedArrival struct {
-	TramID    int
+	TripID    uint
 	StopIndex int
 	Time      uint
 }
@@ -150,13 +187,15 @@ func (c *CityData) GetPlannedArrivals() map[uint64][]PlannedArrival {
 	stops := c.GetStopsByID()
 	plannedArrivals := make(map[uint64][]PlannedArrival, len(stops))
 
-	for tramID, trip := range c.TramTrips {
-		for stopIndex, stop := range trip.Stops {
-			plannedArrivals[stop.ID] = append(plannedArrivals[stop.ID], PlannedArrival{
-				TramID:    tramID,
-				StopIndex: stopIndex,
-				Time:      stop.Time,
-			})
+	for _, route := range c.TramRoutes {
+		for _, trip := range route.Trips {
+			for stopIndex, stop := range trip.Stops {
+				plannedArrivals[stop.ID] = append(plannedArrivals[stop.ID], PlannedArrival{
+					TripID:    trip.ID,
+					StopIndex: stopIndex,
+					Time:      stop.Time,
+				})
+			}
 		}
 	}
 
