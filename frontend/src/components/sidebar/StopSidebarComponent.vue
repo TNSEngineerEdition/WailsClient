@@ -2,7 +2,7 @@
 import SidebarComponent from "@components/sidebar/SidebarComponent.vue"
 import { ref, watch } from "vue"
 import { city, simulation } from "@wails/go/models"
-import { GetLinesForStop } from "@wails/go/city/City"
+import { GetRoutesForStop } from "@wails/go/city/City"
 import { GetArrivalsForStop } from "@wails/go/simulation/Simulation"
 
 const ARRIVALS_IN_TABLE = 5
@@ -25,18 +25,18 @@ const props = defineProps<{
   currentTime: number
 }>()
 
-const lines = ref<string[]>([])
+const routes = ref<city.RouteInfo[]>([])
 const arrivalsInfo = ref<simulation.Arrival[]>([])
-const lineChipColumns = ref(5)
+const routeChipColumns = ref(5)
 
 watch(
   () => props.stop?.id,
   async id => {
     if (id) {
-      lines.value = await GetLinesForStop(id, lineChipColumns.value)
+      routes.value = await GetRoutesForStop(id, routeChipColumns.value)
       arrivalsInfo.value = await GetArrivalsForStop(id, ARRIVALS_IN_TABLE)
     } else {
-      lines.value = []
+      routes.value = []
       arrivalsInfo.value = []
     }
   },
@@ -92,17 +92,24 @@ watch(
     <div class="section">
       <div class="label">
         <v-icon icon="mdi-transit-connection-variant" class="mr-2"></v-icon>
-        Lines
+        Routes
       </div>
 
       <div class="value">
-        <div v-if="lines.length" class="line-chips">
-          <span v-for="line in lines" class="chip">
-            {{ line }}
+        <div v-if="routes.length" class="route-chips">
+          <span
+            v-for="route in routes"
+            class="chip"
+            :style="{
+              color: route.text_color,
+              backgroundColor: route.background_color,
+            }"
+          >
+            {{ route.name }}
           </span>
         </div>
 
-        <span v-else>No lines</span>
+        <span v-else>No routes</span>
       </div>
     </div>
 
@@ -167,18 +174,16 @@ watch(
   text-align: right;
 }
 
-.line-chips {
+.route-chips {
   display: grid;
   gap: 4px;
-  grid-template-columns: repeat(v-bind(lineChipColumns), 1fr);
+  grid-template-columns: repeat(v-bind(routeChipColumns), 1fr);
   direction: rtl;
 }
 
 .chip {
   padding: 3px 5px;
-  background: #0078d4;
   border-radius: 4px;
-  color: #fff;
   font-size: 0.85rem;
   line-height: 1;
   transition:

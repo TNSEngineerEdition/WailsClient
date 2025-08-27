@@ -108,13 +108,8 @@ func getPathDistancePrefixSum(nodes []*city.GraphNode) []float32 {
 	prefixSum := make([]float32, len(nodes))
 
 	for i := 1; i < len(nodes); i++ {
-		for _, neighbor := range nodes[i-1].Neighbors {
-			if neighbor.ID != nodes[i].ID {
-				continue
-			}
-
-			prefixSum[i] = neighbor.Distance + prefixSum[i-1]
-		}
+		distanceToNextNode := nodes[i-1].Neighbors[nodes[i].ID].Distance
+		prefixSum[i] = distanceToNextNode + prefixSum[i-1]
 	}
 
 	return prefixSum

@@ -8,7 +8,7 @@ import (
 type City struct {
 	cityData             CityData
 	nodesByID, stopsByID map[uint64]*GraphNode
-	linesByStopID        map[uint64][]string
+	routesByStopID       map[uint64][]RouteInfo
 	plannedArrivals      map[uint64][]PlannedArrival
 }
 
@@ -16,7 +16,7 @@ func (c *City) FetchCityData(url string) {
 	c.cityData.FetchCity(url)
 	c.nodesByID = c.cityData.GetNodesByID()
 	c.stopsByID = c.cityData.GetStopsByID()
-	c.linesByStopID = c.cityData.GetLinesByStopID()
+	c.routesByStopID = c.cityData.GetRoutesByStopID()
 	c.ResetPlannedArrivals()
 }
 
@@ -28,8 +28,8 @@ func (c *City) GetTramStops() []TramStop {
 	return c.cityData.GetTramStops()
 }
 
-func (c *City) GetTramTrips() []TramTrip {
-	return c.cityData.TramTrips
+func (c *City) GetTramRoutes() []TramRoute {
+	return c.cityData.TramRoutes
 }
 
 func (c *City) GetPlannedArrivals(stopID uint64) *[]PlannedArrival {
@@ -56,18 +56,18 @@ func (c *City) GetTimeBounds() TimeBounds {
 	return c.cityData.GetTimeBounds()
 }
 
-func (c *City) GetLinesForStop(stopID uint64, chipPerRowSize int) []string {
-	lines, ok := c.linesByStopID[stopID]
+func (c *City) GetRoutesForStop(stopID uint64, chipPerRowSize int) []RouteInfo {
+	routes, ok := c.routesByStopID[stopID]
 	if !ok {
-		return []string{}
+		return []RouteInfo{}
 	}
 
 	// Make a copy of the slice to avoid different results across multiple calls.
-	processedLines := slices.Clone(lines)
+	processedRoutes := slices.Clone(routes)
 
-	for start := 0; start < len(processedLines); start += chipPerRowSize {
-		end := min(start+chipPerRowSize, len(processedLines))
-		slices.Reverse(processedLines[start:end])
+	for start := 0; start < len(processedRoutes); start += chipPerRowSize {
+		end := min(start+chipPerRowSize, len(processedRoutes))
+		slices.Reverse(processedRoutes[start:end])
 	}
-	return processedLines
+	return processedRoutes
 }
