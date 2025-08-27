@@ -30,7 +30,7 @@ type GraphNode struct {
 	mu             sync.Mutex
 }
 
-func (g *GraphNode) isTramStop() bool {
+func (g *GraphNode) IsTramStop() bool {
 	return g.Name != nil && g.GTFSStopIDs != nil
 }
 
