@@ -150,22 +150,6 @@ func (t *tram) unblockNodesBehind() {
 	}
 }
 
-func (t *tram) unblockWholePath() {
-	t.unblockNodesBehind()
-	if t.state != StateTravelling {
-		return
-	}
-
-	path := t.controlCenter.GetPath(
-		t.tripData.trip.Stops[t.tripData.index].ID,
-		t.tripData.trip.Stops[t.tripData.index+1].ID,
-	)
-
-	for _, node := range path.Nodes {
-		node.Unblock(t.id)
-	}
-}
-
 func (t *tram) getEstimatedArrival(stopIndex int, time uint) uint {
 	if t.tripData.index > stopIndex || t.tripData.index == stopIndex && t.isAtStop() {
 		return t.tripData.arrivals[stopIndex]
@@ -381,7 +365,6 @@ func (t *tram) updateSpeedAndReserveNodes(path []*city.GraphNode) (availableDist
 }
 
 func (t *tram) onTravelling(time uint) (result TramPositionChange, update bool) {
-
 	path := t.getTravelPath()
 
 	if t.distToNextInterNode == 0 {
