@@ -150,18 +150,6 @@ func (t *tram) unblockNodesBehind() {
 	}
 }
 
-func (t *tram) unblockWholePath() {
-	t.unblockNodesBehind()
-	if t.state != StateTravelling {
-		return
-	}
-
-	path := t.getTravelPath()
-	for _, node := range path.Nodes {
-		node.Unblock(t.id)
-	}
-}
-
 func (t *tram) getEstimatedArrival(stopIndex int, time uint) uint {
 	if t.tripData.index > stopIndex || t.tripData.index == stopIndex && t.isAtStop() {
 		return t.tripData.arrivals[stopIndex]
