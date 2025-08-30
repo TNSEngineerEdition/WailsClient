@@ -71,3 +71,9 @@ func (c *City) GetRoutesForStop(stopID uint64, chipPerRowSize int) []RouteInfo {
 	}
 	return processedRoutes
 }
+
+func (c *City) UnblockGraph() {
+	for _, node := range c.nodesByID {
+		node.Unblock(0)
+	}
+}
