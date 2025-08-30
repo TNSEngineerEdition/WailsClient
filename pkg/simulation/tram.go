@@ -156,11 +156,7 @@ func (t *tram) unblockWholePath() {
 		return
 	}
 
-	path := t.controlCenter.GetPath(
-		t.tripData.trip.Stops[t.tripData.index].ID,
-		t.tripData.trip.Stops[t.tripData.index+1].ID,
-	)
-
+	path := t.getTravelPath()
 	for _, node := range path.Nodes {
 		node.Unblock(t.id)
 	}
@@ -381,7 +377,6 @@ func (t *tram) updateSpeedAndReserveNodes(path []*city.GraphNode) (availableDist
 }
 
 func (t *tram) onTravelling(time uint) (result TramPositionChange, update bool) {
-
 	path := t.getTravelPath()
 
 	if t.distToNextInterNode == 0 {
