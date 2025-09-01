@@ -95,12 +95,7 @@ func getMaxSpeeds(nodes []*city.GraphNode) []float32 {
 	maxSpeeds := make([]float32, len(nodes))
 
 	for i := 0; i < len(nodes)-1; i++ {
-		for _, neighbor := range nodes[i].Neighbors {
-			if neighbor.ID == nodes[i+1].ID {
-				maxSpeeds[i] = neighbor.MaxSpeed
-				break
-			}
-		}
+		maxSpeeds[i] = nodes[i].Neighbors[nodes[i+1].ID].MaxSpeed
 	}
 
 	// max speed at the last node in path does not matter,
