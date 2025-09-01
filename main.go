@@ -6,6 +6,7 @@ import (
 	"github.com/TNSEngineerEdition/WailsClient/pkg/city"
 	"github.com/TNSEngineerEdition/WailsClient/pkg/simulation"
 	"github.com/wailsapp/wails/v2"
+	"github.com/wailsapp/wails/v2/pkg/logger"
 	"github.com/wailsapp/wails/v2/pkg/options"
 	"github.com/wailsapp/wails/v2/pkg/options/assetserver"
 )
@@ -33,6 +34,7 @@ func main() {
 			&city,
 			&simulation,
 		},
+		LogLevel: logger.WARNING,
 	})
 
 	if err != nil {
