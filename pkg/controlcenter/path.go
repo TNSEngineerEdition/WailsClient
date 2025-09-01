@@ -34,7 +34,8 @@ func getShortestPath(city *city.City, stops stopPair) (result Path) {
 		currentID := heap.Pop(nodesToProcess).(*nodeRecord).ID
 
 		if currentID == stops.destination {
-			result.Nodes, result.MaxSpeeds = reconstructPath(predecessors, nodesByID, currentID)
+			result.Nodes = reconstructPath(predecessors, nodesByID, currentID)
+			result.MaxSpeeds = getMaxSpeeds(result.Nodes)
 			result.DistancePrefixSum = getPathDistancePrefixSum(result.Nodes)
 			return
 		}
@@ -75,17 +76,11 @@ func reconstructPath(
 	predecessors map[uint64]uint64,
 	nodesByID map[uint64]*city.GraphNode,
 	currentID uint64,
-) (nodes []*city.GraphNode, maxSpeeds []float32) {
+) (nodes []*city.GraphNode) {
 	for {
 		nodes = append(nodes, nodesByID[currentID])
 
 		if previousNodeID, ok := predecessors[currentID]; ok {
-			for _, neighbor := range nodesByID[previousNodeID].Neighbors {
-				if neighbor.ID == currentID {
-					maxSpeeds = append(maxSpeeds, neighbor.MaxSpeed)
-					break
-				}
-			}
 			currentID = previousNodeID
 		} else {
 			break
@@ -93,17 +88,26 @@ func reconstructPath(
 	}
 
 	slices.Reverse(nodes)
-	slices.Reverse(maxSpeeds)
+	return
+}
+
+func getMaxSpeeds(nodes []*city.GraphNode) []float32 {
+	maxSpeeds := make([]float32, len(nodes))
+
+	for i := 0; i < len(nodes)-1; i++ {
+		for _, neighbor := range nodes[i].Neighbors {
+			if neighbor.ID == nodes[i+1].ID {
+				maxSpeeds[i] = neighbor.MaxSpeed
+				break
+			}
+		}
+	}
 
 	// max speed at the last node in path does not matter,
 	// repeat the last known max speed
-	maxSpeeds = append(maxSpeeds, maxSpeeds[len(maxSpeeds)-1])
+	maxSpeeds[len(maxSpeeds)-1] = maxSpeeds[len(maxSpeeds)-2]
 
-	if len(nodes) != len(maxSpeeds) {
-		panic("Path nodes and max speeds length mismatch")
-	}
-
-	return
+	return maxSpeeds
 }
 
 func getDistanceInMeters(source, destination *city.GraphNode) float32 {
