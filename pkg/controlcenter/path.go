@@ -11,6 +11,7 @@ import (
 
 type Path struct {
 	Nodes             []*city.GraphNode
+	MaxSpeeds         []float32
 	DistancePrefixSum []float32
 }
 
@@ -34,6 +35,7 @@ func getShortestPath(city *city.City, stops stopPair) (result Path) {
 
 		if currentID == stops.destination {
 			result.Nodes = reconstructPath(predecessors, nodesByID, currentID)
+			result.MaxSpeeds = getMaxSpeeds(result.Nodes)
 			result.DistancePrefixSum = getPathDistancePrefixSum(result.Nodes)
 			return
 		}
@@ -87,6 +89,20 @@ func reconstructPath(
 
 	slices.Reverse(nodes)
 	return
+}
+
+func getMaxSpeeds(nodes []*city.GraphNode) []float32 {
+	maxSpeeds := make([]float32, len(nodes))
+
+	for i := 0; i < len(nodes)-1; i++ {
+		maxSpeeds[i] = nodes[i].Neighbors[nodes[i+1].ID].MaxSpeed
+	}
+
+	// max speed at the last node in path does not matter,
+	// repeat the last known max speed
+	maxSpeeds[len(maxSpeeds)-1] = maxSpeeds[len(maxSpeeds)-2]
+
+	return maxSpeeds
 }
 
 func getDistanceInMeters(source, destination *city.GraphNode) float32 {
