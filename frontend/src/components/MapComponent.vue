@@ -12,6 +12,7 @@ import { TramMarker } from "@classes/TramMarker"
 import { Time } from "@classes/Time"
 import TramSidebarComponent from "@components/sidebar/TramSidebarComponent.vue"
 import StopSidebarComponent from "@components/sidebar/StopSidebarComponent.vue"
+import RouteSidebarComponent from "@components/sidebar/RouteSidebarComponent.vue"
 
 const mapHTMLElement = useTemplateRef("map")
 
@@ -30,13 +31,16 @@ const tramMarkerByID = ref<Record<number, TramMarker>>({})
 
 const tramSidebar = ref(false)
 const stopSidebar = ref(false)
+const routeSidebar = ref(false)
 
 const selectedTramID = ref<number>()
 const selectedStop = ref<city.TramStop>()
+const selectedRoute = ref<city.RouteInfo>()
 
 async function reset() {
   tramSidebar.value = false
   stopSidebar.value = false
+  routeSidebar.value = false
   loading.value = true
 
   for (const tramMarker of Object.values(tramMarkerByID.value)) {
@@ -58,6 +62,16 @@ async function reset() {
   loading.value = false
 }
 
+function handleRouteSelected(route: city.RouteInfo) {
+  selectedRoute.value = route
+  routeSidebar.value = true
+  const tramMarkersForRoute = Object.values(tramMarkerByID.value).filter(
+    m => m.getRoute() === route.name,
+  )
+  leafletMap.value?.highlightTramsForRoute(tramMarkersForRoute)
+  leafletMap.value?.highlightRoute(route)
+}
+
 watch(() => props.resetCounter, reset)
 
 watch(stopSidebar, isOpen => {
@@ -71,6 +85,22 @@ watch(tramSidebar, isOpen => {
   if (!isOpen) {
     leafletMap.value?.deselectTram()
     selectedTramID.value = undefined
+  }
+})
+
+watch(routeSidebar, isOpen => {
+  if (!isOpen) {
+    leafletMap.value?.deselectRoute()
+    selectedRoute.value = undefined
+  }
+})
+
+watch(selectedRoute, route => {
+  if (route) {
+    const tramMarkersForRoute = Object.values(tramMarkerByID.value).filter(
+      m => m.getRoute() === route.name,
+    )
+    leafletMap.value?.highlightTramsForRoute(tramMarkersForRoute)
   }
 })
 
@@ -128,16 +158,26 @@ onMounted(async () => {
 
   <div id="map" ref="map"></div>
 
-  <TramSidebarComponent
-    v-model="tramSidebar"
-    :tram-id="selectedTramID"
-    :current-time="time"
-  />
-  <StopSidebarComponent
-    v-model="stopSidebar"
-    :stop="selectedStop"
-    :current-time="time"
-  ></StopSidebarComponent>
+  <div class="sidebar-stack left">
+    <TramSidebarComponent
+      v-model="tramSidebar"
+      :tram-id="selectedTramID"
+      :current-time="time"
+    />
+  </div>
+  <div class="sidebar-stack right">
+    <StopSidebarComponent
+      v-model="stopSidebar"
+      :stop="selectedStop"
+      :current-time="time"
+      @routeSelected="handleRouteSelected"
+    />
+    <RouteSidebarComponent
+      v-model="routeSidebar"
+      :route="selectedRoute"
+      :tram-markers="tramMarkerByID"
+    />
+  </div>
 </template>
 
 <style lang="scss">
@@ -151,6 +191,17 @@ onMounted(async () => {
   width: 24px;
   height: 24px;
   pointer-events: auto;
+  transition:
+    transform 0.2s ease,
+    background-color 0.3s ease;
+}
+
+.tram-marker.highlighted {
+  transform: scale(1.1);
+}
+
+.tram-marker.selected {
+  transform: scale(1.2);
 }
 
 .tm-circle-arrow {
@@ -186,8 +237,33 @@ onMounted(async () => {
   z-index: 3;
 }
 
+.tram-marker.highlighted .tm-circle-arrow,
+.tram-marker.highlighted .tm-circle {
+  background-color: orange;
+}
+
 .tram-marker.selected .tm-circle-arrow,
 .tram-marker.selected .tm-circle {
   background-color: #67ad2f;
+}
+
+.sidebar-stack {
+  position: fixed;
+  top: calc(60px + 20px);
+  z-index: 1001;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  pointer-events: none;
+}
+.sidebar-stack > * {
+  pointer-events: auto;
+}
+
+.sidebar-stack.left {
+  left: 54px;
+}
+.sidebar-stack.right {
+  right: 20px;
 }
 </style>

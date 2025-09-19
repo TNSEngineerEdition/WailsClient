@@ -157,3 +157,7 @@ func (s *Simulation) GetArrivalsForStop(stopID uint64, count int) []Arrival {
 
 	return arrivals[:min(len(arrivals), count)]
 }
+
+func (s *Simulation) GetRoutePolylines(lineName string) controlcenter.RoutePolylines {
+	return s.controlCenter.GetRoutePolylines(lineName)
+}

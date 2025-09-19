@@ -3,12 +3,13 @@ import { LeafletMap } from "@classes/LeafletMap"
 
 export class TramMarker extends Marker {
   private isOnMap = false
-
+  private route: string
   constructor(
     private leafletMap: LeafletMap,
     route: string,
   ) {
     super([0, 0], { icon: TramMarker.createIcon(route) })
+    this.route = route
   }
 
   private static createIcon(route: string): DivIcon {
@@ -36,6 +37,27 @@ export class TramMarker extends Marker {
     circleArrow.style.transform = `rotate(${azimuth + 135}deg)`
   }
 
+  public getRoute(): string {
+    return this.route
+  }
+
+  public getIsOnMap(): boolean {
+    return this.isOnMap
+  }
+
+  public setHighlighted(isHighlighted: boolean) {
+    const element =
+      this.getElement()?.querySelector<HTMLElement>(".tram-marker")
+    if (!element) {
+      return
+    }
+    if (isHighlighted) {
+      element?.classList.add("highlighted")
+    } else {
+      element?.classList.remove("highlighted")
+    }
+  }
+
   public setSelected(isSelected: boolean) {
     if (!this.isOnMap) return
 
@@ -58,7 +80,9 @@ export class TramMarker extends Marker {
       this.leafletMap.addTram(this)
       this.isOnMap = true
     }
-
+    this.route === this.leafletMap.selectedRouteName
+      ? this.setHighlighted(true)
+      : this.setHighlighted(false)
     this.setLatLng([lat, lon])
     this.setAzimuth(azimuth)
   }
