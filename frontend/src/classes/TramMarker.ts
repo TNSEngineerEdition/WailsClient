@@ -3,13 +3,12 @@ import { LeafletMap } from "@classes/LeafletMap"
 
 export class TramMarker extends Marker {
   private isOnMap = false
-  private route: string
+
   constructor(
     private leafletMap: LeafletMap,
-    route: string,
+    private route: string,
   ) {
     super([0, 0], { icon: TramMarker.createIcon(route) })
-    this.route = route
   }
 
   private static createIcon(route: string): DivIcon {

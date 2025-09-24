@@ -1,8 +1,9 @@
 package controlcenter
 
 import (
+	"cmp"
 	"fmt"
-	"sort"
+	"slices"
 
 	"github.com/TNSEngineerEdition/WailsClient/pkg/city"
 )
@@ -125,11 +126,11 @@ func (c *ControlCenter) GetRoutePolylines(lineName string) RoutePolylines {
 	for _, v := range agg {
 		list = append(list, v)
 	}
-	sort.Slice(list, func(i, j int) bool {
-		if list[i].count == list[j].count {
-			return len(list[i].bestTrip.Stops) > len(list[j].bestTrip.Stops)
+	slices.SortFunc(list, func(a, b *dirAgg) int {
+		if a.count == b.count {
+			return -cmp.Compare(len(a.bestTrip.Stops), len(b.bestTrip.Stops))
 		}
-		return list[i].count > list[j].count
+		return -cmp.Compare(a.count, b.count)
 	})
 
 	outA := stopsToIDs(list[0].bestTrip.Stops)
