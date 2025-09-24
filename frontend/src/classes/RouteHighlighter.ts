@@ -11,7 +11,7 @@ export class RouteHighlighter {
     this.map.addLayer(this.svgRenderer)
   }
 
-  async highlight(route: city.RouteInfo) {
+  public async highlight(route: city.RouteInfo) {
     const { forward, backward } = await GetRoutePolylines(route.name)
     const fwd = forward as [number, number][]
     const bwd = backward as [number, number][]
@@ -33,7 +33,7 @@ export class RouteHighlighter {
     }
   }
 
-  clear() {
+  public clear() {
     this.stopAnts()
     if (this.routeLayer) {
       this.map.removeLayer(this.routeLayer)
