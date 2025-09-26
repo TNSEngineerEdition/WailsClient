@@ -6,7 +6,7 @@ export class TramMarker extends Marker {
 
   constructor(
     private leafletMap: LeafletMap,
-    route: string,
+    private route: string,
   ) {
     super([0, 0], { icon: TramMarker.createIcon(route) })
   }
@@ -36,6 +36,27 @@ export class TramMarker extends Marker {
     circleArrow.style.transform = `rotate(${azimuth + 135}deg)`
   }
 
+  public getRoute(): string {
+    return this.route
+  }
+
+  public getIsOnMap(): boolean {
+    return this.isOnMap
+  }
+
+  public setHighlighted(isHighlighted: boolean) {
+    const element =
+      this.getElement()?.querySelector<HTMLElement>(".tram-marker")
+    if (!element) {
+      return
+    }
+    if (isHighlighted) {
+      element?.classList.add("highlighted")
+    } else {
+      element?.classList.remove("highlighted")
+    }
+  }
+
   public setSelected(isSelected: boolean) {
     if (!this.isOnMap) return
 
@@ -58,7 +79,7 @@ export class TramMarker extends Marker {
       this.leafletMap.addTram(this)
       this.isOnMap = true
     }
-
+    this.setHighlighted(this.route === this.leafletMap.selectedRouteName)
     this.setLatLng([lat, lon])
     this.setAzimuth(azimuth)
   }

@@ -2,27 +2,18 @@
 import { computed } from "vue"
 
 const model = defineModel({ required: true })
-
 const props = defineProps<{
   position: "left" | "right"
   titleIcon: string
   title: string
 }>()
 
-const horizontalPosition = computed(() => {
-  if (props.position == "left") {
-    return { left: "54px" }
-  } else {
-    return { right: "20px" }
-  }
-})
-
 const slideDirection = computed(() => `sidebar-slide-${props.position}`)
 </script>
 
 <template>
   <transition :name="slideDirection">
-    <v-card v-if="model" class="side-bar-card" :style="horizontalPosition">
+    <v-card v-if="model" class="side-bar-card">
       <v-card-title class="d-flex align-center justify-space-between my-1">
         <transition name="content-fade" mode="out-in">
           <div
@@ -33,7 +24,6 @@ const slideDirection = computed(() => `sidebar-slide-${props.position}`)
             <span class="font-weight-bold">{{ props.title }}</span>
           </div>
         </transition>
-
         <v-btn
           icon="mdi-close"
           variant="text"
@@ -44,20 +34,18 @@ const slideDirection = computed(() => `sidebar-slide-${props.position}`)
       </v-card-title>
       <v-card-text>
         <transition name="content-fade" mode="out-in">
-          <div :key="props.title">
-            <slot></slot>
-          </div>
+          <div :key="props.title"><slot /></div>
         </transition>
       </v-card-text>
     </v-card>
   </transition>
 </template>
 
-<style lang="scss" scoped>
+<style scoped lang="scss">
 .side-bar-card {
-  position: absolute;
-  top: calc(60px + 20px);
-  z-index: 1001;
+  width: 100%;
+  max-height: calc(100vh - 120px);
+  overflow: auto;
   background-color: rgba(255, 255, 255, 0.85);
   border: 1px solid rgba(100, 100, 100, 0.3);
   border-radius: 16px;
@@ -79,6 +67,7 @@ const slideDirection = computed(() => `sidebar-slide-${props.position}`)
   opacity: 0;
   transform: translateX(-30px);
 }
+
 .sidebar-slide-left-enter-to,
 .sidebar-slide-left-leave-from {
   opacity: 1;
@@ -90,6 +79,7 @@ const slideDirection = computed(() => `sidebar-slide-${props.position}`)
   opacity: 0;
   transform: translateX(30px);
 }
+
 .sidebar-slide-right-enter-to,
 .sidebar-slide-right-leave-from {
   opacity: 1;
@@ -100,14 +90,46 @@ const slideDirection = computed(() => `sidebar-slide-${props.position}`)
 .content-fade-leave-active {
   transition: opacity 0.25s ease;
 }
-
 .content-fade-enter-from,
 .content-fade-leave-to {
   opacity: 0;
 }
-
 .content-fade-enter-to,
 .content-fade-leave-from {
   opacity: 1;
+}
+</style>
+
+<style lang="scss">
+.section {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 0.4rem;
+
+  &.arrivals {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}
+
+.label,
+.value {
+  font-size: clamp(0.8rem, 0.75rem + 0.2vw, 1rem);
+  color: #111;
+}
+
+.label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-weight: bold;
+  margin-bottom: 0.25rem;
+}
+
+.value {
+  font-weight: 450;
+  text-align: right;
 }
 </style>

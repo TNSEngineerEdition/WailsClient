@@ -28,6 +28,13 @@ const props = defineProps<{
 const routes = ref<city.RouteInfo[]>([])
 const arrivalsInfo = ref<simulation.Arrival[]>([])
 const routeChipColumns = ref(5)
+const tab = ref<"arr" | "occ">("arr")
+
+const emit = defineEmits(["routeSelected"])
+
+function onChipClick(route: city.RouteInfo) {
+  emit("routeSelected", route)
+}
 
 watch(
   () => props.stop?.id,
@@ -104,6 +111,7 @@ watch(
               color: route.text_color,
               backgroundColor: route.background_color,
             }"
+            @click="onChipClick(route)"
           >
             {{ route.name }}
           </span>
@@ -112,68 +120,56 @@ watch(
         <span v-else>No routes</span>
       </div>
     </div>
+    <div class="section">
+      <div class="label">
+        <v-icon icon="mdi-bus-stop-covered" class="mr-2"></v-icon>
+        Passengers at stop
+      </div>
 
-    <v-data-table
-      v-if="arrivalsInfo.length"
-      :headers="headers"
-      :header-props="{
-        style: 'font-weight: bold;',
-      }"
-      :items="arrivalsInfo"
-      class="arrivals-table"
-      density="compact"
-      hide-default-footer
-      hover
-    >
-      <template v-slot:top>
-        <div class="label">
-          <v-icon icon="mdi-clock-time-four" class="mr-2"></v-icon>
-          Arrivals
-        </div>
-      </template>
+      <div class="value">
+        <span> TODO </span>
+      </div>
+    </div>
 
-      <template v-slot:item.time="{ item }">
-        <span v-if="item.time === 0" class="blinking"> &gt;&gt;&gt; </span>
+    <v-tabs v-model="tab" grow>
+      <v-tab value="arr">Arrivals</v-tab>
+      <v-tab value="occ">Occupancy graph</v-tab>
+    </v-tabs>
 
-        <span v-else>{{ item.time }} min</span>
-      </template>
-    </v-data-table>
+    <v-card-text>
+      <v-tabs-window v-model="tab">
+        <v-tabs-window-item value="arr">
+          <v-data-table
+            v-if="arrivalsInfo.length && tab === 'arr'"
+            :headers="headers"
+            :header-props="{
+              style: 'font-weight: bold;',
+            }"
+            :items="arrivalsInfo"
+            class="stops-table"
+            density="compact"
+            hide-default-footer
+            hover
+          >
+            <template v-slot:item.time="{ item }">
+              <span v-if="item.time === 0" class="blinking">
+                &gt;&gt;&gt;
+              </span>
+
+              <span v-else>{{ item.time }} min</span>
+            </template>
+          </v-data-table>
+        </v-tabs-window-item>
+
+        <v-tabs-window-item value="occ">
+          Occupancy graph TODO
+        </v-tabs-window-item>
+      </v-tabs-window>
+    </v-card-text>
   </SidebarComponent>
 </template>
 
 <style scoped lang="scss">
-.section {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 1rem;
-  margin-bottom: 0.4rem;
-
-  &.arrivals {
-    flex-direction: column;
-    align-items: flex-start;
-  }
-}
-
-.label,
-.value {
-  font-size: clamp(0.8rem, 0.75rem + 0.2vw, 1rem);
-  color: #111;
-}
-
-.label {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.4rem;
-  font-weight: bold;
-  margin-bottom: 0.25rem;
-}
-
-.value {
-  font-weight: 450;
-  text-align: right;
-}
-
 .route-chips {
   display: grid;
   gap: 4px;
@@ -201,11 +197,6 @@ watch(
   }
 }
 
-.arrivals-table {
-  width: 100%;
-  background-color: transparent;
-}
-
 .blinking {
   animation: smooth-blink 1s ease-in-out infinite;
 }
@@ -218,5 +209,10 @@ watch(
   50% {
     opacity: 0;
   }
+}
+
+.stops-table {
+  width: 100%;
+  background-color: transparent;
 }
 </style>
