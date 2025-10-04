@@ -1,9 +1,9 @@
 <script lang="ts" setup>
 import { Time } from "@classes/Time"
-import HeaderIconButtonComponent from "@components/header/HeaderIconButtonComponent.vue"
+import HeaderIconButtonComponent from "@components/simulation/header/HeaderIconButtonComponent.vue"
 import useCycle from "@composables/useCycle"
 import { ResetSimulation } from "@wails/go/simulation/Simulation"
-import HeaderRestartConfirmationDialogComponent from "@components/header/HeaderRestartConfirmationDialogComponent.vue"
+import HeaderRestartConfirmationDialogComponent from "@components/simulation/header/HeaderRestartConfirmationDialogComponent.vue"
 import useTimer from "@composables/useTimer"
 
 const props = defineProps<{
@@ -69,13 +69,23 @@ async function reset() {
       </v-col>
 
       <v-col cols="2" class="text-center text-capitalize">
-        Current time <br />
-        {{ new Time(props.time).toFullString() }}
+        <span v-if="!loading">
+          Current time <br />
+          {{ new Time(props.time).toFullString() }}
+        </span>
       </v-col>
 
       <v-col cols="2" class="text-center text-capitalize">
-        Elapsed time <br />
-        {{ new Time(Math.floor(timer.timer.value)).toFullString() }}
+        <span v-if="!loading">
+          Elapsed time <br />
+          {{ new Time(Math.floor(timer.timer.value)).toFullString() }}
+        </span>
+      </v-col>
+
+      <v-col cols="4">
+        <div class="d-flex justify-end align-center h-100">
+          <v-btn prepend-icon="mdi-backburger" to="/">Menu</v-btn>
+        </div>
       </v-col>
     </v-row>
   </v-footer>

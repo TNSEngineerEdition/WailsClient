@@ -10,9 +10,9 @@ import {
 import { LeafletMap } from "@classes/LeafletMap"
 import { TramMarker } from "@classes/TramMarker"
 import { Time } from "@classes/Time"
-import TramSidebarComponent from "@components/sidebar/TramSidebarComponent.vue"
-import StopSidebarComponent from "@components/sidebar/StopSidebarComponent.vue"
-import RouteSidebarComponent from "@components/sidebar/RouteSidebarComponent.vue"
+import TramSidebarComponent from "@components/simulation/sidebar/TramSidebarComponent.vue"
+import StopSidebarComponent from "@components/simulation/sidebar/StopSidebarComponent.vue"
+import RouteSidebarComponent from "@components/simulation/sidebar/RouteSidebarComponent.vue"
 
 const mapHTMLElement = useTemplateRef("map")
 
@@ -152,6 +152,7 @@ onMounted(async () => {
     opacity="0"
     class="d-flex justify-center align-center"
     persistent
+    contained
   >
     <v-progress-circular indeterminate size="128"></v-progress-circular>
   </v-overlay>

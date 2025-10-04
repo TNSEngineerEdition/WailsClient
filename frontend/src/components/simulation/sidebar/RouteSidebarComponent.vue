@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import SidebarComponent from "@components/sidebar/SidebarComponent.vue"
-import { ref, computed, watch } from "vue"
+import SidebarComponent from "@components/simulation/sidebar/SidebarComponent.vue"
+import { ref, computed } from "vue"
 import { city } from "@wails/go/models"
 import { TramMarker } from "@classes/TramMarker"
 const model = defineModel<boolean>({ required: true })

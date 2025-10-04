@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import SidebarComponent from "@components/sidebar/SidebarComponent.vue"
+import SidebarComponent from "@components/simulation/sidebar/SidebarComponent.vue"
 import { ref, watch } from "vue"
 import { city, simulation } from "@wails/go/models"
 import { GetRoutesForStop } from "@wails/go/city/City"
