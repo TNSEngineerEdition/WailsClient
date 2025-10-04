@@ -47,6 +47,7 @@ func (s *Simulation) ResetSimulation() {
 	s.city.UnblockGraph()
 	s.resetTrams()
 	s.city.ResetPlannedArrivals()
+	s.city.ResetPassengers()
 }
 
 func (s *Simulation) FetchData(url string, tramWorkerCount uint) {
@@ -83,6 +84,13 @@ func (s *Simulation) GetTramIDs() (result []TramIdentifier) {
 
 func (s *Simulation) AdvanceTrams(time uint) (result []TramPositionChange) {
 	s.time = time
+
+	toSpawn := s.city.GetPassengersAt(time)
+	if len(toSpawn) > 0 {
+		for _, p := range toSpawn {
+			p.StartStop.AwaitingPassengers = append(p.StartStop.AwaitingPassengers, p)
+		}
+	}
 
 	s.tramWorkersData.wg.Add(len(s.trams))
 	for _, tram := range s.trams {

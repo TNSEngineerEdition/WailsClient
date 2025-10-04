@@ -20,15 +20,16 @@ type TramStop struct {
 }
 
 type GraphNode struct {
-	ID             uint64                       `json:"id"`
-	Latitude       float32                      `json:"lat"`
-	Longitude      float32                      `json:"lon"`
-	Neighbors      map[uint64]graphNodeNeighbor `json:"neighbors"`
-	Name           *string                      `json:"name"`
-	GTFSStopIDs    *[]string                    `json:"gtfs_stop_ids"`
-	isBlocked      bool
-	blockingTramID uint
-	mu             sync.Mutex
+	ID                 uint64                       `json:"id"`
+	Latitude           float32                      `json:"lat"`
+	Longitude          float32                      `json:"lon"`
+	Neighbors          map[uint64]graphNodeNeighbor `json:"neighbors"`
+	Name               *string                      `json:"name"`
+	GTFSStopIDs        *[]string                    `json:"gtfs_stop_ids"`
+	AwaitingPassengers []*Passenger
+	isBlocked          bool
+	blockingTramID     uint
+	mu                 sync.Mutex
 }
 
 func (g *GraphNode) IsTramStop() bool {
