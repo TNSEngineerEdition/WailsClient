@@ -10,7 +10,6 @@ type City struct {
 	nodesByID, stopsByID map[uint64]*GraphNode
 	routesByStopID       map[uint64][]RouteInfo
 	plannedArrivals      map[uint64][]PlannedArrival
-	initialPassengers    map[uint][]*Passenger
 }
 
 func (c *City) FetchCityData(url string) {
@@ -18,13 +17,6 @@ func (c *City) FetchCityData(url string) {
 	c.nodesByID = c.cityData.GetNodesByID()
 	c.stopsByID = c.cityData.GetStopsByID()
 	c.routesByStopID = c.cityData.GetRoutesByStopID()
-	c.initialPassengers = c.loadInitialPassengers()
-}
-
-func (c *City) loadInitialPassengers() map[uint][]*Passenger {
-	cp := NewCityPassengers(c)
-	cp.CreatePassengers()
-	return cp.initialPassengers
 }
 
 func (c *City) ResetPlannedArrivals() {
@@ -79,18 +71,8 @@ func (c *City) GetRoutesForStop(stopID uint64, chipPerRowSize int) []RouteInfo {
 	return processedRoutes
 }
 
-func (c *City) GetPassengersAt(t uint) []*Passenger {
-	return c.initialPassengers[t]
-}
-
 func (c *City) UnblockGraph() {
 	for _, node := range c.nodesByID {
 		node.Unblock(0)
-	}
-}
-
-func (c *City) ResetPassengers() {
-	for _, stop := range c.stopsByID {
-		stop.AwaitingPassengers = make([]*Passenger, 0)
 	}
 }
