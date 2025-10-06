@@ -23,10 +23,10 @@ func NewCityPassengers(c *city.City) *CityPassengers {
 	}
 }
 
-func (cp *CityPassengers) CreatePassengers() map[uint][]*Passenger {
+func CreatePassengers(c *city.City) map[uint][]*Passenger {
 	result := make(map[uint][]*Passenger)
-	timeBounds := cp.city.GetTimeBounds()
-	tramStops := cp.city.GetTramStops()
+	timeBounds := c.GetTimeBounds()
+	tramStops := c.GetTramStops()
 
 	for i := range tramStops {
 		startStop := tramStops[i]

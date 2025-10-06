@@ -67,8 +67,7 @@ func (s *Simulation) FetchData(url string, tramWorkerCount uint) {
 	s.ResetSimulation()
 	s.tramWorkersData.reset(len(s.trams))
 
-	cityPassengers := passengers.NewCityPassengers(s.city)
-	s.initialPassengers = cityPassengers.CreatePassengers()
+	s.initialPassengers = passengers.CreatePassengers(s.city)
 
 	if tramWorkerCount == 0 {
 		// CPU count * 110% for more efficiency
