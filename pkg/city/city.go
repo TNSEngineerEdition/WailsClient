@@ -17,6 +17,7 @@ func (c *City) FetchCityData(url string) {
 	c.nodesByID = c.cityData.GetNodesByID()
 	c.stopsByID = c.cityData.GetStopsByID()
 	c.routesByStopID = c.cityData.GetRoutesByStopID()
+	c.ResetPlannedArrivals()
 }
 
 func (c *City) ResetPlannedArrivals() {
