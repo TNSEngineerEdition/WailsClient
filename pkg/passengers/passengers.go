@@ -18,15 +18,12 @@ type CityPassengers struct {
 }
 
 func NewCityPassengers(c *city.City) *CityPassengers {
-	cp := &CityPassengers{
-		city:              c,
-		InitialPassengers: make(map[uint][]*Passenger),
+	return &CityPassengers{
+		city: c,
 	}
-	cp.createPassengers()
-	return cp
 }
 
-func (cp *CityPassengers) createPassengers() {
+func (cp *CityPassengers) CreatePassengers() map[uint][]*Passenger {
 	result := make(map[uint][]*Passenger)
 	timeBounds := cp.city.GetTimeBounds()
 	tramStops := cp.city.GetTramStops()
@@ -53,9 +50,5 @@ func (cp *CityPassengers) createPassengers() {
 			result[spawn] = append(result[spawn], passenger)
 		}
 	}
-	cp.InitialPassengers = result
-}
-
-func (cp *CityPassengers) GetInitialPassengers() map[uint][]*Passenger {
-	return cp.InitialPassengers
+	return result
 }
