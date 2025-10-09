@@ -1,9 +1,9 @@
 package passengers
 
-type PassangerStrategy uint8
+type PassengerStrategy uint8
 
 const (
-	ASAP PassangerStrategy = iota
+	ASAP PassengerStrategy = iota
 	COMFORT
 	SURE
 )

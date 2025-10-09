@@ -7,20 +7,9 @@ import (
 )
 
 type Passenger struct {
-	strategy               PassangerStrategy
+	strategy               PassengerStrategy
 	spawnTime              uint
 	StartStopID, EndStopID uint64
-}
-
-type CityPassengers struct {
-	city              *city.City
-	InitialPassengers map[uint][]*Passenger
-}
-
-func NewCityPassengers(c *city.City) *CityPassengers {
-	return &CityPassengers{
-		city: c,
-	}
 }
 
 func CreatePassengers(c *city.City) map[uint][]*Passenger {
@@ -41,7 +30,7 @@ func CreatePassengers(c *city.City) map[uint][]*Passenger {
 			endStop := tramStops[j]
 			spawn := timeBounds.StartTime + uint(rand.IntN(int(timeBounds.EndTime-timeBounds.StartTime+1)))
 			passenger := &Passenger{
-				strategy:    PassangerStrategy(rand.IntN(3)),
+				strategy:    PassengerStrategy(rand.IntN(3)),
 				spawnTime:   spawn,
 				StartStopID: startStop.ID,
 				EndStopID:   endStop.ID,
