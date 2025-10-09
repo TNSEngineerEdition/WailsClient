@@ -8,4 +8,6 @@ const (
 	StateTravelling
 	StatePassengerUnloading
 	StateTripFinished
+	StateStopping
+	StateStopped
 )

@@ -13,6 +13,7 @@ import { Time } from "@classes/Time"
 import TramSidebarComponent from "@components/sidebar/TramSidebarComponent.vue"
 import StopSidebarComponent from "@components/sidebar/StopSidebarComponent.vue"
 import RouteSidebarComponent from "@components/sidebar/RouteSidebarComponent.vue"
+import { TramState } from "@models/types"
 
 const mapHTMLElement = useTemplateRef("map")
 
@@ -130,10 +131,14 @@ onMounted(async () => {
         if (tram.lat == 0 && tram.lon == 0) {
           tramMarkerByID.value[tram.id].removeFromMap()
         } else {
+          const isStopped =
+            tram.state === TramState.StateStopped ||
+            tram.state === TramState.StateStopping
           tramMarkerByID.value[tram.id].updateCoordinates(
             tram.lat,
             tram.lon,
             tram.azimuth,
+            isStopped,
           )
         }
       }
@@ -162,6 +167,7 @@ onMounted(async () => {
     <TramSidebarComponent
       v-model="tramSidebar"
       :tram-id="selectedTramID"
+      :tram-marker="selectedTramID ? tramMarkerByID[selectedTramID] : undefined"
       :current-time="time"
     />
   </div>
@@ -245,6 +251,45 @@ onMounted(async () => {
 .tram-marker.selected .tm-circle-arrow,
 .tram-marker.selected .tm-circle {
   background-color: #67ad2f;
+}
+
+@keyframes pulse-red {
+  0% {
+    box-shadow: 0 0 0 0 rgba(255, 0, 0, 0.6);
+  }
+  70% {
+    box-shadow: 0 0 0 10px rgba(255, 0, 0, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(255, 0, 0, 0);
+  }
+}
+
+.tram-marker.stopped .tm-circle-arrow,
+.tram-marker.stopped .tm-circle {
+  background-color: red;
+  animation: pulse-red 1.5s infinite;
+}
+
+@keyframes pulse-red-selected {
+  0% {
+    box-shadow: 0 0 0 0 rgba(255, 0, 0, 0.6);
+    background-color: red;
+  }
+  50% {
+    box-shadow: 0 0 10px 4px rgba(255, 0, 0, 0.8);
+    background-color: red;
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(255, 0, 0, 0.6);
+    background-color: red;
+  }
+}
+
+.tram-marker.stopped.selected .tm-circle-arrow,
+.tram-marker.stopped.selected .tm-circle {
+  background-color: red;
+  animation: pulse-red-selected 1.5s infinite;
 }
 
 .sidebar-stack {
