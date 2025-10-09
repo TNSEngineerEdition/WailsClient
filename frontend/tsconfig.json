@@ -19,6 +19,8 @@
       "@components/*": ["./src/components/*"],
       "@plugins/*": ["./src/plugins/*"],
       "@assets/*": ["./src/assets/*"]
+      "@components/*": ["./src/components/*"],
+      "@models/*": ["./src/types/*"]
     }
   },
   "include": ["src/**/*.ts", "src/**/*.d.ts", "src/**/*.tsx", "src/**/*.vue"],

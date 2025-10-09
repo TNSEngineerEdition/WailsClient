@@ -1,14 +1,18 @@
 <script setup lang="ts">
 import SidebarComponent from "@components/simulation/sidebar/SidebarComponent.vue"
+import TramControlButtonComponent from "@components/sidebar/TramControlButtonComponent.vue"
 import { Time } from "@classes/Time"
 import { tram } from "@wails/go/models"
-import { GetTramDetails } from "@wails/go/simulation/Simulation"
+import { GetTramDetails, StopResumeTram } from "@wails/go/simulation/Simulation"
 import { computed, ref, watch } from "vue"
+import { TramMarker } from "@classes/TramMarker"
+import { TramState } from "@models/types"
 
 const model = defineModel<boolean>({ required: true })
 
 const props = defineProps<{
   tramId?: number
+  tramMarker?: TramMarker
   currentTime: number
 }>()
 
@@ -43,6 +47,20 @@ const stopsTableData = computed(
     }) ?? [],
 )
 
+const tramRunning = computed(
+  () =>
+    tramDetails.value?.state !== TramState.StateStopped &&
+    tramDetails.value?.state !== TramState.StateStopping,
+)
+
+const isTramDisabled = computed(() => {
+  return (
+    !props.tramId ||
+    tramDetails.value?.state === TramState.StateTripFinished ||
+    tramDetails.value?.state === TramState.StateTripNotStarted
+  )
+})
+
 function getRowProps(data: any) {
   if (data.index === tramDetails.value?.trip_index)
     return {
@@ -62,6 +80,21 @@ function getDelayTextColorClass(delay: number) {
     return "text-info font-weight-bold"
   } else {
     return ""
+  }
+}
+
+async function stopResumeTram() {
+  if (isTramDisabled.value || !props.tramId) return
+  const s = tramDetails.value?.state
+  const shouldStop =
+    s !== TramState.StateStopped && s !== TramState.StateStopping
+  const updated = await StopResumeTram(props.tramId, shouldStop)
+  tramDetails.value = updated
+  if (props.tramMarker) {
+    const isStopped =
+      updated.state === TramState.StateStopped ||
+      updated.state === TramState.StateStopping
+    props.tramMarker.setStopped(isStopped)
   }
 }
 
@@ -118,9 +151,21 @@ watch(
 
     <div class="section">
       <div class="label">
-        <v-icon icon="mdi-map-marker-path" class="mr-2"></v-icon>
-        Stops
+        <v-icon icon="mdi mdi-account-group" class="mr-2"></v-icon>
+        Passenger count
       </div>
+      <div class="value">TODO</div>
+    </div>
+    <div class="section">
+      <div class="label">
+        <v-icon icon="mdi mdi-wrench-cog" class="mr-2"></v-icon>
+        Simulate failure
+      </div>
+      <TramControlButtonComponent
+        :running="tramRunning"
+        :disabled="isTramDisabled"
+        @click="stopResumeTram"
+      ></TramControlButtonComponent>
     </div>
     <v-tabs v-model="tab" grow>
       <v-tab value="stops">Stops table</v-tab>
