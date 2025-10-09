@@ -20,6 +20,8 @@ type tram struct {
 	departureTime                      uint
 	isFinished                         bool
 	state                              TramState
+	prevState                          TramState
+	useBrake                           bool
 }
 
 const MAX_ACCELERATION = 1.5
@@ -44,7 +46,8 @@ func newTram(
 
 func (t *tram) isAtStop() bool {
 	return t.state == StatePassengerLoading ||
-		t.state == StatePassengerUnloading
+		t.state == StatePassengerUnloading ||
+		(t.state == StateStopped && (t.prevState == StatePassengerLoading || t.prevState == StatePassengerUnloading))
 }
 
 func (t *tram) getTravelPath() *controlcenter.Path {
@@ -89,6 +92,10 @@ func (t *tram) findIntermediateLocation(path []*city.GraphNode, remainingPart fl
 }
 
 func (t *tram) setAzimuthAndDistanceToNextNode(path []*city.GraphNode) {
+	if t.pathIndex >= len(path)-1 {
+		t.distToNextInterNode = 0
+		return
+	}
 	if nextNode, ok := path[t.pathIndex].Neighbors[path[t.pathIndex+1].ID]; ok {
 		t.azimuth = nextNode.Azimuth
 		t.distToNextInterNode = nextNode.Distance
@@ -149,6 +156,13 @@ func (t *tram) unblockNodesBehind() {
 	}
 }
 
+func (t *tram) unblockNodesAhead() {
+	path := t.getTravelPath()
+	for i := t.pathIndex; i < len(path.Nodes)-1; i++ {
+		path.Nodes[i+1].Unblock(t.id)
+	}
+}
+
 func (t *tram) getEstimatedArrival(stopIndex int, time uint) uint {
 	if t.tripData.index > stopIndex || t.tripData.index == stopIndex && t.isAtStop() {
 		return t.tripData.arrivals[stopIndex]
@@ -184,10 +198,11 @@ func (t *tram) getEstimatedArrival(stopIndex int, time uint) uint {
 }
 
 type TramPositionChange struct {
-	TramID    uint    `json:"id"`
-	Latitude  float32 `json:"lat"`
-	Longitude float32 `json:"lon"`
-	Azimuth   float32 `json:"azimuth"`
+	TramID    uint      `json:"id"`
+	Latitude  float32   `json:"lat"`
+	Longitude float32   `json:"lon"`
+	Azimuth   float32   `json:"azimuth"`
+	State     TramState `json:"state"`
 }
 
 func (t *tram) onTripNotStarted(
@@ -208,6 +223,7 @@ func (t *tram) onTripNotStarted(
 		Latitude:  stopsByID[t.tripData.trip.Stops[0].ID].Latitude,
 		Longitude: stopsByID[t.tripData.trip.Stops[0].ID].Longitude,
 		Azimuth:   t.azimuth,
+		State:     t.state,
 	}
 
 	update = true
@@ -216,7 +232,7 @@ func (t *tram) onTripNotStarted(
 }
 
 func (t *tram) onPassengerLoading(time uint) {
-	if time != t.departureTime {
+	if time < t.departureTime {
 		return
 	}
 
@@ -231,7 +247,7 @@ func (t *tram) onPassengerLoading(time uint) {
 }
 
 func (t *tram) onPassengerUnloading(time uint) {
-	if t.tripData.index == len(t.tripData.trip.Stops)-1 {
+	if t.tripData.index == len(t.tripData.arrivals)-1 {
 		t.tripData.saveDeparture(time)
 		t.state = StateTripFinished
 	} else {
@@ -249,6 +265,7 @@ func (t *tram) onTripFinished() (result TramPositionChange, update bool) {
 
 	result = TramPositionChange{
 		TramID: t.id,
+		State:  t.state,
 	}
 	update = true
 
@@ -352,6 +369,12 @@ func (t *tram) updateSpeedAndReserveNodes(path *controlcenter.Path) (availableDi
 		)
 	}
 
+	if t.useBrake {
+		if distToStop == 0 || 1e-3 < distToStop {
+			distToStop = 1e-3
+		}
+	}
+
 	var nextSpeed float32
 	if distToStop > 0 {
 		nextSpeed = t.handleDeceleration(distToStop, 0, currentMaxSpeed)
@@ -393,7 +416,19 @@ func (t *tram) onTravelling(time uint) (result TramPositionChange, update bool) 
 			t.tripData.trip.Stops[t.tripData.index].Time,
 			time+uint(rand.IntN(11))+15,
 		)
-		t.state = StatePassengerUnloading
+		if t.useBrake {
+			t.prevState = StatePassengerUnloading
+			t.state = StateStopped
+			t.unblockNodesAhead()
+		} else {
+			t.state = StatePassengerUnloading
+		}
+	} else {
+		if t.useBrake && t.speed <= 0.01 {
+			t.prevState = StateTravelling
+			t.state = StateStopped
+			t.unblockNodesAhead()
+		}
 	}
 
 	result = TramPositionChange{
@@ -401,6 +436,7 @@ func (t *tram) onTravelling(time uint) (result TramPositionChange, update bool) 
 		Latitude:  t.latitude,
 		Longitude: t.longitude,
 		Azimuth:   t.azimuth,
+		State:     t.state,
 	}
 	update = true
 
@@ -415,10 +451,12 @@ func (t *tram) Advance(time uint, stopsByID map[uint64]*city.GraphNode) (result 
 		t.onPassengerLoading(time)
 	case StatePassengerUnloading:
 		t.onPassengerUnloading(time)
-	case StateTravelling:
+	case StateTravelling, StateStopping:
 		result, update = t.onTravelling(time)
 	case StateTripFinished:
 		result, update = t.onTripFinished()
+	case StateStopped:
+		return
 	}
 
 	return
@@ -433,6 +471,7 @@ type TramDetails struct {
 	Departures   []uint              `json:"departures"`
 	StopNames    []string            `json:"stop_names"`
 	Speed        uint8               `json:"speed"`
+	State        TramState           `json:"state"`
 }
 
 func (t *tram) GetDetails(c *city.City, time uint) TramDetails {
@@ -443,7 +482,9 @@ func (t *tram) GetDetails(c *city.City, time uint) TramDetails {
 		stopNames[i] = *stopsByID[stop.ID].Name
 	}
 
-	t.tripData.arrivals[t.tripData.index] = t.getEstimatedArrival(t.tripData.index, time)
+	if t.state != StateTripFinished && t.tripData.index < len(t.tripData.arrivals) {
+		t.tripData.arrivals[t.tripData.index] = t.getEstimatedArrival(t.tripData.index, time)
+	}
 
 	return TramDetails{
 		Route:        t.route.Name,
@@ -454,5 +495,37 @@ func (t *tram) GetDetails(c *city.City, time uint) TramDetails {
 		Departures:   t.tripData.departures,
 		StopNames:    stopNames,
 		Speed:        uint8((t.speed * 18) / 5), // m/s -> km/h
+		State:        t.state,
+	}
+}
+
+func (t *tram) StopResumeTram(stopped bool, currentTime uint) {
+	if stopped {
+		t.useBrake = true
+
+		switch t.state {
+		case StateTravelling, StateStopping:
+			t.prevState = t.state
+			t.state = StateStopping
+		case StatePassengerLoading, StatePassengerUnloading:
+			t.prevState = t.state
+			t.state = StateStopped
+			t.unblockNodesAhead()
+		case StateTripNotStarted, StateTripFinished, StateStopped:
+		}
+	} else {
+		t.useBrake = false
+
+		switch t.prevState {
+		case StatePassengerLoading:
+			t.state = StatePassengerLoading
+			if t.departureTime < currentTime {
+				t.departureTime = currentTime + 1
+			}
+		case StatePassengerUnloading:
+			t.state = StatePassengerUnloading
+		default:
+			t.state = StateTravelling
+		}
 	}
 }
