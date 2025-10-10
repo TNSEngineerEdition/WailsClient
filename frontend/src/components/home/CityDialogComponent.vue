@@ -1,5 +1,7 @@
 <script setup lang="ts">
-import { api } from "@wails/go/models"
+import router from "@plugins/router"
+import { api, simulation } from "@wails/go/models"
+import { InitializeSimulation } from "@wails/go/simulation/Simulation"
 import { computed, ref } from "vue"
 
 const props = defineProps<{
@@ -15,9 +17,26 @@ const cityName = computed(
     `${props.city.cityConfiguration.city}, ${props.city.cityConfiguration.country}`,
 )
 
+const loading = ref(false)
+
 const disableDate = computed(() => !!(weekday.value || customSchedule.value))
 const disableWeekday = computed(() => !!date.value)
 const disableCustomSchedule = computed(() => !!date.value)
+
+async function startSimulation() {
+  loading.value = true
+  const parameters = simulation.SimulationParameters.createFrom({
+    cityID: props.city.cityID,
+  })
+
+  const errorMessage = await InitializeSimulation(parameters)
+  if (errorMessage) {
+    loading.value = false
+    throw new Error(errorMessage)
+  }
+
+  router.push("/simulation")
+}
 </script>
 
 <template>
@@ -103,7 +122,13 @@ const disableCustomSchedule = computed(() => !!date.value)
       </v-card-text>
 
       <template v-slot:actions>
-        <v-btn text="Start" to="/simulation" block></v-btn>
+        <v-btn
+          text="Start"
+          :disabled="loading"
+          :loading="loading"
+          block
+          @click="startSimulation"
+        ></v-btn>
       </template>
     </v-card>
   </v-dialog>

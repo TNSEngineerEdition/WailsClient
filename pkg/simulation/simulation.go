@@ -9,6 +9,7 @@ import (
 	"github.com/TNSEngineerEdition/WailsClient/pkg/city"
 	"github.com/TNSEngineerEdition/WailsClient/pkg/controlcenter"
 	"github.com/TNSEngineerEdition/WailsClient/pkg/passengers"
+	"github.com/oapi-codegen/runtime/types"
 )
 
 type Simulation struct {
@@ -63,7 +64,14 @@ func (s *Simulation) ResetSimulation() {
 	s.city.Reset()
 }
 
-func (s *Simulation) FetchData(parameters SimulationFetchParameters) string {
+type SimulationParameters struct {
+	CityID          string       `json:"cityID"`
+	TramWorkerCount uint         `json:"tramWorkerCount,omitempty"`
+	Weekday         *api.Weekday `json:"weekday,omitempty"`
+	Date            *types.Date  `json:"date,omitempty"`
+}
+
+func (s *Simulation) InitializeSimulation(parameters SimulationParameters) string {
 	err := s.city.FetchCity(s.apiClient, parameters.CityID, &api.GetCityDataCitiesCityIdGetParams{
 		Weekday: parameters.Weekday,
 		Date:    parameters.Date,

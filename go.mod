@@ -5,13 +5,10 @@ go 1.24.2
 require (
 	github.com/oapi-codegen/runtime v1.1.2
 	github.com/umahmood/haversine v0.0.0-20151105152445-808ab04add26
-	github.com/wailsapp/wails/v2 v2.10.2
+	github.com/wailsapp/wails/v2 v2.10.1
 )
 
-require (
-	github.com/apapsch/go-jsonmerge/v2 v2.0.0 // indirect
-	github.com/gorilla/websocket v1.5.3 // indirect
-)
+require github.com/apapsch/go-jsonmerge/v2 v2.0.0 // indirect
 
 require (
 	github.com/bep/debounce v1.2.1 // indirect
