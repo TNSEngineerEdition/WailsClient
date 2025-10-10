@@ -1,8 +1,23 @@
 <script setup lang="ts">
+import { api } from "@wails/go/models"
+import { computed, ref } from "vue"
+
 const props = defineProps<{
-  cityName: string
-  image: string
+  city: api.CityInfo
 }>()
+
+const date = ref<string>()
+const weekday = ref<string>()
+const customSchedule = ref<File>()
+
+const cityName = computed(
+  () =>
+    `${props.city.cityConfiguration.city}, ${props.city.cityConfiguration.country}`,
+)
+
+const disableDate = computed(() => !!(weekday.value || customSchedule.value))
+const disableWeekday = computed(() => !!date.value)
+const disableCustomSchedule = computed(() => !!date.value)
 </script>
 
 <template>
@@ -15,7 +30,7 @@ const props = defineProps<{
           style="user-select: none"
         >
           <v-img
-            :src="props.image"
+            :src="props.city.cityConfiguration.image"
             class="align-end"
             gradient="to bottom, rgba(0,0,0,.1), rgba(0,0,0,.5)"
             height="325px"
@@ -25,16 +40,16 @@ const props = defineProps<{
               class="text-black text-center"
               style="background-color: white"
             >
-              {{ props.cityName }}
+              {{ cityName }}
             </v-card-title>
           </v-img>
         </v-card>
       </v-hover>
     </template>
 
-    <v-card :title="props.cityName">
+    <v-card>
       <template v-slot:title>
-        <span class="text-center">{{ props.cityName }}</span>
+        <span class="text-center">{{ cityName }}</span>
       </template>
 
       <v-card-text>
@@ -45,9 +60,35 @@ const props = defineProps<{
             disabled
           ></v-switch>
 
-          <v-select></v-select>
+          <v-select
+            v-model="date"
+            :items="props.city.availableDates"
+            :disabled="disableDate"
+            prepend-icon="mdi-calendar"
+            label="Schedule date"
+            clearable
+          ></v-select>
+
+          <v-select
+            v-model="weekday"
+            :items="[
+              'Monday',
+              'Tuesday',
+              'Wednesday',
+              'Thursday',
+              'Friday',
+              'Saturday',
+              'Sunday',
+            ]"
+            :disabled="disableWeekday"
+            prepend-icon="mdi-view-week"
+            label="Weekday"
+            clearable
+          ></v-select>
 
           <v-file-input
+            v-model="customSchedule"
+            :disabled="disableCustomSchedule"
             accept="application/zip"
             prepend-icon="mdi-invoice-text-clock"
             label="Custom GTFS Schedule file"

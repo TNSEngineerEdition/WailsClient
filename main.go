@@ -21,7 +21,7 @@ func main() {
 	apiClient := api.NewAPIClient()
 
 	city := city.City{}
-	simulation := simulation.NewSimulation(&city)
+	simulation := simulation.NewSimulation(&apiClient, &city)
 
 	// Create application with options
 	err := wails.Run(&options.App{

@@ -1,7 +1,7 @@
 <script lang="ts" setup>
 import { onMounted, ref, useTemplateRef, watch } from "vue"
 import { GetTimeBounds } from "@wails/go/city/City"
-import { city } from "@wails/go/models"
+import { city, simulation, api } from "@wails/go/models"
 import {
   GetTramIDs,
   AdvanceTrams,
@@ -34,7 +34,7 @@ const stopSidebar = ref(false)
 const routeSidebar = ref(false)
 
 const selectedTramID = ref<number>()
-const selectedStop = ref<city.TramStop>()
+const selectedStop = ref<api.ResponseGraphTramStop>()
 const selectedRoute = ref<city.RouteInfo>()
 
 async function reset() {
@@ -109,7 +109,15 @@ onMounted(async () => {
     throw new Error("Map element not found")
   }
 
-  await FetchData("krakow", 0)
+  const parameters = simulation.SimulationFetchParameters.createFrom({
+    cityID: "krakow",
+  })
+
+  const errorMessage = await FetchData(parameters)
+  if (errorMessage) {
+    throw new Error(errorMessage)
+  }
+
   leafletMap.value = await LeafletMap.init(mapHTMLElement.value, stop => {
     selectedStop.value = stop
     stopSidebar.value = true

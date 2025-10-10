@@ -5,12 +5,14 @@ import (
 	"runtime"
 	"slices"
 
+	"github.com/TNSEngineerEdition/WailsClient/pkg/api"
 	"github.com/TNSEngineerEdition/WailsClient/pkg/city"
 	"github.com/TNSEngineerEdition/WailsClient/pkg/controlcenter"
 	"github.com/TNSEngineerEdition/WailsClient/pkg/passengers"
 )
 
 type Simulation struct {
+	apiClient             *api.APIClient
 	city                  *city.City
 	trams                 map[uint]*tram
 	tramWorkersData       workerData[*tram, TramPositionChange]
@@ -20,9 +22,10 @@ type Simulation struct {
 	passengersAtStopsByID *tramStops
 }
 
-func NewSimulation(city *city.City) Simulation {
+func NewSimulation(apiClient *api.APIClient, city *city.City) Simulation {
 	return Simulation{
-		city: city,
+		apiClient: apiClient,
+		city:      city,
 	}
 }
 
@@ -55,28 +58,36 @@ func (s *Simulation) resetPassengers() {
 }
 
 func (s *Simulation) ResetSimulation() {
-	s.city.UnblockGraph()
 	s.resetTrams()
-	s.city.ResetPlannedArrivals()
 	s.resetPassengers()
+	s.city.Reset()
 }
 
-func (s *Simulation) FetchData(url string, tramWorkerCount uint) {
-	s.city.FetchCityData(url)
+func (s *Simulation) FetchData(parameters SimulationFetchParameters) string {
+	err := s.city.FetchCity(s.apiClient, parameters.CityID, &api.GetCityDataCitiesCityIdGetParams{
+		Weekday: parameters.Weekday,
+		Date:    parameters.Date,
+	})
+	if err != nil {
+		return err.Error()
+	}
+
 	s.controlCenter = controlcenter.NewControlCenter(s.city)
 	s.ResetSimulation()
 	s.tramWorkersData.reset(len(s.trams))
 
 	s.initialPassengers = passengers.CreatePassengers(s.city)
 
-	if tramWorkerCount == 0 {
+	if parameters.TramWorkerCount == 0 {
 		// CPU count * 110% for more efficiency
-		tramWorkerCount = uint(runtime.NumCPU()) * 11 / 10
+		parameters.TramWorkerCount = uint(runtime.NumCPU()) * 11 / 10
 	}
 
-	for range tramWorkerCount {
+	for range parameters.TramWorkerCount {
 		go s.tramWorker()
 	}
+
+	return ""
 }
 
 type TramIdentifier struct {

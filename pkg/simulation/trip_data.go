@@ -1,14 +1,16 @@
 package simulation
 
-import "github.com/TNSEngineerEdition/WailsClient/pkg/city"
+import (
+	"github.com/TNSEngineerEdition/WailsClient/pkg/city/trip"
+)
 
 type tripData struct {
-	trip                 *city.TramTrip
+	trip                 *trip.TramTrip
 	index                int
 	arrivals, departures []uint
 }
 
-func newTripData(trip *city.TramTrip) tripData {
+func newTripData(trip *trip.TramTrip) tripData {
 	return tripData{
 		trip:       trip,
 		arrivals:   make([]uint, len(trip.Stops)),
