@@ -7,14 +7,17 @@ import (
 
 	"github.com/TNSEngineerEdition/WailsClient/pkg/city"
 	"github.com/TNSEngineerEdition/WailsClient/pkg/controlcenter"
+	"github.com/TNSEngineerEdition/WailsClient/pkg/passengers"
 )
 
 type Simulation struct {
-	city            *city.City
-	trams           map[uint]*tram
-	tramWorkersData workerData[*tram, TramPositionChange]
-	controlCenter   controlcenter.ControlCenter
-	time            uint
+	city                  *city.City
+	trams                 map[uint]*tram
+	tramWorkersData       workerData[*tram, TramPositionChange]
+	controlCenter         controlcenter.ControlCenter
+	time                  uint
+	initialPassengers     map[uint][]*passengers.Passenger
+	passengersAtStopsByID *tramStops
 }
 
 func NewSimulation(city *city.City) Simulation {
@@ -34,6 +37,10 @@ func (s *Simulation) tramWorker() {
 	}
 }
 
+func (s *Simulation) getPassengersAt(time uint) []*passengers.Passenger {
+	return s.initialPassengers[time]
+}
+
 func (s *Simulation) resetTrams() {
 	s.trams = make(map[uint]*tram)
 	for _, route := range s.city.GetTramRoutes() {
@@ -43,10 +50,15 @@ func (s *Simulation) resetTrams() {
 	}
 }
 
+func (s *Simulation) resetPassengers() {
+	s.passengersAtStopsByID = newTramStops()
+}
+
 func (s *Simulation) ResetSimulation() {
 	s.city.UnblockGraph()
 	s.resetTrams()
 	s.city.ResetPlannedArrivals()
+	s.resetPassengers()
 }
 
 func (s *Simulation) FetchData(url string, tramWorkerCount uint) {
@@ -54,6 +66,8 @@ func (s *Simulation) FetchData(url string, tramWorkerCount uint) {
 	s.controlCenter = controlcenter.NewControlCenter(s.city)
 	s.ResetSimulation()
 	s.tramWorkersData.reset(len(s.trams))
+
+	s.initialPassengers = passengers.CreatePassengers(s.city)
 
 	if tramWorkerCount == 0 {
 		// CPU count * 110% for more efficiency
@@ -83,6 +97,12 @@ func (s *Simulation) GetTramIDs() (result []TramIdentifier) {
 
 func (s *Simulation) AdvanceTrams(time uint) (result []TramPositionChange) {
 	s.time = time
+
+	toSpawn := s.getPassengersAt(time)
+	for _, p := range toSpawn {
+		stopID := p.StartStopID
+		s.passengersAtStopsByID.stops[stopID] = append(s.passengersAtStopsByID.stops[stopID], p)
+	}
 
 	s.tramWorkersData.wg.Add(len(s.trams))
 	for _, tram := range s.trams {
