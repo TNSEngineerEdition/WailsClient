@@ -1,6 +1,7 @@
 package simulation
 
 import (
+	"fmt"
 	"math"
 	"runtime"
 	"slices"
@@ -8,19 +9,20 @@ import (
 	"github.com/TNSEngineerEdition/WailsClient/pkg/api"
 	"github.com/TNSEngineerEdition/WailsClient/pkg/city"
 	"github.com/TNSEngineerEdition/WailsClient/pkg/controlcenter"
-	"github.com/TNSEngineerEdition/WailsClient/pkg/passengers"
+	"github.com/TNSEngineerEdition/WailsClient/pkg/simulation/passenger"
+	"github.com/TNSEngineerEdition/WailsClient/pkg/simulation/tram"
 	"github.com/oapi-codegen/runtime/types"
 )
 
 type Simulation struct {
-	apiClient             *api.APIClient
-	city                  *city.City
-	trams                 map[uint]*tram
-	tramWorkersData       workerData[*tram, TramPositionChange]
-	controlCenter         controlcenter.ControlCenter
-	time                  uint
-	initialPassengers     map[uint][]*passengers.Passenger
-	passengersAtStopsByID *tramStops
+	apiClient         *api.APIClient
+	city              *city.City
+	trams             map[uint]*tram.Tram
+	tramWorkersData   workerData[*tram.Tram, tram.TramPositionChange]
+	controlCenter     controlcenter.ControlCenter
+	time              uint
+	initialPassengers map[uint][]*passenger.Passenger
+	passengersAtStops map[uint64][]*passenger.Passenger
 }
 
 func NewSimulation(apiClient *api.APIClient, city *city.City) Simulation {
@@ -41,21 +43,21 @@ func (s *Simulation) tramWorker() {
 	}
 }
 
-func (s *Simulation) getPassengersAt(time uint) []*passengers.Passenger {
+func (s *Simulation) getPassengersAt(time uint) []*passenger.Passenger {
 	return s.initialPassengers[time]
 }
 
 func (s *Simulation) resetTrams() {
-	s.trams = make(map[uint]*tram)
+	s.trams = make(map[uint]*tram.Tram)
 	for _, route := range s.city.GetTramRoutes() {
 		for _, trip := range route.Trips {
-			s.trams[trip.ID] = newTram(trip.ID, &route, &trip, &s.controlCenter)
+			s.trams[trip.ID] = tram.NewTram(trip.ID, &route, &trip, &s.controlCenter)
 		}
 	}
 }
 
 func (s *Simulation) resetPassengers() {
-	s.passengersAtStopsByID = newTramStops()
+	s.passengersAtStops = make(map[uint64][]*passenger.Passenger)
 }
 
 func (s *Simulation) ResetSimulation() {
@@ -84,7 +86,7 @@ func (s *Simulation) InitializeSimulation(parameters SimulationParameters) strin
 	s.ResetSimulation()
 	s.tramWorkersData.reset(len(s.trams))
 
-	s.initialPassengers = passengers.CreatePassengers(s.city)
+	s.initialPassengers = passenger.CreatePassengers(s.city)
 
 	if parameters.TramWorkerCount == 0 {
 		// CPU count * 110% for more efficiency
@@ -108,19 +110,19 @@ func (s *Simulation) GetTramIDs() (result []TramIdentifier) {
 	for id, tram := range s.trams {
 		result = append(result, TramIdentifier{
 			ID:    id,
-			Route: tram.route.Name,
+			Route: tram.Route.Name,
 		})
 	}
 	return result
 }
 
-func (s *Simulation) AdvanceTrams(time uint) (result []TramPositionChange) {
+func (s *Simulation) AdvanceTrams(time uint) (result []tram.TramPositionChange) {
 	s.time = time
 
 	toSpawn := s.getPassengersAt(time)
 	for _, p := range toSpawn {
 		stopID := p.StartStopID
-		s.passengersAtStopsByID.stops[stopID] = append(s.passengersAtStopsByID.stops[stopID], p)
+		s.passengersAtStops[stopID] = append(s.passengersAtStops[stopID], p)
 	}
 
 	s.tramWorkersData.wg.Add(len(s.trams))
@@ -130,7 +132,7 @@ func (s *Simulation) AdvanceTrams(time uint) (result []TramPositionChange) {
 
 	s.tramWorkersData.wg.Wait()
 
-	result = make([]TramPositionChange, 0)
+	result = make([]tram.TramPositionChange, 0)
 	for range len(s.tramWorkersData.outputChannel) {
 		result = append(result, <-s.tramWorkersData.outputChannel)
 	}
@@ -138,11 +140,12 @@ func (s *Simulation) AdvanceTrams(time uint) (result []TramPositionChange) {
 	return result
 }
 
-func (s *Simulation) GetTramDetails(id uint) TramDetails {
+func (s *Simulation) GetTramDetails(id uint) tram.TramDetails {
 	if tram, ok := s.trams[id]; ok {
 		return tram.GetDetails(s.city, s.time)
 	}
-	return TramDetails{}
+
+	panic(fmt.Sprintf("Tram with ID %d not found", id))
 }
 
 type Arrival struct {
@@ -157,7 +160,7 @@ func (s *Simulation) GetArrivalsForStop(stopID uint64, count int) []Arrival {
 
 	// Skip trams which have already departed for future iterations
 	for i, arrival := range *plannedArrivals {
-		if s.trams[arrival.TripID].tripData.index <= arrival.StopIndex {
+		if s.trams[arrival.TripID].TripDetails.Index <= arrival.StopIndex {
 			continue
 		}
 
@@ -171,18 +174,18 @@ func (s *Simulation) GetArrivalsForStop(stopID uint64, count int) []Arrival {
 		}
 
 		tram := s.trams[arrival.TripID]
-		if tram.tripData.index > arrival.StopIndex {
+		if tram.TripDetails.Index > arrival.StopIndex {
 			continue
 		}
 
 		var expectedTime uint
-		if tram.tripData.index < arrival.StopIndex || !tram.isAtStop() {
-			expectedTime = tram.getEstimatedArrival(arrival.StopIndex, s.time) - s.time
+		if tram.TripDetails.Index < arrival.StopIndex || !tram.IsAtStop() {
+			expectedTime = tram.GetEstimatedArrival(arrival.StopIndex, s.time) - s.time
 		}
 
 		arrivals = append(arrivals, Arrival{
-			Route:        tram.route.Name,
-			TripHeadSign: tram.tripData.trip.TripHeadSign,
+			Route:        tram.Route.Name,
+			TripHeadSign: tram.TripDetails.Trip.TripHeadSign,
 			Minutes:      uint(math.Ceil(float64(expectedTime) / 60)),
 		})
 	}

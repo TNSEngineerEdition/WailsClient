@@ -1,4 +1,4 @@
-package passengers
+package passenger
 
 import (
 	"math/rand/v2"
@@ -15,11 +15,11 @@ type Passenger struct {
 func CreatePassengers(c *city.City) map[uint][]*Passenger {
 	result := make(map[uint][]*Passenger)
 	timeBounds := c.GetTimeBounds()
-	tramStops := c.GetTramStops()
+	tramStops := c.GetStops()
 
 	for i := range tramStops {
 		startStop := tramStops[i]
-		for n := 0; n < 10; n++ {
+		for range 10 {
 			var j int
 			for {
 				j = rand.IntN(len(tramStops))
