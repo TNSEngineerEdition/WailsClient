@@ -90,7 +90,7 @@ func (t *tram) findIntermediateLocation(path []graph.GraphNode, remainingPart fl
 	vectorLat := nextLat - currentLat
 	vectorLon := nextLon - currentLon
 	t.latitude = currentLat + vectorLat*remainingPart
-	t.longitude = nextLat + vectorLon*remainingPart
+	t.longitude = currentLon + vectorLon*remainingPart
 }
 
 func (t *tram) setAzimuthAndDistanceToNextNode(path []graph.GraphNode) {
@@ -207,8 +207,13 @@ func (t *tram) onTripNotStarted(
 
 	t.state = StatePassengerLoading
 	t.tripData.saveArrival(time)
-	t.azimuth = stopsByID[t.tripData.trip.Stops[0].ID].GetNeighbors()[0].Azimuth
 	t.departureTime = t.tripData.trip.Stops[0].Time
+
+	// Set azimuth to any neighbor's azimuth
+	for _, neighbor := range stopsByID[t.tripData.trip.Stops[0].ID].GetNeighbors() {
+		t.azimuth = neighbor.Azimuth
+		break
+	}
 
 	lat, lon := stopsByID[t.tripData.trip.Stops[0].ID].GetCoordinates()
 
@@ -339,7 +344,7 @@ func (t *tram) updateSpeedAndReserveNodes(path *controlcenter.Path) (availableDi
 				neededReserveIfAccel,
 				distToNextNode,
 			)
-			_ = t.extendReservedDistance(
+			t.extendReservedDistance(
 				reservedDistanceAtCurrentSpeed,
 				neededReserveAtCurrentSpeed,
 				distToNextNode,

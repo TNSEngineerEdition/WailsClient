@@ -130,8 +130,8 @@ func getPathDistancePrefixSum(nodes []graph.GraphNode) []float32 {
 	prefixSum := make([]float32, len(nodes))
 
 	for i := 1; i < len(nodes); i++ {
-		neighbors := nodes[i].GetNeighbors()
-		nextNode := neighbors[nodes[i+1].GetID()]
+		neighbors := nodes[i-1].GetNeighbors()
+		nextNode := neighbors[nodes[i].GetID()]
 		prefixSum[i] = nextNode.Distance + prefixSum[i-1]
 	}
 

@@ -120,19 +120,18 @@ onMounted(async () => {
       await Time.sleep(1)
     }
 
-    await AdvanceTrams(time.value).then(tramPositionChanges => {
-      for (const tram of tramPositionChanges) {
-        if (tram.lat == 0 && tram.lon == 0) {
-          tramMarkerByID.value[tram.id].removeFromMap()
-        } else {
-          tramMarkerByID.value[tram.id].updateCoordinates(
-            tram.lat,
-            tram.lon,
-            tram.azimuth,
-          )
-        }
+    for (const tram of await AdvanceTrams(time.value)) {
+      if (tram.lat == 0 && tram.lon == 0) {
+        tramMarkerByID.value[tram.id].removeFromMap()
+        continue
       }
-    })
+
+      tramMarkerByID.value[tram.id].updateCoordinates(
+        tram.lat,
+        tram.lon,
+        tram.azimuth,
+      )
+    }
 
     time.value += 1
 
