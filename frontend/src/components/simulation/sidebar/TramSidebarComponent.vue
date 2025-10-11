@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import SidebarComponent from "@components/sidebar/SidebarComponent.vue"
+import SidebarComponent from "@components/simulation/sidebar/SidebarComponent.vue"
 import { Time } from "@classes/Time"
-import { simulation } from "@wails/go/models"
+import { tram } from "@wails/go/models"
 import { GetTramDetails } from "@wails/go/simulation/Simulation"
 import { computed, ref, watch } from "vue"
 
@@ -12,7 +12,7 @@ const props = defineProps<{
   currentTime: number
 }>()
 
-const tramDetails = ref<simulation.TramDetails>()
+const tramDetails = ref<tram.TramDetails>()
 const tab = ref<"stops" | "occ" | "delay">("stops")
 
 const headers = [

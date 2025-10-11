@@ -16,7 +16,9 @@
       "@wails/*": ["./wailsjs/*"],
       "@classes/*": ["./src/classes/*"],
       "@composables/*": ["./src/composables/*"],
-      "@components/*": ["./src/components/*"]
+      "@components/*": ["./src/components/*"],
+      "@plugins/*": ["./src/plugins/*"],
+      "@assets/*": ["./src/assets/*"]
     }
   },
   "include": ["src/**/*.ts", "src/**/*.d.ts", "src/**/*.tsx", "src/**/*.vue"],

@@ -1,4 +1,4 @@
-package passengers
+package passenger
 
 type PassengerStrategy uint8
 

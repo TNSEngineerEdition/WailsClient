@@ -1,8 +1,8 @@
-import { GetBounds, GetTramStops } from "@wails/go/city/City"
+import { GetBounds, GetStops } from "@wails/go/city/City"
 import { LatLngBounds, Map as LMap, tileLayer } from "leaflet"
 import { TramMarker } from "@classes/TramMarker"
 import { StopMarker } from "@classes/StopMarker"
-import { city, simulation } from "@wails/go/models"
+import { city, simulation, api } from "@wails/go/models"
 import { RouteHighlighter } from "./RouteHighlighter"
 
 export class LeafletMap {
@@ -19,7 +19,7 @@ export class LeafletMap {
 
   static async init(
     mapHTMLElement: HTMLElement,
-    handleStopSelection: (stop: city.TramStop) => void,
+    handleStopSelection: (stop: api.ResponseGraphTramStop) => void,
   ) {
     const leafletMap = new LeafletMap(
       await GetBounds()
@@ -40,7 +40,7 @@ export class LeafletMap {
         ),
     )
 
-    for (const stop of await GetTramStops()) {
+    for (const stop of await GetStops()) {
       const marker = new StopMarker(stop.lat, stop.lon, stop.name)
       marker.addTo(leafletMap.map)
       marker.on("click", () => {

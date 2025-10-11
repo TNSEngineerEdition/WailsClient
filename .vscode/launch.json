@@ -10,6 +10,17 @@
             "preLaunchTask": "build",
             "cwd": "${workspaceFolder}",
             "env": {}
+        },
+        {
+            "name": "Wails: Debug frontend",
+            "type": "chrome",
+            "request": "launch",
+            "url": "http://localhost:34115",
+            "webRoot": "${workspaceFolder}/frontend/src",
+            "runtimeArgs": [
+                "--remote-debugging-port=9222"
+            ],
+            "sourceMaps": true
         }
     ]
-  }
+}

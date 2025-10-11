@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, watch } from "vue"
-import HeaderIconButtonComponent from "./HeaderIconButtonComponent.vue"
+import HeaderIconButtonComponent from "@components/simulation/header/HeaderIconButtonComponent.vue"
 
 const props = defineProps<{
   disabled: boolean

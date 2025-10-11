@@ -1,0 +1,632 @@
+{
+    "openapi": "3.0.3",
+    "info": {
+        "title": "FastAPI",
+        "version": "0.1.0"
+    },
+    "paths": {
+        "/cities": {
+            "get": {
+                "summary": "Cities",
+                "description": "Returns all available cities with their latest configurations and cached dates.",
+                "operationId": "cities_cities_get",
+                "responses": {
+                    "200": {
+                        "description": "Successful Response",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "additionalProperties": {
+                                        "$ref": "#/components/schemas/CachedCityDates"
+                                    },
+                                    "type": "object",
+                                    "title": "Response Cities Cities Get"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/cities/{city_id}": {
+            "get": {
+                "summary": "Get City Data",
+                "description": "Returns tram track graph and tram routes data for the given city.\n\n- Without parameters: returns data for the current day\n(from cache if available, otherwise built and cached).\n- With `weekday`: builds and returns data for the given day of the week using currently available GTFS Schedule and OpenStreetMap data.\n- With `date`: returns cached data for the given date if available,\notherwise responds with 404.\n- With both `weekday` and `date`: responds with 400, only one parameter is allowed.",
+                "operationId": "get_city_data_cities__city_id__get",
+                "parameters": [
+                    {
+                        "name": "city_id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "title": "City Id"
+                        }
+                    },
+                    {
+                        "name": "weekday",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "$ref": "#/components/schemas/Weekday",
+                            "nullable": true,
+                            "title": "Weekday"
+                        }
+                    },
+                    {
+                        "name": "date",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "format": "date",
+                            "title": "Date"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successful Response",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ResponseCityData"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Validation Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HTTPValidationError"
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            "post": {
+                "summary": "Get City Data With Custom Schedule",
+                "description": "Returns tram track graph and tram routes data for the given city.\nUses custom GTFS package to determine tram routes.",
+                "operationId": "get_city_data_with_custom_schedule_cities__city_id__post",
+                "parameters": [
+                    {
+                        "name": "city_id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "title": "City Id"
+                        }
+                    },
+                    {
+                        "name": "weekday",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "$ref": "#/components/schemas/Weekday"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "multipart/form-data": {
+                            "schema": {
+                                "$ref": "#/components/schemas/Body_get_city_data_with_custom_schedule_cities__city_id__post"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Successful Response",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ResponseCityData"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Validation Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HTTPValidationError"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    },
+    "components": {
+        "schemas": {
+            "Body_get_city_data_with_custom_schedule_cities__city_id__post": {
+                "properties": {
+                    "custom_schedule_file": {
+                        "type": "string",
+                        "format": "binary",
+                        "title": "Custom Schedule File"
+                    }
+                },
+                "type": "object",
+                "required": [
+                    "custom_schedule_file"
+                ],
+                "title": "Body_get_city_data_with_custom_schedule_cities__city_id__post"
+            },
+            "CachedCityDates": {
+                "properties": {
+                    "city_configuration": {
+                        "$ref": "#/components/schemas/CityConfiguration"
+                    },
+                    "available_dates": {
+                        "items": {
+                            "type": "string",
+                            "format": "date"
+                        },
+                        "type": "array",
+                        "title": "Available Dates"
+                    }
+                },
+                "type": "object",
+                "required": [
+                    "city_configuration",
+                    "available_dates"
+                ],
+                "title": "CachedCityDates"
+            },
+            "CityConfiguration": {
+                "properties": {
+                    "city": {
+                        "type": "string",
+                        "title": "City"
+                    },
+                    "country": {
+                        "type": "string",
+                        "title": "Country"
+                    },
+                    "image": {
+                        "type": "string",
+                        "title": "Image"
+                    },
+                    "osm_area_name": {
+                        "type": "string",
+                        "title": "Osm Area Name"
+                    },
+                    "gtfs_url": {
+                        "type": "string",
+                        "title": "Gtfs Url"
+                    },
+                    "ignored_gtfs_lines": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array",
+                        "title": "Ignored Gtfs Lines"
+                    },
+                    "ignored_osm_relations": {
+                        "items": {
+                            "type": "integer"
+                        },
+                        "type": "array",
+                        "title": "Ignored Osm Relations"
+                    },
+                    "custom_stop_mapping": {
+                        "additionalProperties": {
+                            "anyOf": [
+                                {
+                                    "type": "integer"
+                                },
+                                {
+                                    "prefixItems": [
+                                        {
+                                            "type": "integer",
+                                            "nullable:": true
+                                        },
+                                        {
+                                            "type": "integer",
+                                            "nullable:": true
+                                        },
+                                        {
+                                            "type": "integer",
+                                            "nullable:": true
+                                        }
+                                    ],
+                                    "type": "array",
+                                    "maxItems": 3,
+                                    "minItems": 3
+                                }
+                            ]
+                        },
+                        "type": "object",
+                        "title": "Custom Stop Mapping"
+                    },
+                    "custom_stop_pair_mapping": {
+                        "items": {
+                            "$ref": "#/components/schemas/CustomTramStopPairMapping"
+                        },
+                        "type": "array",
+                        "title": "Custom Stop Pair Mapping"
+                    },
+                    "max_distance_ratio": {
+                        "type": "number",
+                        "title": "Max Distance Ratio"
+                    },
+                    "custom_tram_stop_pair_max_distance_checks": {
+                        "items": {
+                            "$ref": "#/components/schemas/TramStopPairCheck"
+                        },
+                        "type": "array",
+                        "title": "Custom Tram Stop Pair Max Distance Checks"
+                    }
+                },
+                "type": "object",
+                "required": [
+                    "city",
+                    "country",
+                    "image",
+                    "osm_area_name",
+                    "gtfs_url",
+                    "ignored_gtfs_lines",
+                    "ignored_osm_relations",
+                    "custom_stop_mapping",
+                    "custom_stop_pair_mapping",
+                    "max_distance_ratio",
+                    "custom_tram_stop_pair_max_distance_checks"
+                ],
+                "title": "CityConfiguration"
+            },
+            "CustomTramStopPairMapping": {
+                "properties": {
+                    "source_gtfs_stop_id": {
+                        "type": "string",
+                        "title": "Source Gtfs Stop Id"
+                    },
+                    "source_osm_node_id": {
+                        "type": "integer",
+                        "title": "Source Osm Node Id"
+                    },
+                    "destination_gtfs_stop_id": {
+                        "type": "string",
+                        "title": "Destination Gtfs Stop Id"
+                    },
+                    "destination_osm_node_id": {
+                        "type": "integer",
+                        "title": "Destination Osm Node Id"
+                    }
+                },
+                "type": "object",
+                "required": [
+                    "source_gtfs_stop_id",
+                    "source_osm_node_id",
+                    "destination_gtfs_stop_id",
+                    "destination_osm_node_id"
+                ],
+                "title": "CustomTramStopPairMapping"
+            },
+            "HTTPValidationError": {
+                "properties": {
+                    "detail": {
+                        "items": {
+                            "$ref": "#/components/schemas/ValidationError"
+                        },
+                        "type": "array",
+                        "title": "Detail"
+                    }
+                },
+                "type": "object",
+                "title": "HTTPValidationError"
+            },
+            "ResponseCityData": {
+                "properties": {
+                    "tram_track_graph": {
+                        "items": {
+                            "oneOf": [
+                                {
+                                    "$ref": "#/components/schemas/ResponseGraphNode"
+                                },
+                                {
+                                    "$ref": "#/components/schemas/ResponseGraphTramStop"
+                                }
+                            ],
+                            "discriminator": {
+                                "propertyName": "node_type",
+                                "mapping": {
+                                    "node": "#/components/schemas/ResponseGraphNode",
+                                    "stop": "#/components/schemas/ResponseGraphTramStop"
+                                }
+                            }
+                        },
+                        "type": "array",
+                        "title": "Tram Track Graph"
+                    },
+                    "tram_routes": {
+                        "items": {
+                            "$ref": "#/components/schemas/ResponseTramRoute"
+                        },
+                        "type": "array",
+                        "title": "Tram Routes"
+                    }
+                },
+                "type": "object",
+                "required": [
+                    "tram_track_graph",
+                    "tram_routes"
+                ],
+                "title": "ResponseCityData"
+            },
+            "ResponseGraphEdge": {
+                "properties": {
+                    "id": {
+                        "type": "integer",
+                        "title": "Id",
+                        "x-go-name": "ID",
+                        "x-go-type": "uint64"
+                    },
+                    "distance": {
+                        "type": "number",
+                        "title": "Distance"
+                    },
+                    "azimuth": {
+                        "type": "number",
+                        "title": "Azimuth"
+                    },
+                    "max_speed": {
+                        "type": "number",
+                        "title": "Max Speed"
+                    }
+                },
+                "type": "object",
+                "required": [
+                    "id",
+                    "distance",
+                    "azimuth",
+                    "max_speed"
+                ],
+                "title": "ResponseGraphEdge"
+            },
+            "ResponseGraphNode": {
+                "properties": {
+                    "id": {
+                        "type": "integer",
+                        "title": "Id",
+                        "x-go-name": "ID",
+                        "x-go-type": "uint64"
+                    },
+                    "lat": {
+                        "type": "number",
+                        "title": "Lat"
+                    },
+                    "lon": {
+                        "type": "number",
+                        "title": "Lon"
+                    },
+                    "neighbors": {
+                        "additionalProperties": {
+                            "$ref": "#/components/schemas/ResponseGraphEdge"
+                        },
+                        "type": "object",
+                        "title": "Neighbors",
+                        "x-go-type": "map[uint64]ResponseGraphEdge"
+                    },
+                    "node_type": {
+                        "type": "string",
+                        "const": "node",
+                        "title": "Node Type",
+                        "x-go-type-skip-optional-pointer": true
+                    }
+                },
+                "type": "object",
+                "required": [
+                    "id",
+                    "lat",
+                    "lon",
+                    "neighbors"
+                ],
+                "title": "ResponseGraphNode"
+            },
+            "ResponseGraphTramStop": {
+                "properties": {
+                    "id": {
+                        "type": "integer",
+                        "title": "Id",
+                        "x-go-name": "ID",
+                        "x-go-type": "uint64"
+                    },
+                    "lat": {
+                        "type": "number",
+                        "title": "Lat"
+                    },
+                    "lon": {
+                        "type": "number",
+                        "title": "Lon"
+                    },
+                    "neighbors": {
+                        "additionalProperties": {
+                            "$ref": "#/components/schemas/ResponseGraphEdge"
+                        },
+                        "type": "object",
+                        "title": "Neighbors",
+                        "x-go-type": "map[uint64]ResponseGraphEdge"
+                    },
+                    "node_type": {
+                        "type": "string",
+                        "const": "stop",
+                        "title": "Node Type",
+                        "x-go-type-skip-optional-pointer": true
+                    },
+                    "name": {
+                        "type": "string",
+                        "title": "Name"
+                    },
+                    "gtfs_stop_ids": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array",
+                        "title": "Gtfs Stop Ids",
+                        "x-go-name": "GTFSStopIDs"
+                    }
+                },
+                "type": "object",
+                "required": [
+                    "id",
+                    "lat",
+                    "lon",
+                    "neighbors",
+                    "name",
+                    "gtfs_stop_ids"
+                ],
+                "title": "ResponseGraphTramStop"
+            },
+            "ResponseTramRoute": {
+                "properties": {
+                    "name": {
+                        "type": "string",
+                        "title": "Name"
+                    },
+                    "background_color": {
+                        "type": "string",
+                        "title": "Background Color"
+                    },
+                    "text_color": {
+                        "type": "string",
+                        "title": "Text Color"
+                    },
+                    "trips": {
+                        "items": {
+                            "$ref": "#/components/schemas/ResponseTramTrip"
+                        },
+                        "type": "array",
+                        "title": "Trips"
+                    }
+                },
+                "type": "object",
+                "required": [
+                    "name",
+                    "background_color",
+                    "text_color"
+                ],
+                "title": "ResponseTramRoute"
+            },
+            "ResponseTramTrip": {
+                "properties": {
+                    "trip_head_sign": {
+                        "type": "string",
+                        "title": "Trip Head Sign"
+                    },
+                    "stops": {
+                        "items": {
+                            "$ref": "#/components/schemas/ResponseTramTripStop"
+                        },
+                        "type": "array",
+                        "title": "Stops"
+                    }
+                },
+                "type": "object",
+                "required": [
+                    "trip_head_sign",
+                    "stops"
+                ],
+                "title": "ResponseTramTrip"
+            },
+            "ResponseTramTripStop": {
+                "properties": {
+                    "id": {
+                        "type": "integer",
+                        "title": "Id",
+                        "x-go-name": "ID",
+                        "x-go-type": "uint64"
+                    },
+                    "time": {
+                        "type": "integer",
+                        "title": "Time",
+                        "x-go-type": "uint"
+                    }
+                },
+                "type": "object",
+                "required": [
+                    "id",
+                    "time"
+                ],
+                "title": "ResponseTramTripStop"
+            },
+            "TramStopPairCheck": {
+                "properties": {
+                    "source": {
+                        "type": "integer",
+                        "title": "Source"
+                    },
+                    "destination": {
+                        "type": "integer",
+                        "title": "Destination"
+                    },
+                    "ratio": {
+                        "type": "number",
+                        "title": "Ratio"
+                    }
+                },
+                "type": "object",
+                "required": [
+                    "source",
+                    "destination",
+                    "ratio"
+                ],
+                "title": "TramStopPairCheck"
+            },
+            "ValidationError": {
+                "properties": {
+                    "loc": {
+                        "items": {
+                            "anyOf": [
+                                {
+                                    "type": "string"
+                                },
+                                {
+                                    "type": "integer"
+                                }
+                            ]
+                        },
+                        "type": "array",
+                        "title": "Location"
+                    },
+                    "msg": {
+                        "type": "string",
+                        "title": "Message"
+                    },
+                    "type": {
+                        "type": "string",
+                        "title": "Error Type"
+                    }
+                },
+                "type": "object",
+                "required": [
+                    "loc",
+                    "msg",
+                    "type"
+                ],
+                "title": "ValidationError"
+            },
+            "Weekday": {
+                "type": "string",
+                "enum": [
+                    "monday",
+                    "tuesday",
+                    "wednesday",
+                    "thursday",
+                    "friday",
+                    "saturday",
+                    "sunday"
+                ],
+                "title": "Weekday"
+            }
+        }
+    }
+}
