@@ -439,6 +439,11 @@ func (t *Tram) Advance(time uint, stopsByID map[uint64]*graph.GraphTramStop) (re
 	return
 }
 
+func (t *Tram) getSpeed() uint8 {
+	speedKPH := float64((t.speed * 18) / 5)
+	return uint8(math.Round(speedKPH))
+}
+
 type TramDetails struct {
 	Route        string                     `json:"route"`
 	TripHeadSign string                     `json:"trip_head_sign"`
@@ -468,6 +473,6 @@ func (t *Tram) GetDetails(c *city.City, time uint) TramDetails {
 		Arrivals:     t.TripDetails.arrivals,
 		Departures:   t.TripDetails.departures,
 		StopNames:    stopNames,
-		Speed:        uint8((t.speed * 18) / 5), // m/s -> km/h
+		Speed:        t.getSpeed(),
 	}
 }

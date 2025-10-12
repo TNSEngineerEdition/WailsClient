@@ -71,13 +71,20 @@ type SimulationParameters struct {
 	TramWorkerCount uint         `json:"tramWorkerCount,omitempty"`
 	Weekday         *api.Weekday `json:"weekday,omitempty"`
 	Date            *types.Date  `json:"date,omitempty"`
+	CustomSchedule  []byte       `json:"customSchedule,omitempty"`
 }
 
 func (s *Simulation) InitializeSimulation(parameters SimulationParameters) string {
-	err := s.city.FetchCity(s.apiClient, parameters.CityID, &api.GetCityDataCitiesCityIdGetParams{
-		Weekday: parameters.Weekday,
-		Date:    parameters.Date,
-	})
+	err := s.city.FetchCity(
+		s.apiClient,
+		parameters.CityID,
+		&city.FetchCityParams{
+			Weekday: parameters.Weekday,
+			Date:    parameters.Date,
+		},
+		parameters.CustomSchedule,
+	)
+
 	if err != nil {
 		return err.Error()
 	}

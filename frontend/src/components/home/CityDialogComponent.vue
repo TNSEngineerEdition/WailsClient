@@ -3,6 +3,7 @@ import router from "@plugins/router"
 import { api, simulation } from "@wails/go/models"
 import { InitializeSimulation } from "@wails/go/simulation/Simulation"
 import { computed, ref } from "vue"
+import ErrorDialogComponent from "@components/home/ErrorDialogComponent.vue"
 
 const props = defineProps<{
   city: api.CityInfo
@@ -11,6 +12,9 @@ const props = defineProps<{
 const date = ref<string>()
 const weekday = ref<string>()
 const customSchedule = ref<File>()
+
+const showError = ref(false)
+const error = ref<string>()
 
 const cityName = computed(
   () =>
@@ -25,14 +29,20 @@ const disableCustomSchedule = computed(() => !!date.value)
 
 async function startSimulation() {
   loading.value = true
-  const parameters = simulation.SimulationParameters.createFrom({
+
+  const parameters = new simulation.SimulationParameters({
     cityID: props.city.cityID,
+    date: date.value,
+    weekday: weekday.value?.toLowerCase(),
+    customSchedule: Array.from((await customSchedule.value?.bytes()) ?? []),
   })
 
   const errorMessage = await InitializeSimulation(parameters)
   if (errorMessage) {
     loading.value = false
-    throw new Error(errorMessage)
+    showError.value = true
+    error.value = errorMessage
+    return
   }
 
   router.push("/simulation")
@@ -40,6 +50,12 @@ async function startSimulation() {
 </script>
 
 <template>
+  <ErrorDialogComponent
+    v-model="showError"
+    title="Error initializing simulation"
+    :error="error"
+  ></ErrorDialogComponent>
+
   <v-dialog max-width="400">
     <template v-slot:activator="{ props: dialogProps }">
       <v-hover v-slot="{ isHovering, props: hoverProps }">
@@ -117,6 +133,7 @@ async function startSimulation() {
             accept="text/csv"
             prepend-icon="mdi-transit-transfer"
             label="Passenger model"
+            disabled
           ></v-file-input>
         </v-form>
       </v-card-text>

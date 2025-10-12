@@ -9,6 +9,7 @@ import (
 	"github.com/TNSEngineerEdition/WailsClient/pkg/city/graph"
 	"github.com/TNSEngineerEdition/WailsClient/pkg/city/trip"
 	"github.com/facette/natsort"
+	"github.com/oapi-codegen/runtime/types"
 )
 
 type City struct {
@@ -19,12 +20,38 @@ type City struct {
 	plannedArrivals map[uint64][]PlannedArrival
 }
 
+type FetchCityParams struct {
+	Weekday *api.Weekday
+	Date    *types.Date
+}
+
 func (c *City) FetchCity(
 	apiClient *api.APIClient,
 	cityID string,
-	params *api.GetCityDataCitiesCityIdGetParams,
+	parameters *FetchCityParams,
+	customSchedule []byte,
 ) error {
-	responseCityData, err := apiClient.GetCityByID(cityID, params)
+	var responseCityData *api.ResponseCityData
+	var err error
+
+	if len(customSchedule) == 0 {
+		responseCityData, err = apiClient.GetCityByID(
+			cityID,
+			&api.GetCityDataCitiesCityIdGetParams{
+				Weekday: parameters.Weekday,
+				Date:    parameters.Date,
+			},
+		)
+	} else {
+		responseCityData, err = apiClient.GetCityByIDWithCustomSchedule(
+			cityID,
+			customSchedule,
+			&api.GetCityDataWithCustomScheduleCitiesCityIdPostParams{
+				Weekday: parameters.Weekday,
+			},
+		)
+	}
+
 	if err != nil {
 		return err
 	}
