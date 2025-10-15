@@ -14,18 +14,18 @@ import (
 const MAX_ACCELERATION = 1.0
 
 type Tram struct {
-	ID                           uint
-	pathIndex                    int
-	speed, length                float32
-	latitude, longitude, azimuth float32
-	distToNextInterNode          float32
-	Route                        *trip.TramRoute
-	TripDetails                  tripDetails
-	controlCenter                *controlcenter.ControlCenter
-	blockedNodesBehind           []graph.GraphNode
-	departureTime                uint
-	isFinished                   bool
-	state                        TramState
+	ID                  uint
+	pathIndex           int
+	speed, length       float32
+	lat, lon, azimuth   float32
+	distToNextInterNode float32
+	Route               *trip.TramRoute
+	TripDetails         tripDetails
+	controlCenter       *controlcenter.ControlCenter
+	blockedNodesBehind  []graph.GraphNode
+	departureTime       uint
+	isFinished          bool
+	state               TramState
 }
 
 func NewTram(
@@ -74,7 +74,7 @@ func (t *Tram) findNewLocation(path []graph.GraphNode, distanceToDrive float32) 
 			t.pathIndex++
 			t.blockedNodesBehind = append(t.blockedNodesBehind, path[t.pathIndex])
 			t.distToNextInterNode = 0
-			t.latitude, t.longitude = path[t.pathIndex].GetCoordinates()
+			t.lat, t.lon = path[t.pathIndex].GetCoordinates()
 		} else {
 			remainingPart := distanceToDrive / t.distToNextInterNode
 			t.distToNextInterNode -= distanceToDrive
@@ -90,8 +90,8 @@ func (t *Tram) findIntermediateLocation(path []graph.GraphNode, remainingPart fl
 
 	vectorLat := nextLat - currentLat
 	vectorLon := nextLon - currentLon
-	t.latitude = currentLat + vectorLat*remainingPart
-	t.longitude = currentLon + vectorLon*remainingPart
+	t.lat = currentLat + vectorLat*remainingPart
+	t.lon = currentLon + vectorLon*remainingPart
 }
 
 func (t *Tram) setAzimuthAndDistanceToNextNode(path []graph.GraphNode) {
@@ -192,10 +192,10 @@ func (t *Tram) GetEstimatedArrival(stopIndex int, time uint) uint {
 }
 
 type TramPositionChange struct {
-	TramID    uint    `json:"id"`
-	Latitude  float32 `json:"lat"`
-	Longitude float32 `json:"lon"`
-	Azimuth   float32 `json:"azimuth"`
+	TramID  uint    `json:"id"`
+	Lat     float32 `json:"lat"`
+	Lon     float32 `json:"lon"`
+	Azimuth float32 `json:"azimuth"`
 }
 
 func (t *Tram) onTripNotStarted(
@@ -219,10 +219,10 @@ func (t *Tram) onTripNotStarted(
 	lat, lon := stopsByID[t.TripDetails.Trip.Stops[0].ID].GetCoordinates()
 
 	result = TramPositionChange{
-		TramID:    t.ID,
-		Latitude:  lat,
-		Longitude: lon,
-		Azimuth:   t.azimuth,
+		TramID:  t.ID,
+		Lat:     lat,
+		Lon:     lon,
+		Azimuth: t.azimuth,
 	}
 
 	update = true
@@ -412,10 +412,10 @@ func (t *Tram) onTravelling(time uint) (result TramPositionChange, update bool) 
 	}
 
 	result = TramPositionChange{
-		TramID:    t.ID,
-		Latitude:  t.latitude,
-		Longitude: t.longitude,
-		Azimuth:   t.azimuth,
+		TramID:  t.ID,
+		Lat:     t.lat,
+		Lon:     t.lon,
+		Azimuth: t.azimuth,
 	}
 	update = true
 

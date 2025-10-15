@@ -84,8 +84,8 @@ func (c *ControlCenter) coordsFromStopSequence(stopIDs []uint64) [][2]float32 {
 func coordsFromPathNodes(p *Path) [][2]float32 {
 	out := make([][2]float32, 0, len(p.Nodes))
 	for _, node := range p.Nodes {
-		latitude, longitude := node.GetCoordinates()
-		out = append(out, [2]float32{latitude, longitude})
+		lat, lon := node.GetCoordinates()
+		out = append(out, [2]float32{lat, lon})
 	}
 	return out
 }
