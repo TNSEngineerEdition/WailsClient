@@ -5,7 +5,9 @@ import (
 	"fmt"
 	"slices"
 
+	"github.com/TNSEngineerEdition/WailsClient/pkg/api"
 	"github.com/TNSEngineerEdition/WailsClient/pkg/city"
+	"github.com/TNSEngineerEdition/WailsClient/pkg/city/trip"
 )
 
 type stopPair struct {
@@ -22,12 +24,13 @@ type RoutePolylines struct {
 	Backward [][2]float32 `json:"backward"`
 }
 
-func NewControlCenter(cityPointer *city.City) ControlCenter {
-	c := ControlCenter{
-		city:  cityPointer,
+func NewControlCenter(city *city.City) ControlCenter {
+	controlCenter := ControlCenter{
+		city:  city,
 		paths: make(map[stopPair]Path),
 	}
-	for _, route := range cityPointer.GetTramRoutes() {
+
+	for _, route := range city.GetTramRoutes() {
 		for _, trip := range route.Trips {
 			for i := 0; i < len(trip.Stops)-1; i++ {
 				stopPair := stopPair{
@@ -35,14 +38,14 @@ func NewControlCenter(cityPointer *city.City) ControlCenter {
 					destination: trip.Stops[i+1].ID,
 				}
 
-				if _, ok := c.paths[stopPair]; !ok {
-					c.paths[stopPair] = getShortestPath(c.city, stopPair)
+				if _, ok := controlCenter.paths[stopPair]; !ok {
+					controlCenter.paths[stopPair] = getShortestPath(controlCenter.city, stopPair)
 				}
 			}
 		}
 	}
 
-	return c
+	return controlCenter
 }
 
 func (c *ControlCenter) GetPath(sourceNodeID, destinationNodeID uint64) *Path {
@@ -80,8 +83,9 @@ func (c *ControlCenter) coordsFromStopSequence(stopIDs []uint64) [][2]float32 {
 
 func coordsFromPathNodes(p *Path) [][2]float32 {
 	out := make([][2]float32, 0, len(p.Nodes))
-	for _, n := range p.Nodes {
-		out = append(out, [2]float32{float32(n.Latitude), float32(n.Longitude)})
+	for _, node := range p.Nodes {
+		lat, lon := node.GetCoordinates()
+		out = append(out, [2]float32{lat, lon})
 	}
 	return out
 }
@@ -89,7 +93,7 @@ func coordsFromPathNodes(p *Path) [][2]float32 {
 func (c *ControlCenter) GetRoutePolylines(lineName string) RoutePolylines {
 	routes := c.city.GetTramRoutes()
 
-	var route *city.TramRoute
+	var route *trip.TramRoute
 	for i := range routes {
 		if routes[i].Name == lineName {
 			r := routes[i]
@@ -102,7 +106,7 @@ func (c *ControlCenter) GetRoutePolylines(lineName string) RoutePolylines {
 	type dirAgg struct {
 		key      dirKey
 		count    int
-		bestTrip city.TramTrip
+		bestTrip trip.TramTrip
 	}
 
 	agg := make(map[dirKey]*dirAgg)
@@ -140,7 +144,7 @@ func (c *ControlCenter) GetRoutePolylines(lineName string) RoutePolylines {
 	return RoutePolylines{Forward: coordsA, Backward: coordsB}
 }
 
-func stopsToIDs(stops []city.TramTripStop) []uint64 {
+func stopsToIDs(stops []api.ResponseTramTripStop) []uint64 {
 	ids := make([]uint64, len(stops))
 	for i := range stops {
 		ids[i] = stops[i].ID

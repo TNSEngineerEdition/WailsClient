@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import SidebarComponent from "@components/sidebar/SidebarComponent.vue"
+import SidebarComponent from "@components/simulation/sidebar/SidebarComponent.vue"
 import { ref, watch } from "vue"
-import { city, simulation } from "@wails/go/models"
+import { city, simulation, api } from "@wails/go/models"
 import { GetRoutesForStop } from "@wails/go/city/City"
 import { GetArrivalsForStop } from "@wails/go/simulation/Simulation"
 
@@ -21,7 +21,7 @@ const headers = [
 const model = defineModel<boolean>({ required: true })
 
 const props = defineProps<{
-  stop?: city.TramStop
+  stop?: api.ResponseGraphTramStop
   currentTime: number
 }>()
 

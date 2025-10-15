@@ -3,6 +3,7 @@ package main
 import (
 	"embed"
 
+	"github.com/TNSEngineerEdition/WailsClient/pkg/api"
 	"github.com/TNSEngineerEdition/WailsClient/pkg/city"
 	"github.com/TNSEngineerEdition/WailsClient/pkg/simulation"
 	"github.com/wailsapp/wails/v2"
@@ -17,8 +18,10 @@ var assets embed.FS
 func main() {
 	// Create an instance of the app structure
 	app := NewApp()
+	apiClient := api.NewAPIClient()
+
 	city := city.City{}
-	simulation := simulation.NewSimulation(&city)
+	simulation := simulation.NewSimulation(&apiClient, &city)
 
 	// Create application with options
 	err := wails.Run(&options.App{
@@ -31,6 +34,7 @@ func main() {
 		OnStartup: app.startup,
 		Bind: []interface{}{
 			app,
+			&apiClient,
 			&city,
 			&simulation,
 		},

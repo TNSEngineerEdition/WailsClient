@@ -1,18 +1,14 @@
 <script lang="ts" setup>
 import { onMounted, ref, useTemplateRef, watch } from "vue"
 import { GetTimeBounds } from "@wails/go/city/City"
-import { city } from "@wails/go/models"
-import {
-  GetTramIDs,
-  AdvanceTrams,
-  FetchData,
-} from "@wails/go/simulation/Simulation"
+import { city, api } from "@wails/go/models"
+import { GetTramIDs, AdvanceTrams } from "@wails/go/simulation/Simulation"
 import { LeafletMap } from "@classes/LeafletMap"
 import { TramMarker } from "@classes/TramMarker"
 import { Time } from "@classes/Time"
-import TramSidebarComponent from "@components/sidebar/TramSidebarComponent.vue"
-import StopSidebarComponent from "@components/sidebar/StopSidebarComponent.vue"
-import RouteSidebarComponent from "@components/sidebar/RouteSidebarComponent.vue"
+import TramSidebarComponent from "@components/simulation/sidebar/TramSidebarComponent.vue"
+import StopSidebarComponent from "@components/simulation/sidebar/StopSidebarComponent.vue"
+import RouteSidebarComponent from "@components/simulation/sidebar/RouteSidebarComponent.vue"
 
 const mapHTMLElement = useTemplateRef("map")
 
@@ -34,7 +30,7 @@ const stopSidebar = ref(false)
 const routeSidebar = ref(false)
 
 const selectedTramID = ref<number>()
-const selectedStop = ref<city.TramStop>()
+const selectedStop = ref<api.ResponseGraphTramStop>()
 const selectedRoute = ref<city.RouteInfo>()
 
 async function reset() {
@@ -109,7 +105,6 @@ onMounted(async () => {
     throw new Error("Map element not found")
   }
 
-  await FetchData("krakow", 0)
   leafletMap.value = await LeafletMap.init(mapHTMLElement.value, stop => {
     selectedStop.value = stop
     stopSidebar.value = true
@@ -125,19 +120,18 @@ onMounted(async () => {
       await Time.sleep(1)
     }
 
-    await AdvanceTrams(time.value).then(tramPositionChanges => {
-      for (const tram of tramPositionChanges) {
-        if (tram.lat == 0 && tram.lon == 0) {
-          tramMarkerByID.value[tram.id].removeFromMap()
-        } else {
-          tramMarkerByID.value[tram.id].updateCoordinates(
-            tram.lat,
-            tram.lon,
-            tram.azimuth,
-          )
-        }
+    for (const tram of await AdvanceTrams(time.value)) {
+      if (tram.lat == 0 && tram.lon == 0) {
+        tramMarkerByID.value[tram.id].removeFromMap()
+        continue
       }
-    })
+
+      tramMarkerByID.value[tram.id].updateCoordinates(
+        tram.lat,
+        tram.lon,
+        tram.azimuth,
+      )
+    }
 
     time.value += 1
 
@@ -152,6 +146,7 @@ onMounted(async () => {
     opacity="0"
     class="d-flex justify-center align-center"
     persistent
+    contained
   >
     <v-progress-circular indeterminate size="128"></v-progress-circular>
   </v-overlay>

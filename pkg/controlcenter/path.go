@@ -6,11 +6,12 @@ import (
 	"slices"
 
 	"github.com/TNSEngineerEdition/WailsClient/pkg/city"
+	"github.com/TNSEngineerEdition/WailsClient/pkg/city/graph"
 	"github.com/umahmood/haversine"
 )
 
 type Path struct {
-	Nodes             []*city.GraphNode
+	Nodes             []graph.GraphNode
 	MaxSpeeds         []float32
 	DistancePrefixSum []float32
 }
@@ -46,7 +47,7 @@ func getShortestPath(city *city.City, stops stopPair) (result Path) {
 
 		visitedNodes[currentID] = true
 
-		for _, neighbor := range nodesByID[currentID].Neighbors {
+		for _, neighbor := range nodesByID[currentID].GetNeighbors() {
 			tentativeDistance := tentativeDistFromSource[currentID] + neighbor.Distance
 			cost, wasVisited := tentativeDistFromSource[neighbor.ID]
 
@@ -74,9 +75,9 @@ func getShortestPath(city *city.City, stops stopPair) (result Path) {
 
 func reconstructPath(
 	predecessors map[uint64]uint64,
-	nodesByID map[uint64]*city.GraphNode,
+	nodesByID map[uint64]graph.GraphNode,
 	currentID uint64,
-) (nodes []*city.GraphNode) {
+) (nodes []graph.GraphNode) {
 	for {
 		nodes = append(nodes, nodesByID[currentID])
 
@@ -91,11 +92,13 @@ func reconstructPath(
 	return
 }
 
-func getMaxSpeeds(nodes []*city.GraphNode) []float32 {
+func getMaxSpeeds(nodes []graph.GraphNode) []float32 {
 	maxSpeeds := make([]float32, len(nodes))
 
 	for i := 0; i < len(nodes)-1; i++ {
-		maxSpeeds[i] = nodes[i].Neighbors[nodes[i+1].ID].MaxSpeed
+		neighbors := nodes[i].GetNeighbors()
+		nextNode := neighbors[nodes[i+1].GetID()]
+		maxSpeeds[i] = nextNode.MaxSpeed
 	}
 
 	// max speed at the last node in path does not matter,
@@ -105,27 +108,31 @@ func getMaxSpeeds(nodes []*city.GraphNode) []float32 {
 	return maxSpeeds
 }
 
-func getDistanceInMeters(source, destination *city.GraphNode) float32 {
+func getDistanceInMeters(source, destination graph.GraphNode) float32 {
+	sourceLat, sourceLon := source.GetCoordinates()
+	destLat, destLon := destination.GetCoordinates()
+
 	_, kilometers := haversine.Distance(
 		haversine.Coord{
-			Lat: float64(source.Latitude),
-			Lon: float64(source.Longitude),
+			Lat: float64(sourceLat),
+			Lon: float64(sourceLon),
 		},
 		haversine.Coord{
-			Lat: float64(destination.Latitude),
-			Lon: float64(destination.Longitude),
+			Lat: float64(destLat),
+			Lon: float64(destLon),
 		},
 	)
 
 	return float32(kilometers * 1000)
 }
 
-func getPathDistancePrefixSum(nodes []*city.GraphNode) []float32 {
+func getPathDistancePrefixSum(nodes []graph.GraphNode) []float32 {
 	prefixSum := make([]float32, len(nodes))
 
 	for i := 1; i < len(nodes); i++ {
-		distanceToNextNode := nodes[i-1].Neighbors[nodes[i].ID].Distance
-		prefixSum[i] = distanceToNextNode + prefixSum[i-1]
+		neighbors := nodes[i-1].GetNeighbors()
+		nextNode := neighbors[nodes[i].GetID()]
+		prefixSum[i] = nextNode.Distance + prefixSum[i-1]
 	}
 
 	return prefixSum
