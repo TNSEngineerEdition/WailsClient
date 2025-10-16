@@ -51,7 +51,7 @@ func (s *Simulation) resetTrams() {
 	s.trams = make(map[uint]*tram.Tram)
 	for _, route := range s.city.GetTramRoutes() {
 		for _, trip := range route.Trips {
-			s.trams[trip.ID] = tram.NewTram(trip.ID, &route, &trip, &s.controlCenter)
+			s.trams[trip.ID] = tram.NewTram(trip.ID, &route, &trip, &s.controlCenter, &s.passengersAtStops)
 		}
 	}
 }

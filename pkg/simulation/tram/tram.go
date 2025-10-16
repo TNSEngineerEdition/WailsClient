@@ -1,6 +1,7 @@
 package tram
 
 import (
+	"fmt"
 	"math"
 	"math/rand/v2"
 
@@ -9,23 +10,27 @@ import (
 	"github.com/TNSEngineerEdition/WailsClient/pkg/city/graph"
 	"github.com/TNSEngineerEdition/WailsClient/pkg/city/trip"
 	"github.com/TNSEngineerEdition/WailsClient/pkg/controlcenter"
+	"github.com/TNSEngineerEdition/WailsClient/pkg/simulation/passenger"
 )
 
 const MAX_ACCELERATION = 1.0
 
 type Tram struct {
-	ID                  uint
-	pathIndex           int
-	speed, length       float32
-	lat, lon, azimuth   float32
-	distToNextInterNode float32
-	Route               *trip.TramRoute
-	TripDetails         tripDetails
-	controlCenter       *controlcenter.ControlCenter
-	blockedNodesBehind  []graph.GraphNode
-	departureTime       uint
-	isFinished          bool
-	state               TramState
+	ID                    uint
+	pathIndex             int
+	speed, length         float32
+	lat, lon, azimuth     float32
+	distToNextInterNode   float32
+	Route                 *trip.TramRoute
+	TripDetails           tripDetails
+	controlCenter         *controlcenter.ControlCenter
+	blockedNodesBehind    []graph.GraphNode
+	departureTime         uint
+	isFinished            bool
+	state                 TramState
+	passengersAtStops     *map[uint64][]*passenger.Passenger
+	passengersInTram      []*passenger.Passenger
+	passengersUnloadedIDS []uint64
 }
 
 func NewTram(
@@ -33,16 +38,18 @@ func NewTram(
 	route *trip.TramRoute,
 	trip *trip.TramTrip,
 	controlCenter *controlcenter.ControlCenter,
+	passengersAtStops *map[uint64][]*passenger.Passenger,
 ) *Tram {
 	startTime := uint(trip.Stops[0].Time)
 	return &Tram{
-		ID:            id,
-		length:        30,
-		Route:         route,
-		TripDetails:   newTripDetails(trip),
-		departureTime: startTime - uint(rand.IntN(11)) - 15,
-		state:         StateTripNotStarted,
-		controlCenter: controlCenter,
+		ID:                id,
+		length:            30,
+		Route:             route,
+		TripDetails:       newTripDetails(trip),
+		departureTime:     startTime - uint(rand.IntN(11)) - 15,
+		state:             StateTripNotStarted,
+		controlCenter:     controlCenter,
+		passengersAtStops: passengersAtStops,
 	}
 }
 
@@ -230,8 +237,95 @@ func (t *Tram) onTripNotStarted(
 	return
 }
 
-func (t *Tram) onPassengerLoading(time uint) {
+// func (t *Tram) boardAllFromStop(stopID uint64) int {
+// 	q := (*t.passengersAtStops)[stopID]
+// 	if len(q) == 0 {
+// 		return 0
+// 	}
+// 	for _, p := range q {
+// 		if p.PassengerID
+// 	}
+// 	t.passengersInTram = append(t.passengersInTram, q...)
+
+// 	(*t.passengersAtStops)[stopID] = nil
+
+//		return len(q)
+//	}
+func (t *Tram) boardAllFromStop(stopID uint64) int {
+	waiting := (*t.passengersAtStops)[stopID]
+	if len(waiting) == 0 {
+		return 0
+	}
+
+	// zrób set dla O(1) sprawdzania
+	banned := make(map[uint64]struct{}, len(t.passengersUnloadedIDS))
+	for _, id := range t.passengersUnloadedIDS {
+		banned[id] = struct{}{}
+	}
+
+	// podziel: kto może wejść, kto zostaje
+	toBoard := make([]*passenger.Passenger, 0, len(waiting))
+	kept := make([]*passenger.Passenger, 0, len(waiting))
+
+	for _, p := range waiting {
+		if _, wasUnloadedHere := banned[p.PassengerID]; wasUnloadedHere {
+			// ten pasażer wysiadł z TEGO tramwaju na tym stopie → nie wsiada ponownie
+			kept = append(kept, p)
+		} else {
+			toBoard = append(toBoard, p)
+		}
+	}
+
+	// do tramwaju tylko toBoard
+	t.passengersInTram = append(t.passengersInTram, toBoard...)
+
+	// na przystanku zostaw tych, których zbanowaliśmy (kept)
+	(*t.passengersAtStops)[stopID] = kept
+
+	return len(toBoard)
+}
+
+func (t *Tram) unloadAllFromTram(stopID uint64) int {
+	q := t.passengersInTram
+	for _, p := range q {
+		t.passengersUnloadedIDS = append(t.passengersUnloadedIDS, p.PassengerID)
+	}
+	if len(q) == 0 {
+		return 0
+	}
+	(*t.passengersAtStops)[stopID] = append((*t.passengersAtStops)[stopID], t.passengersInTram...)
+	n := len(t.passengersInTram)
+	t.passengersInTram = nil
+	println("unloadAllFromTram", len((*t.passengersAtStops)[stopID]))
+	return n
+}
+
+func (t *Tram) onPassengerLoading(time uint, stopsByID map[uint64]*graph.GraphTramStop) {
 	if time != t.departureTime {
+		stopID := t.TripDetails.Trip.Stops[t.TripDetails.Index].ID
+		t.boardAllFromStop(stopID)
+
+		if t.ID == 502 || t.ID == 1693 {
+			passengers := (*t.passengersAtStops)[stopID]
+			fmt.Printf("Tram %d stoi na przystanku %d (%s)- liczba pasazerow: %d\n",
+				t.ID, stopID, stopsByID[stopID].GetName(), len(passengers))
+
+			fmt.Println("pasazerowie na przystanku")
+			for _, p := range passengers {
+				p.PrintInfoWithCity(stopsByID)
+			}
+		}
+		boarded := t.boardAllFromStop(stopID)
+		passengersAfterLoad := (*t.passengersAtStops)[stopID]
+		if t.ID == 502 || t.ID == 1693 {
+			fmt.Printf("boarded: %d, now in tram: %d\n", boarded, len(t.passengersInTram))
+			fmt.Printf("Tram %d stoi na przystanku %d (%s)- liczba pasazerow po zaladowaniu: %d\n",
+				t.ID, stopID, stopsByID[stopID].GetName(), len(passengersAfterLoad))
+			fmt.Println("[asazerowie w tramwaju")
+			for _, p := range t.passengersInTram {
+				p.PrintInfoWithCity(stopsByID)
+			}
+		}
 		return
 	}
 
@@ -242,10 +336,13 @@ func (t *Tram) onPassengerLoading(time uint) {
 		t.TripDetails.saveDeparture(time)
 		t.pathIndex = 0
 		t.state = StateTravelling
+		t.passengersUnloadedIDS = nil
 	}
 }
 
 func (t *Tram) onPassengerUnloading(time uint) {
+	stopID := t.TripDetails.Trip.Stops[t.TripDetails.Index].ID
+	t.unloadAllFromTram(stopID)
 	if t.TripDetails.Index == len(t.TripDetails.Trip.Stops)-1 {
 		t.TripDetails.saveDeparture(time)
 		t.state = StateTripFinished
@@ -427,7 +524,7 @@ func (t *Tram) Advance(time uint, stopsByID map[uint64]*graph.GraphTramStop) (re
 	case StateTripNotStarted:
 		result, update = t.onTripNotStarted(time, stopsByID)
 	case StatePassengerLoading:
-		t.onPassengerLoading(time)
+		t.onPassengerLoading(time, stopsByID)
 	case StatePassengerUnloading:
 		t.onPassengerUnloading(time)
 	case StateTravelling:
