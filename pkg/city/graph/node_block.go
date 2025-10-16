@@ -33,7 +33,7 @@ func (g *NodeBlock) Unblock(tramID uint) {
 	g.mu.Lock()
 	defer g.mu.Unlock()
 
-	if g.isBlocked || g.blockingTramID == tramID {
+	if g.isBlocked && g.blockingTramID == tramID {
 		g.isBlocked = false
 		g.blockingTramID = 0
 	}
