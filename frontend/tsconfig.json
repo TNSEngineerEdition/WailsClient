@@ -18,8 +18,7 @@
       "@composables/*": ["./src/composables/*"],
       "@components/*": ["./src/components/*"],
       "@plugins/*": ["./src/plugins/*"],
-      "@assets/*": ["./src/assets/*"]
-      "@components/*": ["./src/components/*"],
+      "@assets/*": ["./src/assets/*"],
       "@models/*": ["./src/types/*"]
     }
   },

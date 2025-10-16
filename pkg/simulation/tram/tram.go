@@ -26,8 +26,8 @@ type Tram struct {
 	departureTime       uint
 	isFinished          bool
 	state               TramState
-	prevState                          TramState
-	useBrake                           bool
+	prevState           TramState
+	useBrake            bool
 }
 
 func NewTram(
@@ -160,10 +160,10 @@ func (t *Tram) unblockNodesBehind() {
 	}
 }
 
-func (t *tram) unblockNodesAhead() {
+func (t *Tram) unblockNodesAhead() {
 	path := t.getTravelPath()
 	for i := t.pathIndex; i < len(path.Nodes)-1; i++ {
-		path.Nodes[i+1].Unblock(t.id)
+		path.Nodes[i+1].Unblock(t.ID)
 	}
 }
 
@@ -206,7 +206,7 @@ type TramPositionChange struct {
 	Lat     float32   `json:"lat"`
 	Lon     float32   `json:"lon"`
 	Azimuth float32   `json:"azimuth"`
-	State     TramState `json:"state"`
+	State   TramState `json:"state"`
 }
 
 func (t *Tram) onTripNotStarted(
@@ -234,7 +234,7 @@ func (t *Tram) onTripNotStarted(
 		Lat:     lat,
 		Lon:     lon,
 		Azimuth: t.azimuth,
-		State:     t.state,
+		State:   t.state,
 	}
 
 	update = true
@@ -447,7 +447,7 @@ func (t *Tram) onTravelling(time uint) (result TramPositionChange, update bool) 
 		Lat:     t.lat,
 		Lon:     t.lon,
 		Azimuth: t.azimuth,
-		State:     t.state,
+		State:   t.state,
 	}
 	update = true
 
@@ -487,7 +487,7 @@ type TramDetails struct {
 	Departures   []uint                     `json:"departures"`
 	StopNames    []string                   `json:"stop_names"`
 	Speed        uint8                      `json:"speed"`
-	State        TramState           `json:"state"`
+	State        TramState                  `json:"state"`
 }
 
 func (t *Tram) GetDetails(c *city.City, time uint) TramDetails {
@@ -498,7 +498,7 @@ func (t *Tram) GetDetails(c *city.City, time uint) TramDetails {
 		stopNames[i] = stopsByID[stop.ID].GetName()
 	}
 
-	if t.state != StateTripFinished && t.tripData.index < len(t.tripData.arrivals) {
+	if t.state != StateTripFinished && t.TripDetails.Index < len(t.TripDetails.arrivals) {
 		t.TripDetails.arrivals[t.TripDetails.Index] = t.GetEstimatedArrival(t.TripDetails.Index, time)
 	}
 
@@ -510,12 +510,12 @@ func (t *Tram) GetDetails(c *city.City, time uint) TramDetails {
 		Arrivals:     t.TripDetails.arrivals,
 		Departures:   t.TripDetails.departures,
 		StopNames:    stopNames,
-		Speed:        uint8((t.speed * 18) / 5), // m/s -> km/h
+		Speed:        t.getSpeed(),
 		State:        t.state,
 	}
 }
 
-func (t *tram) StopResumeTram(stopped bool, currentTime uint) {
+func (t *Tram) StopResumeTram(stopped bool, currentTime uint) {
 	if stopped {
 		t.useBrake = true
 

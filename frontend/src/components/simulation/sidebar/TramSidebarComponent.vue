@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import SidebarComponent from "@components/simulation/sidebar/SidebarComponent.vue"
-import TramControlButtonComponent from "@components/sidebar/TramControlButtonComponent.vue"
+import TramControlButtonComponent from "@components/simulation/sidebar/TramControlButtonComponent.vue"
 import { Time } from "@classes/Time"
 import { tram } from "@wails/go/models"
 import { GetTramDetails, StopResumeTram } from "@wails/go/simulation/Simulation"
