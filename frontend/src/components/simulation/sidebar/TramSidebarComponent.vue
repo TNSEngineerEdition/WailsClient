@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import SidebarComponent from "@components/sidebar/SidebarComponent.vue"
+import SidebarComponent from "@components/simulation/sidebar/SidebarComponent.vue"
 import { Time } from "@classes/Time"
-import { simulation } from "@wails/go/models"
+import { tram } from "@wails/go/models"
 import { GetTramDetails } from "@wails/go/simulation/Simulation"
 import { computed, ref, watch } from "vue"
 
@@ -12,7 +12,8 @@ const props = defineProps<{
   currentTime: number
 }>()
 
-const tramDetails = ref<simulation.TramDetails>()
+const tramDetails = ref<tram.TramDetails>()
+const tab = ref<"stops" | "occ" | "delay">("stops")
 
 const headers = [
   { title: "Stop name", key: "stop", align: "center", sortable: false },
@@ -121,44 +122,63 @@ watch(
         Stops
       </div>
     </div>
+    <v-tabs v-model="tab" grow>
+      <v-tab value="stops">Stops table</v-tab>
+      <v-tab value="occ">Occupancy graph</v-tab>
+      <v-tab value="delay">Delay graph</v-tab>
+    </v-tabs>
 
-    <div class="scrollable">
-      <v-data-table-virtual
-        v-if="tramDetails?.stop_names.length"
-        :headers="headers"
-        :header-props="{
-          style: 'font-weight: bold;',
-        }"
-        :items="stopsTableData"
-        :row-props="getRowProps"
-        class="stops-table"
-        density="compact"
-        hide-default-footer
-        hover
-      >
-        <template v-slot:item.time="{ item }">
-          {{ new Time(item.time).toShortMinuteString() }}
-        </template>
+    <v-card-text>
+      <v-tabs-window v-model="tab">
+        <v-tabs-window-item value="stops">
+          <div class="scrollable">
+            <v-data-table-virtual
+              v-if="tramDetails?.stop_names.length"
+              :headers="headers"
+              :header-props="{
+                style: 'font-weight: bold;',
+              }"
+              :items="stopsTableData"
+              :row-props="getRowProps"
+              class="stops-table"
+              density="compact"
+              hide-default-footer
+              hover
+            >
+              <template v-slot:item.time="{ item }">
+                {{ new Time(item.time).toShortMinuteString() }}
+              </template>
 
-        <template v-slot:item.arrival="{ item }">
-          <span
-            v-if="item.arrival != null"
-            :class="getDelayTextColorClass(item.arrival)"
-          >
-            {{ new Time(item.arrival, true).toShortSecondString() }}
-          </span>
-        </template>
+              <template v-slot:item.arrival="{ item }">
+                <span
+                  v-if="item.arrival != null"
+                  :class="getDelayTextColorClass(item.arrival)"
+                >
+                  {{ new Time(item.arrival, true).toShortSecondString() }}
+                </span>
+              </template>
 
-        <template v-slot:item.departure="{ item }">
-          <span
-            v-if="item.departure != null"
-            :class="getDelayTextColorClass(item.departure)"
-          >
-            {{ new Time(item.departure, true).toShortSecondString() }}
-          </span>
-        </template>
-      </v-data-table-virtual>
-    </div>
+              <template v-slot:item.departure="{ item }">
+                <span
+                  v-if="item.departure != null"
+                  :class="getDelayTextColorClass(item.departure)"
+                >
+                  {{ new Time(item.departure, true).toShortSecondString() }}
+                </span>
+              </template>
+            </v-data-table-virtual>
+          </div>
+        </v-tabs-window-item>
+
+        <v-tabs-window-item value="occ">
+          Occupancy graph TODO
+        </v-tabs-window-item>
+
+        <v-tabs-window-item value="delay">
+          Delay graph TODO
+        </v-tabs-window-item>
+      </v-tabs-window>
+    </v-card-text>
   </SidebarComponent>
 </template>
 
@@ -175,28 +195,6 @@ watch(
 .scrollable::-webkit-scrollbar-thumb {
   background-color: rgba(0, 0, 0, 0.2);
   border-radius: 3px;
-}
-
-.section {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 1rem;
-  margin-bottom: 0.4rem;
-}
-
-.label,
-.value {
-  font-size: clamp(0.8rem, 0.75rem + 0.2vw, 1rem);
-  color: #111;
-}
-
-.label {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.4rem;
-  font-weight: bold;
-  margin-bottom: 0.25rem;
 }
 
 .stops-table {

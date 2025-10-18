@@ -1,4 +1,4 @@
-package simulation
+package tram
 
 type TramState uint8
 

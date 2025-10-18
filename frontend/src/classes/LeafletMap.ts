@@ -1,19 +1,25 @@
-import { GetBounds, GetTramStops } from "@wails/go/city/City"
+import { GetBounds, GetStops } from "@wails/go/city/City"
 import { LatLngBounds, Map as LMap, tileLayer } from "leaflet"
 import { TramMarker } from "@classes/TramMarker"
 import { StopMarker } from "@classes/StopMarker"
-import { city, simulation } from "@wails/go/models"
+import { city, simulation, api } from "@wails/go/models"
+import { RouteHighlighter } from "./RouteHighlighter"
 
 export class LeafletMap {
   private entityCount = 0
   public selectedStop?: StopMarker
   public selectedTram?: TramMarker
+  public selectedRouteName?: string
+  public highlightedRouteTrams?: TramMarker[]
+  private routeHighlighter: RouteHighlighter
 
-  constructor(private map: LMap) {}
+  constructor(private map: LMap) {
+    this.routeHighlighter = new RouteHighlighter(map)
+  }
 
   static async init(
     mapHTMLElement: HTMLElement,
-    handleStopSelection: (stop: city.TramStop) => void,
+    handleStopSelection: (stop: api.ResponseGraphTramStop) => void,
   ) {
     const leafletMap = new LeafletMap(
       await GetBounds()
@@ -34,7 +40,7 @@ export class LeafletMap {
         ),
     )
 
-    for (const stop of await GetTramStops()) {
+    for (const stop of await GetStops()) {
       const marker = new StopMarker(stop.lat, stop.lon, stop.name)
       marker.addTo(leafletMap.map)
       marker.on("click", () => {
@@ -53,6 +59,24 @@ export class LeafletMap {
     }).addTo(leafletMap.map)
 
     return leafletMap
+  }
+
+  public highlightTramsForRoute(trams: TramMarker[]) {
+    this.highlightedRouteTrams?.forEach(m => m.setHighlighted(false))
+    this.highlightedRouteTrams = trams
+    this.highlightedRouteTrams.forEach(m => m.setHighlighted(true))
+  }
+
+  public async highlightRoute(route: city.RouteInfo) {
+    this.selectedRouteName = route.name
+    await this.routeHighlighter.highlight(route)
+  }
+
+  public deselectRoute() {
+    this.selectedRouteName = undefined
+    this.highlightedRouteTrams?.forEach(m => m.setHighlighted(false))
+    this.highlightedRouteTrams = undefined
+    this.routeHighlighter.clear()
   }
 
   public deselectStop() {

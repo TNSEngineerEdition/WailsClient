@@ -1,17 +1,14 @@
 <script lang="ts" setup>
 import { onMounted, ref, useTemplateRef, watch } from "vue"
 import { GetTimeBounds } from "@wails/go/city/City"
-import { city } from "@wails/go/models"
-import {
-  GetTramIDs,
-  AdvanceTrams,
-  FetchData,
-} from "@wails/go/simulation/Simulation"
+import { city, api } from "@wails/go/models"
+import { GetTramIDs, AdvanceTrams } from "@wails/go/simulation/Simulation"
 import { LeafletMap } from "@classes/LeafletMap"
 import { TramMarker } from "@classes/TramMarker"
 import { Time } from "@classes/Time"
-import TramSidebarComponent from "@components/sidebar/TramSidebarComponent.vue"
-import StopSidebarComponent from "@components/sidebar/StopSidebarComponent.vue"
+import TramSidebarComponent from "@components/simulation/sidebar/TramSidebarComponent.vue"
+import StopSidebarComponent from "@components/simulation/sidebar/StopSidebarComponent.vue"
+import RouteSidebarComponent from "@components/simulation/sidebar/RouteSidebarComponent.vue"
 
 const mapHTMLElement = useTemplateRef("map")
 
@@ -30,13 +27,16 @@ const tramMarkerByID = ref<Record<number, TramMarker>>({})
 
 const tramSidebar = ref(false)
 const stopSidebar = ref(false)
+const routeSidebar = ref(false)
 
 const selectedTramID = ref<number>()
-const selectedStop = ref<city.TramStop>()
+const selectedStop = ref<api.ResponseGraphTramStop>()
+const selectedRoute = ref<city.RouteInfo>()
 
 async function reset() {
   tramSidebar.value = false
   stopSidebar.value = false
+  routeSidebar.value = false
   loading.value = true
 
   for (const tramMarker of Object.values(tramMarkerByID.value)) {
@@ -58,6 +58,16 @@ async function reset() {
   loading.value = false
 }
 
+function handleRouteSelected(route: city.RouteInfo) {
+  selectedRoute.value = route
+  routeSidebar.value = true
+  const tramMarkersForRoute = Object.values(tramMarkerByID.value).filter(
+    m => m.getRoute() === route.name,
+  )
+  leafletMap.value?.highlightTramsForRoute(tramMarkersForRoute)
+  leafletMap.value?.highlightRoute(route)
+}
+
 watch(() => props.resetCounter, reset)
 
 watch(stopSidebar, isOpen => {
@@ -74,12 +84,27 @@ watch(tramSidebar, isOpen => {
   }
 })
 
+watch(routeSidebar, isOpen => {
+  if (!isOpen) {
+    leafletMap.value?.deselectRoute()
+    selectedRoute.value = undefined
+  }
+})
+
+watch(selectedRoute, route => {
+  if (route) {
+    const tramMarkersForRoute = Object.values(tramMarkerByID.value).filter(
+      m => m.getRoute() === route.name,
+    )
+    leafletMap.value?.highlightTramsForRoute(tramMarkersForRoute)
+  }
+})
+
 onMounted(async () => {
   if (mapHTMLElement.value === null) {
     throw new Error("Map element not found")
   }
 
-  await FetchData("krakow", 0)
   leafletMap.value = await LeafletMap.init(mapHTMLElement.value, stop => {
     selectedStop.value = stop
     stopSidebar.value = true
@@ -95,19 +120,18 @@ onMounted(async () => {
       await Time.sleep(1)
     }
 
-    await AdvanceTrams(time.value).then(tramPositionChanges => {
-      for (const tram of tramPositionChanges) {
-        if (tram.lat == 0 && tram.lon == 0) {
-          tramMarkerByID.value[tram.id].removeFromMap()
-        } else {
-          tramMarkerByID.value[tram.id].updateCoordinates(
-            tram.lat,
-            tram.lon,
-            tram.azimuth,
-          )
-        }
+    for (const tram of await AdvanceTrams(time.value)) {
+      if (tram.lat == 0 && tram.lon == 0) {
+        tramMarkerByID.value[tram.id].removeFromMap()
+        continue
       }
-    })
+
+      tramMarkerByID.value[tram.id].updateCoordinates(
+        tram.lat,
+        tram.lon,
+        tram.azimuth,
+      )
+    }
 
     time.value += 1
 
@@ -122,22 +146,33 @@ onMounted(async () => {
     opacity="0"
     class="d-flex justify-center align-center"
     persistent
+    contained
   >
     <v-progress-circular indeterminate size="128"></v-progress-circular>
   </v-overlay>
 
   <div id="map" ref="map"></div>
 
-  <TramSidebarComponent
-    v-model="tramSidebar"
-    :tram-id="selectedTramID"
-    :current-time="time"
-  />
-  <StopSidebarComponent
-    v-model="stopSidebar"
-    :stop="selectedStop"
-    :current-time="time"
-  ></StopSidebarComponent>
+  <div class="sidebar-stack left">
+    <TramSidebarComponent
+      v-model="tramSidebar"
+      :tram-id="selectedTramID"
+      :current-time="time"
+    />
+  </div>
+  <div class="sidebar-stack right">
+    <StopSidebarComponent
+      v-model="stopSidebar"
+      :stop="selectedStop"
+      :current-time="time"
+      @routeSelected="handleRouteSelected"
+    />
+    <RouteSidebarComponent
+      v-model="routeSidebar"
+      :route="selectedRoute"
+      :tram-markers="tramMarkerByID"
+    />
+  </div>
 </template>
 
 <style lang="scss">
@@ -151,6 +186,17 @@ onMounted(async () => {
   width: 24px;
   height: 24px;
   pointer-events: auto;
+  transition:
+    transform 0.2s ease,
+    background-color 0.3s ease;
+}
+
+.tram-marker.highlighted {
+  transform: scale(1.1);
+}
+
+.tram-marker.selected {
+  transform: scale(1.2);
 }
 
 .tm-circle-arrow {
@@ -186,8 +232,33 @@ onMounted(async () => {
   z-index: 3;
 }
 
+.tram-marker.highlighted .tm-circle-arrow,
+.tram-marker.highlighted .tm-circle {
+  background-color: orange;
+}
+
 .tram-marker.selected .tm-circle-arrow,
 .tram-marker.selected .tm-circle {
   background-color: #67ad2f;
+}
+
+.sidebar-stack {
+  position: fixed;
+  top: calc(60px + 20px);
+  z-index: 1001;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  pointer-events: none;
+}
+.sidebar-stack > * {
+  pointer-events: auto;
+}
+
+.sidebar-stack.left {
+  left: 54px;
+}
+.sidebar-stack.right {
+  right: 20px;
 }
 </style>

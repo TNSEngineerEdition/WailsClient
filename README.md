@@ -80,7 +80,25 @@ In order to build the binary, you need to specify the below `ldflags`:
 
 Below you can find an example command which uses `ldflags`:
 ```bash
-wails build -ldflags "-X github.com/TNSEngineerEdition/WailsClient/pkg/city.ServerURL=https://tns-ee.rcralph.me"
+wails build -ldflags "-X github.com/TNSEngineerEdition/WailsClient/pkg/api.ServerURL=https://tns-ee.rcralph.me"
 ```
 
 As above, it might be necessary to use `webkit2_41` tag if the above command fails.
+
+## Generating API boilerplate
+In order to streamline the communication between the server and the client, boilerplate generators can be used. In this project, we're using [`oapi-codegen`](https://github.com/oapi-codegen/oapi-codegen). To generate the boilerplate, follow these steps:
+1. Install `oapi-codegen` by running:
+   ```sh
+   go install github.com/oapi-codegen/oapi-codegen/v2/cmd/oapi-codegen@latest
+   ```
+2. Download OpenAPI specification by running:
+   ```sh
+   curl "$ServerURL/openapi.json" -o openapi.json
+   ```
+3. Generate boilerplate by running:
+   ```sh
+   oapi-codegen -generate types,client -o pkg/api/client.gen.go -package api openapi.json
+   ```
+
+> [!NOTE]
+> FastAPI generates file using OpenAPI 3.1, while `oapi-codegen` supports only OpenAPI `3.0.x`. In order to downgrade the file to OpenAPI 3.0, you should replace the version field with `3.0.3` and update referencing optional fields following [this comment](https://github.com/oapi-codegen/oapi-codegen/issues/373#issuecomment-3188571304).
