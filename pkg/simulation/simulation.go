@@ -15,14 +15,13 @@ import (
 )
 
 type Simulation struct {
-	apiClient         *api.APIClient
-	city              *city.City
-	trams             map[uint]*tram.Tram
-	tramWorkersData   workerData[*tram.Tram, tram.TramPositionChange]
-	controlCenter     controlcenter.ControlCenter
-	time              uint
-	initialPassengers map[uint][]*passenger.Passenger
-	passengersAtStops map[uint64][]*passenger.Passenger
+	apiClient       *api.APIClient
+	city            *city.City
+	trams           map[uint]*tram.Tram
+	tramWorkersData workerData[*tram.Tram, tram.TramPositionChange]
+	controlCenter   controlcenter.ControlCenter
+	time            uint
+	passengersStore *passenger.PassengersStore
 }
 
 func NewSimulation(apiClient *api.APIClient, city *city.City) Simulation {
@@ -43,26 +42,18 @@ func (s *Simulation) tramWorker() {
 	}
 }
 
-func (s *Simulation) getPassengersAt(time uint) []*passenger.Passenger {
-	return s.initialPassengers[time]
-}
-
 func (s *Simulation) resetTrams() {
 	s.trams = make(map[uint]*tram.Tram)
 	for _, route := range s.city.GetTramRoutes() {
 		for _, trip := range route.Trips {
-			s.trams[trip.ID] = tram.NewTram(trip.ID, &route, &trip, &s.controlCenter, &s.passengersAtStops)
+			s.trams[trip.ID] = tram.NewTram(trip.ID, &route, &trip, &s.controlCenter, s.passengersStore)
 		}
 	}
 }
 
-func (s *Simulation) resetPassengers() {
-	s.passengersAtStops = make(map[uint64][]*passenger.Passenger)
-}
-
 func (s *Simulation) ResetSimulation() {
+	s.passengersStore = passenger.NewPassengersStore(s.city)
 	s.resetTrams()
-	s.resetPassengers()
 	s.city.Reset()
 }
 
@@ -92,8 +83,6 @@ func (s *Simulation) InitializeSimulation(parameters SimulationParameters) strin
 	s.controlCenter = controlcenter.NewControlCenter(s.city)
 	s.ResetSimulation()
 	s.tramWorkersData.reset(len(s.trams))
-
-	s.initialPassengers = passenger.CreatePassengers(s.city)
 
 	if parameters.TramWorkerCount == 0 {
 		// CPU count * 110% for more efficiency
@@ -126,11 +115,7 @@ func (s *Simulation) GetTramIDs() (result []TramIdentifier) {
 func (s *Simulation) AdvanceTrams(time uint) (result []tram.TramPositionChange) {
 	s.time = time
 
-	toSpawn := s.getPassengersAt(time)
-	for _, p := range toSpawn {
-		stopID := p.StartStopID
-		s.passengersAtStops[stopID] = append(s.passengersAtStops[stopID], p)
-	}
+	s.passengersStore.SpawnAtTime(time)
 
 	s.tramWorkersData.wg.Add(len(s.trams))
 	for _, tram := range s.trams {

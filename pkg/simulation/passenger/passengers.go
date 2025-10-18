@@ -1,25 +1,52 @@
 package passenger
 
 import (
-	"fmt"
 	"math/rand/v2"
+	"sync"
 
 	"github.com/TNSEngineerEdition/WailsClient/pkg/city"
-	"github.com/TNSEngineerEdition/WailsClient/pkg/city/graph"
 )
 
 type Passenger struct {
 	strategy               PassengerStrategy
 	spawnTime              uint
 	StartStopID, EndStopID uint64
-	PassengerID            uint64
+	ID                     uint64
 }
 
-func CreatePassengers(c *city.City) map[uint][]*Passenger {
-	result := make(map[uint][]*Passenger)
+type passengersAtStop struct {
+	passengers []*Passenger
+	mu         sync.Mutex
+}
+
+type PassengersStore struct {
+	PassengersAtStops map[uint64]*passengersAtStop
+	PassengersToSpawn map[uint][]*Passenger
+}
+
+func NewPassengersStore(c *city.City) *PassengersStore {
+	stopsByID := c.GetStopsByID()
+
+	store := &PassengersStore{
+		PassengersAtStops: make(map[uint64]*passengersAtStop, len(stopsByID)),
+		PassengersToSpawn: make(map[uint][]*Passenger),
+	}
+
+	for id := range stopsByID {
+		store.PassengersAtStops[id] = &passengersAtStop{
+			passengers: make([]*Passenger, 0),
+		}
+	}
+
+	store.generatePassengers(c)
+
+	return store
+}
+
+func (ps *PassengersStore) generatePassengers(c *city.City) {
 	timeBounds := c.GetTimeBounds()
 	tramStops := c.GetStops()
-	counter := uint64(0)
+	var counter uint64
 
 	for i := range tramStops {
 		startStop := tramStops[i]
@@ -32,55 +59,58 @@ func CreatePassengers(c *city.City) map[uint][]*Passenger {
 				}
 			}
 			endStop := tramStops[j]
-			// spawn := timeBounds.StartTime + uint(rand.IntN(int(timeBounds.EndTime-timeBounds.StartTime+1)))
-			spawn := timeBounds.StartTime + uint(rand.IntN(100))
+			spawn := timeBounds.StartTime + uint(rand.IntN(int(timeBounds.EndTime-timeBounds.StartTime+1)))
 
 			passenger := &Passenger{
 				strategy:    PassengerStrategy(rand.IntN(3)),
 				spawnTime:   spawn,
 				StartStopID: startStop.ID,
 				EndStopID:   endStop.ID,
-				PassengerID: counter,
+				ID:          counter,
 			}
 
-			result[spawn] = append(result[spawn], passenger)
+			ps.PassengersToSpawn[spawn] = append(ps.PassengersToSpawn[spawn], passenger)
 			counter++
 		}
 	}
-	return result
 }
 
-func (p *Passenger) StrategyName() string {
-	switch p.strategy {
-	case ASAP:
-		return "ASAP"
-	case COMFORT:
-		return "COMFORT"
-	case SURE:
-		return "SURE"
-	default:
-		return "UNKNOWN"
+func (s *PassengersStore) SpawnAtTime(time uint) {
+	passengersToSpawn := s.PassengersToSpawn[time]
+
+	for _, p := range passengersToSpawn {
+		stop := s.PassengersAtStops[p.StartStopID]
+		stop.mu.Lock()
+		stop.passengers = append(stop.passengers, p)
+		stop.mu.Unlock()
 	}
 }
 
-func (p *Passenger) PrintInfoWithCity(stopsByID map[uint64]*graph.GraphTramStop) {
+func (s *PassengersStore) UnloadAllToStop(stopID uint64, passengers []*Passenger) {
+	stop := s.PassengersAtStops[stopID]
+	stop.mu.Lock()
+	defer stop.mu.Unlock()
+	stop.passengers = append(stop.passengers, passengers...)
+}
 
-	startName := ""
-	if s, ok := stopsByID[p.StartStopID]; ok {
-		startName = s.GetName()
+func (s *PassengersStore) BoardAllFromStop(stopID uint64, alreadyBoardedIDS []uint64) []*Passenger {
+	previousTakenSet := make(map[uint64]struct{}, len(alreadyBoardedIDS))
+	for _, id := range alreadyBoardedIDS {
+		previousTakenSet[id] = struct{}{}
 	}
 
-	endName := ""
-	if e, ok := stopsByID[p.EndStopID]; ok {
-		endName = e.GetName()
+	stop := s.PassengersAtStops[stopID]
+	stop.mu.Lock()
+	defer stop.mu.Unlock()
+	boardingPassengers := make([]*Passenger, 0, len(stop.passengers))
+	stayingPassengers := make([]*Passenger, 0, len(stop.passengers))
+	for _, passenger := range stop.passengers {
+		if _, taken := previousTakenSet[passenger.ID]; taken {
+			stayingPassengers = append(stayingPassengers, passenger)
+		} else {
+			boardingPassengers = append(boardingPassengers, passenger)
+		}
 	}
-
-	fmt.Printf(
-		"Passenger { strategy: %s, spawnTime: %d, startStopID: %d (%s), endStopID: %d (%s), passengerID: %d }\n",
-		p.StrategyName(),
-		p.spawnTime,
-		p.StartStopID, startName,
-		p.EndStopID, endName,
-		p.PassengerID,
-	)
+	stop.passengers = stayingPassengers
+	return boardingPassengers
 }
