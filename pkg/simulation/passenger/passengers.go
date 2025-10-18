@@ -10,12 +10,37 @@ type Passenger struct {
 	strategy               PassengerStrategy
 	spawnTime              uint
 	StartStopID, EndStopID uint64
+	ID                     uint64
 }
 
-func CreatePassengers(c *city.City) map[uint][]*Passenger {
-	result := make(map[uint][]*Passenger)
+type PassengersStore struct {
+	PassengersAtStops map[uint64]*passengerStop
+	PassengersToSpawn map[uint][]*Passenger
+}
+
+func NewPassengersStore(c *city.City) *PassengersStore {
+	stopsByID := c.GetStopsByID()
+
+	store := &PassengersStore{
+		PassengersAtStops: make(map[uint64]*passengerStop, len(stopsByID)),
+		PassengersToSpawn: make(map[uint][]*Passenger),
+	}
+
+	for id := range stopsByID {
+		store.PassengersAtStops[id] = &passengerStop{
+			passengers: make([]*Passenger, 0),
+		}
+	}
+
+	store.generatePassengers(c)
+
+	return store
+}
+
+func (ps *PassengersStore) generatePassengers(c *city.City) {
 	timeBounds := c.GetTimeBounds()
 	tramStops := c.GetStops()
+	var counter uint64
 
 	for i := range tramStops {
 		startStop := tramStops[i]
@@ -29,15 +54,43 @@ func CreatePassengers(c *city.City) map[uint][]*Passenger {
 			}
 			endStop := tramStops[j]
 			spawn := timeBounds.StartTime + uint(rand.IntN(int(timeBounds.EndTime-timeBounds.StartTime+1)))
+
 			passenger := &Passenger{
 				strategy:    PassengerStrategy(rand.IntN(3)),
 				spawnTime:   spawn,
 				StartStopID: startStop.ID,
 				EndStopID:   endStop.ID,
+				ID:          counter,
 			}
 
-			result[spawn] = append(result[spawn], passenger)
+			ps.PassengersToSpawn[spawn] = append(ps.PassengersToSpawn[spawn], passenger)
+			counter++
 		}
 	}
-	return result
+}
+
+func (ps *PassengersStore) SpawnAtTime(time uint) {
+	passengersToSpawn := ps.PassengersToSpawn[time]
+
+	for _, p := range passengersToSpawn {
+		stop := ps.PassengersAtStops[p.StartStopID]
+		stop.AddPassengerToStop(p)
+	}
+}
+
+func (ps *PassengersStore) UnloadAllToStop(stopID uint64, passengers []*Passenger) {
+	stop := ps.PassengersAtStops[stopID]
+	for _, p := range passengers {
+		stop.AddPassengerToStop(p)
+	}
+}
+
+func (ps *PassengersStore) BoardAllFromStop(stopID uint64, alreadyBoardedIDS []uint64) []*Passenger {
+	alreadyTakenSet := make(map[uint64]struct{}, len(alreadyBoardedIDS))
+	for _, id := range alreadyBoardedIDS {
+		alreadyTakenSet[id] = struct{}{}
+	}
+
+	stop := ps.PassengersAtStops[stopID]
+	return stop.TakeAllFromStop(alreadyTakenSet)
 }

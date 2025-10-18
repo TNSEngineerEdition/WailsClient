@@ -9,6 +9,7 @@ import (
 	"github.com/TNSEngineerEdition/WailsClient/pkg/city/graph"
 	"github.com/TNSEngineerEdition/WailsClient/pkg/city/trip"
 	"github.com/TNSEngineerEdition/WailsClient/pkg/controlcenter"
+	"github.com/TNSEngineerEdition/WailsClient/pkg/simulation/passenger"
 )
 
 const MAX_ACCELERATION = 1.0
@@ -26,6 +27,9 @@ type Tram struct {
 	departureTime       uint
 	isFinished          bool
 	state               TramState
+	passengersInTram    []*passenger.Passenger
+	passengersStore     *passenger.PassengersStore
+	alreadyBoardedIDS   []uint64
 }
 
 func NewTram(
@@ -33,16 +37,18 @@ func NewTram(
 	route *trip.TramRoute,
 	trip *trip.TramTrip,
 	controlCenter *controlcenter.ControlCenter,
+	passengersStore *passenger.PassengersStore,
 ) *Tram {
 	startTime := uint(trip.Stops[0].Time)
 	return &Tram{
-		ID:            id,
-		length:        30,
-		Route:         route,
-		TripDetails:   newTripDetails(trip),
-		departureTime: startTime - uint(rand.IntN(11)) - 15,
-		state:         StateTripNotStarted,
-		controlCenter: controlCenter,
+		ID:              id,
+		length:          30,
+		Route:           route,
+		TripDetails:     newTripDetails(trip),
+		departureTime:   startTime - uint(rand.IntN(11)) - 15,
+		state:           StateTripNotStarted,
+		controlCenter:   controlCenter,
+		passengersStore: passengersStore,
 	}
 }
 
@@ -230,8 +236,28 @@ func (t *Tram) onTripNotStarted(
 	return
 }
 
+func (t *Tram) boardAllFromStop(stopID uint64) {
+	boarded := t.passengersStore.BoardAllFromStop(stopID, t.alreadyBoardedIDS)
+	t.passengersInTram = append(t.passengersInTram, boarded...)
+}
+
+func (t *Tram) unloadAllFromTram(stopID uint64) {
+	passengersToUnload := t.passengersInTram
+	for _, p := range passengersToUnload {
+		t.alreadyBoardedIDS = append(t.alreadyBoardedIDS, p.ID)
+	}
+	t.passengersStore.UnloadAllToStop(stopID, passengersToUnload)
+
+	for i := range t.passengersInTram {
+		t.passengersInTram[i] = nil
+	}
+	t.passengersInTram = t.passengersInTram[:0]
+}
+
 func (t *Tram) onPassengerLoading(time uint) {
 	if time != t.departureTime {
+		stopID := t.TripDetails.Trip.Stops[t.TripDetails.Index].ID
+		t.boardAllFromStop(stopID)
 		return
 	}
 
@@ -242,10 +268,14 @@ func (t *Tram) onPassengerLoading(time uint) {
 		t.TripDetails.saveDeparture(time)
 		t.pathIndex = 0
 		t.state = StateTravelling
+		t.alreadyBoardedIDS = t.alreadyBoardedIDS[:0]
 	}
 }
 
 func (t *Tram) onPassengerUnloading(time uint) {
+	stopID := t.TripDetails.Trip.Stops[t.TripDetails.Index].ID
+	t.unloadAllFromTram(stopID)
+
 	if t.TripDetails.Index == len(t.TripDetails.Trip.Stops)-1 {
 		t.TripDetails.saveDeparture(time)
 		t.state = StateTripFinished
