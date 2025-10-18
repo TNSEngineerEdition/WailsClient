@@ -49,8 +49,12 @@ func (s *Simulation) ResetSimulation() {
 	s.city.ResetPlannedArrivals()
 }
 
+func (s *Simulation) FetchDataWithoutSimulationStart(cityID string) {
+	s.city.FetchCityData(cityID)
+}
+
 func (s *Simulation) FetchData(url string, tramWorkerCount uint) {
-	s.city.FetchCityData(url)
+	//s.city.FetchCityData(url)
 	s.controlCenter = controlcenter.NewControlCenter(s.city)
 	s.ResetSimulation()
 	s.tramWorkersData.reset(len(s.trams))

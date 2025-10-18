@@ -2,6 +2,7 @@ package city
 
 import (
 	"encoding/json"
+	"fmt"
 	"math"
 	"net/http"
 	"slices"
@@ -20,7 +21,8 @@ type CityData struct {
 func (c *CityData) FetchCity(cityID string) {
 	client := &http.Client{}
 
-	resp, err := client.Get(ServerURL + "/cities/" + cityID)
+	resp, err := client.Get(ServerURL + "/cities/" + cityID) // + "?weekday=wednesday")
+	fmt.Println(resp)
 	if err != nil {
 		panic(err)
 	}
