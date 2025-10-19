@@ -38,6 +38,9 @@ func main() {
 			&city,
 			&simulation,
 		},
+		EnumBind: []any{
+			api.AllWeekdays,
+		},
 		LogLevel: logger.WARNING,
 	})
 

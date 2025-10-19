@@ -10,7 +10,7 @@ const props = defineProps<{
 }>()
 
 const date = ref<string>()
-const weekday = ref<string>()
+const weekday = ref<api.Weekday>()
 const customSchedule = ref<File>()
 
 const showError = ref(false)
@@ -26,6 +26,13 @@ const loading = ref(false)
 const disableDate = computed(() => !!(weekday.value || customSchedule.value))
 const disableWeekday = computed(() => !!date.value)
 const disableCustomSchedule = computed(() => !!date.value)
+
+const weekdayItems = computed(() => {
+  return Object.values(api.Weekday).map(item => ({
+    title: item[0].toUpperCase() + item.slice(1),
+    value: item,
+  }))
+})
 
 async function startSimulation() {
   loading.value = true
@@ -106,15 +113,7 @@ async function startSimulation() {
 
           <v-select
             v-model="weekday"
-            :items="[
-              'Monday',
-              'Tuesday',
-              'Wednesday',
-              'Thursday',
-              'Friday',
-              'Saturday',
-              'Sunday',
-            ]"
+            :items="weekdayItems"
             :disabled="disableWeekday"
             prepend-icon="mdi-view-week"
             label="Weekday"
