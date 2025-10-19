@@ -17,6 +17,7 @@ import (
 type Simulation struct {
 	apiClient         *api.APIClient
 	city              *city.City
+	ctx               context.Context
 	trams             map[uint]*tram.Tram
 	tramWorkersData   workerData[*tram.Tram, tram.TramPositionChange]
 	controlCenter     controlcenter.ControlCenter
@@ -30,6 +31,10 @@ func NewSimulation(apiClient *api.APIClient, city *city.City) Simulation {
 		apiClient: apiClient,
 		city:      city,
 	}
+}
+
+func (s *Simulation) SetContext(ctx context.Context) {
+	s.ctx = ctx
 }
 
 func (s *Simulation) tramWorker() {

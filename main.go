@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"embed"
 
 	"github.com/TNSEngineerEdition/WailsClient/pkg/api"
@@ -17,7 +18,6 @@ var assets embed.FS
 
 func main() {
 	// Create an instance of the app structure
-	app := NewApp()
 	apiClient := api.NewAPIClient()
 
 	city := city.City{}
@@ -31,9 +31,10 @@ func main() {
 		AssetServer: &assetserver.Options{
 			Assets: assets,
 		},
-		OnStartup: app.startup,
-		Bind: []interface{}{
-			app,
+		OnStartup: func(ctx context.Context) {
+			simulation.SetContext(ctx)
+		},
+		Bind: []any{
 			&apiClient,
 			&city,
 			&simulation,
