@@ -1,10 +1,15 @@
 package simulation
 
 import (
+	"archive/zip"
+	"context"
 	"fmt"
+	"io"
 	"math"
+	"os"
 	"runtime"
 	"slices"
+	"time"
 
 	"github.com/TNSEngineerEdition/WailsClient/pkg/api"
 	"github.com/TNSEngineerEdition/WailsClient/pkg/city"
@@ -12,6 +17,7 @@ import (
 	"github.com/TNSEngineerEdition/WailsClient/pkg/simulation/passenger"
 	"github.com/TNSEngineerEdition/WailsClient/pkg/simulation/tram"
 	"github.com/oapi-codegen/runtime/types"
+	wails_runtime "github.com/wailsapp/wails/v2/pkg/runtime"
 )
 
 type Simulation struct {
@@ -211,4 +217,34 @@ func (s *Simulation) GetArrivalsForStop(stopID uint64, count int) []Arrival {
 
 func (s *Simulation) GetRoutePolylines(lineName string) controlcenter.RoutePolylines {
 	return s.controlCenter.GetRoutePolylines(lineName)
+}
+
+func (s *Simulation) ExportToFile() string {
+	filename, err := wails_runtime.SaveFileDialog(s.ctx, wails_runtime.SaveDialogOptions{
+		DefaultFilename:      fmt.Sprintf("%s-%d.zip", s.city.CityID, time.Now().Unix()),
+		CanCreateDirectories: true,
+		Filters: []wails_runtime.FileFilter{
+			{DisplayName: "ZIP file", Pattern: "*.zip"},
+		},
+	})
+	if err != nil {
+		return err.Error()
+	}
+
+	file, err := os.Create(filename)
+	if err != nil {
+		return err.Error()
+	}
+	defer file.Close()
+
+	zipWriter := zip.NewWriter(file)
+	defer zipWriter.Close()
+
+	if tramZipFileWriter, err := zipWriter.Create("trams.csv"); err != nil {
+		return err.Error()
+	} else if _, err := io.Copy(tramZipFileWriter, tram.TramsToCSVBuffer(s.trams)); err != nil {
+		return err.Error()
+	}
+
+	return ""
 }

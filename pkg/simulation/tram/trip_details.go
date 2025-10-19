@@ -7,22 +7,22 @@ import (
 type tripDetails struct {
 	Trip                 *trip.TramTrip
 	Index                int
-	arrivals, departures []uint
+	Arrivals, Departures []uint
 }
 
 func newTripDetails(trip *trip.TramTrip) tripDetails {
 	return tripDetails{
 		Trip:       trip,
-		arrivals:   make([]uint, len(trip.Stops)),
-		departures: make([]uint, len(trip.Stops)),
+		Arrivals:   make([]uint, len(trip.Stops)),
+		Departures: make([]uint, len(trip.Stops)),
 	}
 }
 
 func (t *tripDetails) saveArrival(time uint) {
-	t.arrivals[t.Index] = time
+	t.Arrivals[t.Index] = time
 }
 
 func (t *tripDetails) saveDeparture(time uint) {
-	t.departures[t.Index] = time
+	t.Departures[t.Index] = time
 	t.Index += 1
 }

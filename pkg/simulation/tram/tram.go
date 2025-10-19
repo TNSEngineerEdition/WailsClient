@@ -159,13 +159,13 @@ func (t *Tram) unblockNodesBehind() {
 
 func (t *Tram) GetEstimatedArrival(stopIndex int, time uint) uint {
 	if t.TripDetails.Index > stopIndex || t.TripDetails.Index == stopIndex && t.IsAtStop() {
-		return t.TripDetails.arrivals[stopIndex]
+		return t.TripDetails.Arrivals[stopIndex]
 	}
 
 	// For not yet started trips, default to scheduled departure time
 	lastDeparture := t.TripDetails.Trip.Stops[0].Time
 	if t.TripDetails.Index > 0 {
-		lastDeparture = t.TripDetails.departures[t.TripDetails.Index-1]
+		lastDeparture = t.TripDetails.Departures[t.TripDetails.Index-1]
 	}
 
 	pathDistanceProgress := t.getTravelPath().GetProgressForIndex(t.pathIndex)
@@ -463,15 +463,15 @@ func (t *Tram) GetDetails(c *city.City, time uint) TramDetails {
 		stopNames[i] = stopsByID[stop.ID].GetName()
 	}
 
-	t.TripDetails.arrivals[t.TripDetails.Index] = t.GetEstimatedArrival(t.TripDetails.Index, time)
+	t.TripDetails.Arrivals[t.TripDetails.Index] = t.GetEstimatedArrival(t.TripDetails.Index, time)
 
 	return TramDetails{
 		Route:        t.Route.Name,
 		TripHeadSign: t.TripDetails.Trip.TripHeadSign,
 		TripIndex:    t.TripDetails.Index,
 		Stops:        t.TripDetails.Trip.Stops,
-		Arrivals:     t.TripDetails.arrivals,
-		Departures:   t.TripDetails.departures,
+		Arrivals:     t.TripDetails.Arrivals,
+		Departures:   t.TripDetails.Departures,
 		StopNames:    stopNames,
 		Speed:        t.getSpeed(),
 	}
