@@ -1,30 +1,41 @@
 <script lang="ts" setup>
+import { computed } from "vue"
 const props = defineProps<{
   running: boolean
   disabled?: boolean
 }>()
 
 const emit = defineEmits(["click"])
+
+const tramButtonLabel = computed(() => {
+  return props.disabled
+    ? "Unavailable"
+    : props.running
+      ? "Stop Tram"
+      : "Resume Tram"
+})
+const buttonColor = computed(() => {
+  return props.disabled ? undefined : props.running ? "red" : "green"
+})
+const iconName = computed(() => {
+  if (props.disabled) return "mdi-tram"
+  return props.running ? "mdi-pause" : "mdi-play"
+})
 </script>
 
 <template>
   <v-btn
-    :color="!props.disabled ? (props.running ? 'red' : 'green') : undefined"
+    :color="buttonColor"
     :disabled="props.disabled"
-    :class="props.disabled ? 'btn-disabled' : ''"
+    :class="props.disabled && 'btn-disabled'"
     variant="outlined"
     density="comfortable"
     size="default"
     rounded="lg"
     @click="emit('click')"
   >
-    {{
-      props.disabled
-        ? "Unavailable"
-        : props.running
-          ? "Stop Tram"
-          : "Resume Tram"
-    }}
+    <v-icon class="mr-2" size="20">{{ iconName }}</v-icon>
+    <span>{{ tramButtonLabel }}</span>
   </v-btn>
 </template>
 

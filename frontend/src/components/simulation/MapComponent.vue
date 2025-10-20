@@ -1,7 +1,7 @@
 <script lang="ts" setup>
 import { onMounted, ref, useTemplateRef, watch } from "vue"
 import { GetTimeBounds } from "@wails/go/city/City"
-import { city, api } from "@wails/go/models"
+import { city, api, tram as t } from "@wails/go/models"
 import { GetTramIDs, AdvanceTrams } from "@wails/go/simulation/Simulation"
 import { LeafletMap } from "@classes/LeafletMap"
 import { TramMarker } from "@classes/TramMarker"
@@ -9,7 +9,6 @@ import { Time } from "@classes/Time"
 import TramSidebarComponent from "@components/simulation/sidebar/TramSidebarComponent.vue"
 import StopSidebarComponent from "@components/simulation/sidebar/StopSidebarComponent.vue"
 import RouteSidebarComponent from "@components/simulation/sidebar/RouteSidebarComponent.vue"
-import { TramState } from "@models/types"
 
 const mapHTMLElement = useTemplateRef("map")
 
@@ -128,13 +127,13 @@ onMounted(async () => {
       }
 
       const isStopped =
-            tram.state === TramState.StateStopped ||
-            tram.state === TramState.StateStopping
-          tramMarkerByID.value[tram.id].updateCoordinates(
-            tram.lat,
-            tram.lon,
-            tram.azimuth,
-            isStopped,
+        tram.state === t.TramState.STOPPED ||
+        tram.state === t.TramState.STOPPING
+      tramMarkerByID.value[tram.id].updateCoordinates(
+        tram.lat,
+        tram.lon,
+        tram.azimuth,
+        isStopped,
       )
     }
 

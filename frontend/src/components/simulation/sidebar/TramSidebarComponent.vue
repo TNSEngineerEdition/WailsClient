@@ -6,7 +6,6 @@ import { tram } from "@wails/go/models"
 import { GetTramDetails, StopResumeTram } from "@wails/go/simulation/Simulation"
 import { computed, ref, watch } from "vue"
 import { TramMarker } from "@classes/TramMarker"
-import { TramState } from "@models/types"
 
 const model = defineModel<boolean>({ required: true })
 
@@ -47,17 +46,17 @@ const stopsTableData = computed(
     }) ?? [],
 )
 
-const tramRunning = computed(
+const isTramRunning = computed(
   () =>
-    tramDetails.value?.state !== TramState.StateStopped &&
-    tramDetails.value?.state !== TramState.StateStopping,
+    tramDetails.value?.state !== tram.TramState.STOPPED &&
+    tramDetails.value?.state !== tram.TramState.STOPPING,
 )
 
 const isTramDisabled = computed(() => {
   return (
     !props.tramId ||
-    tramDetails.value?.state === TramState.StateTripFinished ||
-    tramDetails.value?.state === TramState.StateTripNotStarted
+    tramDetails.value?.state === tram.TramState.TRIP_FINISHED ||
+    tramDetails.value?.state === tram.TramState.TRIP_NOT_STARTED
   )
 })
 
@@ -84,16 +83,15 @@ function getDelayTextColorClass(delay: number) {
 }
 
 async function stopResumeTram() {
-  if (isTramDisabled.value || !props.tramId) return
-  const s = tramDetails.value?.state
-  const shouldStop =
-    s !== TramState.StateStopped && s !== TramState.StateStopping
-  const updated = await StopResumeTram(props.tramId, shouldStop)
+  if (isTramDisabled.value) return
+
+  const updated = await StopResumeTram(props.tramId!)
   tramDetails.value = updated
+
   if (props.tramMarker) {
     const isStopped =
-      updated.state === TramState.StateStopped ||
-      updated.state === TramState.StateStopping
+      updated.state === tram.TramState.STOPPED ||
+      updated.state === tram.TramState.STOPPING
     props.tramMarker.setStopped(isStopped)
   }
 }
@@ -162,7 +160,7 @@ watch(
         Simulate failure
       </div>
       <TramControlButtonComponent
-        :running="tramRunning"
+        :running="isTramRunning"
         :disabled="isTramDisabled"
         @click="stopResumeTram"
       ></TramControlButtonComponent>

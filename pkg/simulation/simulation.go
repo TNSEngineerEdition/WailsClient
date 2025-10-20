@@ -155,12 +155,19 @@ func (s *Simulation) GetTramDetails(id uint) tram.TramDetails {
 	panic(fmt.Sprintf("Tram with ID %d not found", id))
 }
 
-func (s *Simulation) StopResumeTram(id uint, stopped bool) tram.TramDetails {
-	if tram, ok := s.trams[id]; ok {
-		tram.StopResumeTram(stopped, s.time)
-		return tram.GetDetails(s.city, s.time)
+func (s *Simulation) StopResumeTram(id uint) tram.TramDetails {
+	tram, ok := s.trams[id]
+	if !ok {
+		panic(fmt.Sprintf("StopResumeTram: tram with ID %d not found", id))
 	}
-	return tram.TramDetails{}
+
+	if tram.IsStopped() {
+		tram.ResumeTram(s.time)
+	} else {
+		tram.StopTram()
+	}
+
+	return tram.GetDetails(s.city, s.time)
 }
 
 type Arrival struct {

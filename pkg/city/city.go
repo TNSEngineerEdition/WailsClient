@@ -80,7 +80,7 @@ func (c *City) FetchCity(
 
 func (c *City) Reset() {
 	for _, node := range c.nodesByID {
-		node.Unblock(0)
+		node.ForceUnblock()
 	}
 
 	c.plannedArrivals = c.GetInitialPlannedArrivals()

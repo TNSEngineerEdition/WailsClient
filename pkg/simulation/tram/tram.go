@@ -27,7 +27,6 @@ type Tram struct {
 	isFinished          bool
 	state               TramState
 	prevState           TramState
-	useBrake            bool
 }
 
 func NewTram(
@@ -49,9 +48,11 @@ func NewTram(
 }
 
 func (t *Tram) IsAtStop() bool {
-	return t.state == StatePassengerLoading ||
-		t.state == StatePassengerUnloading ||
-		(t.state == StateStopped && (t.prevState == StatePassengerLoading || t.prevState == StatePassengerUnloading))
+	if t.state == StateStopped {
+		return t.prevState == StatePassengerLoading || t.prevState == StatePassengerUnloading
+	}
+
+	return t.state == StatePassengerLoading || t.state == StatePassengerUnloading
 }
 
 func (t *Tram) getTravelPath() *controlcenter.Path {
@@ -380,7 +381,7 @@ func (t *Tram) updateSpeedAndReserveNodes(path *controlcenter.Path) (availableDi
 		)
 	}
 
-	if t.useBrake {
+	if t.state == StateStopping {
 		if distToStop == 0 || 1e-3 < distToStop {
 			distToStop = 1e-3
 		}
@@ -427,7 +428,7 @@ func (t *Tram) onTravelling(time uint) (result TramPositionChange, update bool) 
 			t.TripDetails.Trip.Stops[t.TripDetails.Index].Time,
 			time+uint(rand.IntN(11))+15,
 		)
-		if t.useBrake {
+		if t.state == StateStopping {
 			t.prevState = StatePassengerUnloading
 			t.state = StateStopped
 			t.unblockNodesAhead()
@@ -435,7 +436,7 @@ func (t *Tram) onTravelling(time uint) (result TramPositionChange, update bool) 
 			t.state = StatePassengerUnloading
 		}
 	} else {
-		if t.useBrake && t.speed <= 0.01 {
+		if t.state == StateStopping && t.speed <= 0.01 {
 			t.prevState = StateTravelling
 			t.state = StateStopped
 			t.unblockNodesAhead()
@@ -466,10 +467,7 @@ func (t *Tram) Advance(time uint, stopsByID map[uint64]*graph.GraphTramStop) (re
 		result, update = t.onTravelling(time)
 	case StateTripFinished:
 		result, update = t.onTripFinished()
-	case StateStopped:
-		return
 	}
-
 	return
 }
 
@@ -515,33 +513,31 @@ func (t *Tram) GetDetails(c *city.City, time uint) TramDetails {
 	}
 }
 
-func (t *Tram) StopResumeTram(stopped bool, currentTime uint) {
-	if stopped {
-		t.useBrake = true
+func (t *Tram) IsStopped() bool {
+	return t.state == StateStopped || t.state == StateStopping
+}
 
-		switch t.state {
-		case StateTravelling, StateStopping:
-			t.prevState = t.state
-			t.state = StateStopping
-		case StatePassengerLoading, StatePassengerUnloading:
-			t.prevState = t.state
-			t.state = StateStopped
-			t.unblockNodesAhead()
-		case StateTripNotStarted, StateTripFinished, StateStopped:
+func (t *Tram) StopTram() {
+	switch t.state {
+	case StateTravelling, StateStopping:
+		t.prevState = t.state
+		t.state = StateStopping
+	case StatePassengerLoading, StatePassengerUnloading:
+		t.prevState = t.state
+		t.state = StateStopped
+		t.unblockNodesAhead()
+	}
+}
+func (t *Tram) ResumeTram(currentTime uint) {
+	switch t.prevState {
+	case StatePassengerLoading:
+		t.state = StatePassengerLoading
+		if t.departureTime < currentTime {
+			t.departureTime = currentTime + 1
 		}
-	} else {
-		t.useBrake = false
-
-		switch t.prevState {
-		case StatePassengerLoading:
-			t.state = StatePassengerLoading
-			if t.departureTime < currentTime {
-				t.departureTime = currentTime + 1
-			}
-		case StatePassengerUnloading:
-			t.state = StatePassengerUnloading
-		default:
-			t.state = StateTravelling
-		}
+	case StatePassengerUnloading:
+		t.state = StatePassengerUnloading
+	default:
+		t.state = StateTravelling
 	}
 }
