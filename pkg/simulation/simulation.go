@@ -4,7 +4,6 @@ import (
 	"archive/zip"
 	"context"
 	"fmt"
-	"io"
 	"math"
 	"os"
 	"runtime"
@@ -242,7 +241,7 @@ func (s *Simulation) ExportToFile() string {
 
 	if tramZipFileWriter, err := zipWriter.Create("trams.csv"); err != nil {
 		return err.Error()
-	} else if _, err := io.Copy(tramZipFileWriter, tram.TramsToCSVBuffer(s.trams)); err != nil {
+	} else if err := tram.TramsToCSVBuffer(s.trams, tramZipFileWriter); err != nil {
 		return err.Error()
 	}
 
