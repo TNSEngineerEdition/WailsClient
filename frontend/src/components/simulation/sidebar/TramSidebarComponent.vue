@@ -115,6 +115,7 @@ watch(
       </div>
       <div class="value">{{ tramDetails?.speed }} km/h</div>
     </div>
+
     <div class="section">
       <div class="label">
         <v-icon icon="mdi-account-group" class="mr-2"></v-icon>
