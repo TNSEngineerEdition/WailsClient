@@ -14,6 +14,7 @@ import (
 
 const MAX_ACCELERATION = 1.0
 
+// TODO: remove alreadyUnloadedIDS when passenger strategies are implemented, probably it will not be needed
 type Tram struct {
 	ID                  uint
 	pathIndex           int
@@ -27,9 +28,9 @@ type Tram struct {
 	departureTime       uint
 	isFinished          bool
 	state               TramState
-	passengersInTram    []*passenger.Passenger
+	passengersInTram    map[uint64]*passenger.Passenger
 	passengersStore     *passenger.PassengersStore
-	alreadyBoardedIDS   []uint64
+	alreadyUnloadedIDS  []uint64
 }
 
 func NewTram(
@@ -41,14 +42,15 @@ func NewTram(
 ) *Tram {
 	startTime := uint(trip.Stops[0].Time)
 	return &Tram{
-		ID:              id,
-		length:          30,
-		Route:           route,
-		TripDetails:     newTripDetails(trip),
-		departureTime:   startTime - uint(rand.IntN(11)) - 15,
-		state:           StateTripNotStarted,
-		controlCenter:   controlCenter,
-		passengersStore: passengersStore,
+		ID:               id,
+		length:           30,
+		Route:            route,
+		TripDetails:      newTripDetails(trip),
+		departureTime:    startTime - uint(rand.IntN(11)) - 15,
+		state:            StateTripNotStarted,
+		controlCenter:    controlCenter,
+		passengersStore:  passengersStore,
+		passengersInTram: make(map[uint64]*passenger.Passenger),
 	}
 }
 
@@ -237,21 +239,20 @@ func (t *Tram) onTripNotStarted(
 }
 
 func (t *Tram) boardAllFromStop(stopID uint64) {
-	boarded := t.passengersStore.BoardAllFromStop(stopID, t.alreadyBoardedIDS)
-	t.passengersInTram = append(t.passengersInTram, boarded...)
+	boarded := t.passengersStore.BoardAllFromStop(stopID, t.alreadyUnloadedIDS)
+	for _, p := range boarded {
+		t.passengersInTram[p.ID] = p
+	}
 }
 
 func (t *Tram) unloadAllFromTram(stopID uint64) {
-	passengersToUnload := t.passengersInTram
-	for _, p := range passengersToUnload {
-		t.alreadyBoardedIDS = append(t.alreadyBoardedIDS, p.ID)
+	passengersToUnload := make([]*passenger.Passenger, 0, len(t.passengersInTram))
+	for id, p := range t.passengersInTram {
+		passengersToUnload = append(passengersToUnload, p)
+		t.alreadyUnloadedIDS = append(t.alreadyUnloadedIDS, id)
+		delete(t.passengersInTram, id)
 	}
 	t.passengersStore.UnloadAllToStop(stopID, passengersToUnload)
-
-	for i := range t.passengersInTram {
-		t.passengersInTram[i] = nil
-	}
-	t.passengersInTram = t.passengersInTram[:0]
 }
 
 func (t *Tram) onPassengerLoading(time uint) {
@@ -268,7 +269,7 @@ func (t *Tram) onPassengerLoading(time uint) {
 		t.TripDetails.saveDeparture(time)
 		t.pathIndex = 0
 		t.state = StateTravelling
-		t.alreadyBoardedIDS = t.alreadyBoardedIDS[:0]
+		t.alreadyUnloadedIDS = nil
 	}
 }
 
@@ -475,14 +476,15 @@ func (t *Tram) getSpeed() uint8 {
 }
 
 type TramDetails struct {
-	Route        string                     `json:"route"`
-	TripHeadSign string                     `json:"trip_head_sign"`
-	TripIndex    int                        `json:"trip_index"`
-	Stops        []api.ResponseTramTripStop `json:"stops"`
-	Arrivals     []uint                     `json:"arrivals"`
-	Departures   []uint                     `json:"departures"`
-	StopNames    []string                   `json:"stop_names"`
-	Speed        uint8                      `json:"speed"`
+	Route           string                     `json:"route"`
+	TripHeadSign    string                     `json:"trip_head_sign"`
+	TripIndex       int                        `json:"trip_index"`
+	Stops           []api.ResponseTramTripStop `json:"stops"`
+	Arrivals        []uint                     `json:"arrivals"`
+	Departures      []uint                     `json:"departures"`
+	StopNames       []string                   `json:"stop_names"`
+	Speed           uint8                      `json:"speed"`
+	PassengersCount int                        `json:"passengers_count"`
 }
 
 func (t *Tram) GetDetails(c *city.City, time uint) TramDetails {
@@ -496,13 +498,14 @@ func (t *Tram) GetDetails(c *city.City, time uint) TramDetails {
 	t.TripDetails.arrivals[t.TripDetails.Index] = t.GetEstimatedArrival(t.TripDetails.Index, time)
 
 	return TramDetails{
-		Route:        t.Route.Name,
-		TripHeadSign: t.TripDetails.Trip.TripHeadSign,
-		TripIndex:    t.TripDetails.Index,
-		Stops:        t.TripDetails.Trip.Stops,
-		Arrivals:     t.TripDetails.arrivals,
-		Departures:   t.TripDetails.departures,
-		StopNames:    stopNames,
-		Speed:        t.getSpeed(),
+		Route:           t.Route.Name,
+		TripHeadSign:    t.TripDetails.Trip.TripHeadSign,
+		TripIndex:       t.TripDetails.Index,
+		Stops:           t.TripDetails.Trip.Stops,
+		Arrivals:        t.TripDetails.arrivals,
+		Departures:      t.TripDetails.departures,
+		StopNames:       stopNames,
+		Speed:           t.getSpeed(),
+		PassengersCount: len(t.passengersInTram),
 	}
 }
