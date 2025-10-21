@@ -74,7 +74,24 @@ export class TramMarker extends Marker {
     }
   }
 
-  public updateCoordinates(lat: number, lon: number, azimuth: number) {
+  public setStopped(isStopped: boolean) {
+    const element =
+      this.getElement()?.querySelector<HTMLElement>(".tram-marker")
+    if (!element) return
+
+    if (isStopped) {
+      element.classList.add("stopped")
+    } else {
+      element.classList.remove("stopped")
+    }
+  }
+
+  public updateCoordinates(
+    lat: number,
+    lon: number,
+    azimuth: number,
+    isStopped?: boolean,
+  ) {
     if (!this.isOnMap) {
       this.leafletMap.addTram(this)
       this.isOnMap = true
@@ -82,6 +99,9 @@ export class TramMarker extends Marker {
     this.setHighlighted(this.route === this.leafletMap.selectedRouteName)
     this.setLatLng([lat, lon])
     this.setAzimuth(azimuth)
+    if (isStopped !== undefined) {
+      this.setStopped(isStopped)
+    }
   }
 
   public removeFromMap() {

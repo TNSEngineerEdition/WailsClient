@@ -18,7 +18,7 @@
       "@composables/*": ["./src/composables/*"],
       "@components/*": ["./src/components/*"],
       "@plugins/*": ["./src/plugins/*"],
-      "@assets/*": ["./src/assets/*"]
+      "@assets/*": ["./src/assets/*"],
     }
   },
   "include": ["src/**/*.ts", "src/**/*.d.ts", "src/**/*.tsx", "src/**/*.vue"],

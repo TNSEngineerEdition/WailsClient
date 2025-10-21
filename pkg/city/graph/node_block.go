@@ -7,6 +7,7 @@ import (
 type NodeBlocker interface {
 	TryBlocking(tramID uint) bool
 	Unblock(tramID uint)
+	ForceUnblock()
 }
 
 type NodeBlock struct {
@@ -29,12 +30,20 @@ func (g *NodeBlock) TryBlocking(tramID uint) bool {
 	return true
 }
 
-func (g *NodeBlock) Unblock(tramID uint) {
+func (g *NodeBlock) unblock(condition bool) {
 	g.mu.Lock()
 	defer g.mu.Unlock()
 
-	if g.isBlocked || g.blockingTramID == tramID {
+	if g.isBlocked && condition {
 		g.isBlocked = false
 		g.blockingTramID = 0
 	}
+}
+
+func (g *NodeBlock) Unblock(tramID uint) {
+	g.unblock(g.blockingTramID == tramID)
+}
+
+func (g *NodeBlock) ForceUnblock() {
+	g.unblock(true)
 }
