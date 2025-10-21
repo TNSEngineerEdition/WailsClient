@@ -381,10 +381,8 @@ func (t *Tram) updateSpeedAndReserveNodes(path *controlcenter.Path) (availableDi
 		)
 	}
 
-	if t.state == StateStopping {
-		if distToStop == 0 || 1e-3 < distToStop {
-			distToStop = 1e-3
-		}
+	if t.state == StateStopping && (distToStop == 0 || 1e-3 < distToStop) {
+		distToStop = 1e-3
 	}
 
 	var nextSpeed float32
@@ -435,12 +433,10 @@ func (t *Tram) onTravelling(time uint) (result TramPositionChange, update bool) 
 		} else {
 			t.state = StatePassengerUnloading
 		}
-	} else {
-		if t.state == StateStopping && t.speed <= 0.01 {
-			t.prevState = StateTravelling
-			t.state = StateStopped
-			t.unblockNodesAhead()
-		}
+	} else if t.state == StateStopping && t.speed <= 0.01 {
+		t.prevState = StateTravelling
+		t.state = StateStopped
+		t.unblockNodesAhead()
 	}
 
 	result = TramPositionChange{
@@ -528,6 +524,7 @@ func (t *Tram) StopTram() {
 		t.unblockNodesAhead()
 	}
 }
+
 func (t *Tram) ResumeTram(currentTime uint) {
 	switch t.prevState {
 	case StatePassengerLoading:

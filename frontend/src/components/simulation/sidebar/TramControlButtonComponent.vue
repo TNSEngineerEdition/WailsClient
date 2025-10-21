@@ -8,15 +8,14 @@ const props = defineProps<{
 const emit = defineEmits(["click"])
 
 const tramButtonLabel = computed(() => {
-  return props.disabled
-    ? "Unavailable"
-    : props.running
-      ? "Stop Tram"
-      : "Resume Tram"
+  if (props.disabled) return "Unavailable"
+  return props.running ? "Stop Tram" : "Resume Tram"
 })
+
 const buttonColor = computed(() => {
   return props.disabled ? undefined : props.running ? "red" : "green"
 })
+
 const iconName = computed(() => {
   if (props.disabled) return "mdi-tram"
   return props.running ? "mdi-pause" : "mdi-play"

@@ -1,7 +1,7 @@
 <script lang="ts" setup>
 import { onMounted, ref, useTemplateRef, watch } from "vue"
 import { GetTimeBounds } from "@wails/go/city/City"
-import { city, api, tram as t } from "@wails/go/models"
+import { city, api, tram } from "@wails/go/models"
 import { GetTramIDs, AdvanceTrams } from "@wails/go/simulation/Simulation"
 import { LeafletMap } from "@classes/LeafletMap"
 import { TramMarker } from "@classes/TramMarker"
@@ -120,19 +120,19 @@ onMounted(async () => {
       await Time.sleep(1)
     }
 
-    for (const tram of await AdvanceTrams(time.value)) {
-      if (tram.lat == 0 && tram.lon == 0) {
-        tramMarkerByID.value[tram.id].removeFromMap()
+    for (const tramPositionChange of await AdvanceTrams(time.value)) {
+      if (tramPositionChange.lat == 0 && tramPositionChange.lon == 0) {
+        tramMarkerByID.value[tramPositionChange.id].removeFromMap()
         continue
       }
 
       const isStopped =
-        tram.state === t.TramState.STOPPED ||
-        tram.state === t.TramState.STOPPING
-      tramMarkerByID.value[tram.id].updateCoordinates(
-        tram.lat,
-        tram.lon,
-        tram.azimuth,
+        tramPositionChange.state === tram.TramState.STOPPED ||
+        tramPositionChange.state === tram.TramState.STOPPING
+      tramMarkerByID.value[tramPositionChange.id].updateCoordinates(
+        tramPositionChange.lat,
+        tramPositionChange.lon,
+        tramPositionChange.azimuth,
         isStopped,
       )
     }
