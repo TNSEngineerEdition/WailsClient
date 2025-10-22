@@ -13,6 +13,7 @@ import (
 )
 
 type City struct {
+	CityID          string
 	tramRoutes      []trip.TramRoute
 	nodesByID       map[uint64]graph.GraphNode
 	stopsByID       map[uint64]*graph.GraphTramStop
@@ -72,6 +73,7 @@ func (c *City) FetchCity(
 		}
 	}
 
+	c.CityID = cityID
 	c.routesByStopID = c.GetRoutesByStopID()
 	c.Reset()
 

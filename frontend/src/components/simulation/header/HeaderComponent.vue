@@ -5,6 +5,7 @@ import useCycle from "@composables/useCycle"
 import { ResetSimulation } from "@wails/go/simulation/Simulation"
 import HeaderRestartConfirmationDialogComponent from "@components/simulation/header/HeaderRestartConfirmationDialogComponent.vue"
 import useTimer from "@composables/useTimer"
+import { ExportToFile } from "@wails/go/simulation/Simulation"
 
 const props = defineProps<{
   time: number
@@ -38,6 +39,14 @@ async function reset() {
   timer.reset()
   await ResetSimulation()
   resetCounter.value++
+}
+
+async function exportData() {
+  const error = await ExportToFile()
+
+  if (error) {
+    console.error(error)
+  }
 }
 </script>
 
@@ -84,7 +93,20 @@ async function reset() {
 
       <v-col cols="4">
         <div class="d-flex justify-end align-center h-100">
-          <v-btn prepend-icon="mdi-backburger" to="/">Menu</v-btn>
+          <v-btn
+            :disabled="isRunning"
+            text="Export"
+            class="mx-1"
+            prepend-icon="mdi-file-export"
+            @click="exportData"
+          ></v-btn>
+
+          <v-btn
+            text="Menu"
+            class="mx-1"
+            prepend-icon="mdi-backburger"
+            to="/"
+          ></v-btn>
         </div>
       </v-col>
     </v-row>
