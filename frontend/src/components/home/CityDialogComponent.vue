@@ -1,7 +1,10 @@
 <script setup lang="ts">
 import router from "@plugins/router"
 import { api, simulation } from "@wails/go/models"
-import { InitializeSimulation } from "@wails/go/simulation/Simulation"
+import {
+  InitializeCityData,
+  InitializeSimulation,
+} from "@wails/go/simulation/Simulation"
 import { computed, ref } from "vue"
 import ErrorDialogComponent from "@components/home/ErrorDialogComponent.vue"
 
@@ -27,7 +30,7 @@ const disableDate = computed(() => !!(weekday.value || customSchedule.value))
 const disableWeekday = computed(() => !!date.value)
 const disableCustomSchedule = computed(() => !!date.value)
 
-async function startSimulation() {
+async function handleButtonClick(isCustomizeMap: boolean) {
   loading.value = true
 
   const parameters = new simulation.SimulationParameters({
@@ -37,11 +40,24 @@ async function startSimulation() {
     customSchedule: Array.from((await customSchedule.value?.bytes()) ?? []),
   })
 
-  const errorMessage = await InitializeSimulation(parameters)
-  if (errorMessage) {
+  const dataErrorMessage = await InitializeCityData(parameters)
+  if (dataErrorMessage) {
     loading.value = false
     showError.value = true
-    error.value = errorMessage
+    error.value = dataErrorMessage
+    return
+  }
+
+  if (isCustomizeMap) {
+    router.push("/customize-map")
+    return
+  }
+
+  const simulationErrorMessage = await InitializeSimulation(0)
+  if (simulationErrorMessage) {
+    loading.value = false
+    showError.value = true
+    error.value = simulationErrorMessage
     return
   }
 
@@ -88,13 +104,7 @@ async function startSimulation() {
       </template>
 
       <v-card-text>
-        <v-form>
-          <v-switch
-            class="d-flex flex-column align-center"
-            label="Customize speed limits"
-            disabled
-          ></v-switch>
-
+        <v-form :disabled="loading">
           <v-select
             v-model="date"
             :items="props.city.availableDates"
@@ -140,11 +150,27 @@ async function startSimulation() {
 
       <template v-slot:actions>
         <v-btn
+          text="Customize speeds"
+          :disabled="loading"
+          :loading="loading"
+          style="width: 50%"
+          @click="
+            () => {
+              handleButtonClick(true)
+            }
+          "
+        >
+        </v-btn>
+        <v-btn
           text="Start"
           :disabled="loading"
           :loading="loading"
-          block
-          @click="startSimulation"
+          style="width: 50%"
+          @click="
+            () => {
+              handleButtonClick(false)
+            }
+          "
         ></v-btn>
       </template>
     </v-card>

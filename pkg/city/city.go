@@ -13,6 +13,7 @@ import (
 )
 
 type City struct {
+	cityID          string
 	tramRoutes      []trip.TramRoute
 	nodesByID       map[uint64]graph.GraphNode
 	stopsByID       map[uint64]*graph.GraphTramStop
@@ -56,6 +57,8 @@ func (c *City) FetchCity(
 		return err
 	}
 
+	c.cityID = cityID
+
 	c.tramRoutes = trip.TramTripsFromCityData(responseCityData)
 
 	if nodesByID, err := graph.GraphNodesFromCityData(responseCityData); err == nil {
@@ -84,6 +87,10 @@ func (c *City) Reset() {
 	}
 
 	c.plannedArrivals = c.GetInitialPlannedArrivals()
+}
+
+func (c *City) GetCityID() string {
+	return c.cityID
 }
 
 func (c *City) GetNodesByID() map[uint64]graph.GraphNode {
@@ -327,12 +334,10 @@ type Modifications struct {
 func (c *City) UpdateTramTrackGraph(modifiedNodes map[uint64]Modifications) {
 	for nodeID, mods := range modifiedNodes {
 		if node, ok := c.nodesByID[nodeID]; ok {
+			//fmt.Printf("Type of node %d: %T\n", nodeID, node)
 			for neighborID, maxSpeed := range mods.NeighborMaxSpeed {
-				if nodeNeighbor, ok := node.GetNeighbors()[neighborID]; ok {
-					nodeNeighbor.MaxSpeed = maxSpeed
-					// TODO: this needs an update
-					// node.GetNeighbors()[neighborID] = nodeNeighbor
-				}
+				//fmt.Printf("Calling updates for node: %d and neighbor: %d\n", nodeID, neighborID)
+				node.UpdateMaxSpeed(neighborID, maxSpeed)
 			}
 		}
 	}

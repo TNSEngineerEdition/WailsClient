@@ -1,5 +1,6 @@
 import { modifiedNodes as reactiveModifiedNodes } from "@composables/store"
 import { GetBounds, GetCityRectangles } from "@wails/go/city/City"
+import { city } from "@wails/go/models"
 import L, {
   LatLngBounds,
   LatLngExpression,
@@ -7,6 +8,9 @@ import L, {
   tileLayer,
 } from "leaflet"
 
+//
+// TYPES
+//
 type GraphNeighbor = {
   id: number
   distance: number
@@ -15,22 +19,38 @@ type GraphNeighbor = {
 }
 
 type GraphNode = {
-  id: number
-  lat: number
-  lon: number
-  neighbors: Record<number, GraphNeighbor>
-  name?: string
+  details: {
+    id: number
+    lat: number
+    lon: number
+    neighbors: Record<number, GraphNeighbor>
+
+    // tram stop specific
+    gtfs_stop_ids?: string[]
+    name?: string
+    node_type?: string
+  }
 }
 
-export class LeafletEditMap {
+type CityRectangles = {
+  bounds: city.CityRectangle["bounds"]
+  nodes_by_id: Record<number, GraphNode>
+}
+
+//
+// CLASS
+//
+export class LeafletCustomizeMap {
   private tracksLayer = L.layerGroup()
   private selectedRectangle: L.Rectangle | null = null
 
-  // path selection
   private selectionStart: number | null = null
   private selectionEnd: number | null = null
   private selectedNodes: number[] = []
 
+  //
+  // METHODS
+  //
   constructor(
     private map: LMap,
     private modifiedNodes: typeof reactiveModifiedNodes,
@@ -42,7 +62,7 @@ export class LeafletEditMap {
     mapHTMLElement: HTMLElement,
     modifiedNodes: typeof reactiveModifiedNodes,
   ) {
-    const leafletEditMap = new LeafletEditMap(
+    const leafletCustomizeMap = new LeafletCustomizeMap(
       await GetBounds()
         .then(
           bounds =>
@@ -62,49 +82,54 @@ export class LeafletEditMap {
       modifiedNodes,
     )
 
-    const rectangles = await GetCityRectangles()
+    const rectangles: CityRectangles[] = await GetCityRectangles()
 
     for (const { bounds, nodes_by_id: nodes } of rectangles) {
-      const { minLat, minLon, maxLat, maxLon } = bounds
-
-      const rectangle = L.rectangle(
-        [
-          [minLat, minLon],
-          [maxLat, maxLon],
-        ],
-        {
-          fillColor: "white",
-          fillOpacity: 0.3,
-          color: "black",
-          weight: 1,
-          opacity: 1,
-        },
-      )
-
-      rectangle.on("click", () => {
-        if (leafletEditMap.selectedRectangle) {
-          leafletEditMap.map.addLayer(leafletEditMap.selectedRectangle)
-        }
-
-        leafletEditMap.map.removeLayer(rectangle)
-        leafletEditMap.selectedRectangle = rectangle
-
-        leafletEditMap.tracksLayer.clearLayers()
-        leafletEditMap.drawTracks(nodes)
-      })
-
-      rectangle.addTo(leafletEditMap.map)
+      leafletCustomizeMap.drawRectangle(bounds, nodes)
     }
 
     tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
       maxZoom: 19,
       attribution: `&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>`,
-    }).addTo(leafletEditMap.map)
+    }).addTo(leafletCustomizeMap.map)
 
-    return leafletEditMap
+    return leafletCustomizeMap
   }
 
-  private drawTracks(nodes: Record<number, GraphNode>): void {
+  private drawRectangle(
+    bounds: city.LatLonBounds,
+    nodes: Record<number, GraphNode>,
+  ) {
+    const { minLat, minLon, maxLat, maxLon } = bounds
+
+    const rectangle = L.rectangle(
+      [
+        [minLat, minLon],
+        [maxLat, maxLon],
+      ],
+      {
+        fillColor: "white",
+        fillOpacity: 0.3,
+        color: "black",
+        weight: 1,
+        opacity: 1,
+      },
+    )
+
+    rectangle.on("click", () => {
+      if (this.selectedRectangle) this.map.addLayer(this.selectedRectangle)
+
+      this.map.removeLayer(rectangle)
+      this.selectedRectangle = rectangle
+
+      this.tracksLayer.clearLayers()
+      this.drawTracks(nodes)
+    })
+
+    rectangle.addTo(this.map)
+  }
+
+  private drawTracks(nodes: Record<number, GraphNode>) {
     this.selectionStart = null
     this.selectionEnd = null
     this.selectedNodes = []
@@ -112,25 +137,26 @@ export class LeafletEditMap {
     for (const [nodeIDstr, node] of Object.entries(nodes)) {
       const nodeID = Number(nodeIDstr)
 
-      for (const neighborIDstr in node.neighbors) {
+      for (const neighborIDstr in node.details.neighbors) {
         if (!(neighborIDstr in nodes)) continue
 
         const neighborID = Number(neighborIDstr)
         const neighbor = nodes[neighborID]
 
         const latlngs = [
-          [node.lat, node.lon],
-          [neighbor.lat, neighbor.lon],
+          [node.details.lat, node.details.lon],
+          [neighbor.details.lat, neighbor.details.lon],
         ] as LatLngExpression[]
 
         const maxSpeed =
           this.modifiedNodes[nodeID]?.neighborMaxSpeed[neighborID] ??
-          node.neighbors[neighborID].max_speed
+          node.details.neighbors[neighborID].max_speed
 
         const polylineOptions = {
           weight: 4,
           color: this.getColorForSpeed(maxSpeed),
           fill: false,
+          smoothFactor: 3,
         } satisfies L.PolylineOptions
 
         const polyline = L.polyline(latlngs, polylineOptions)
@@ -140,7 +166,7 @@ export class LeafletEditMap {
             this.selectionStart = nodeID
           } else {
             this.selectionEnd = this.findSelectionEnd(nodeID, nodes)
-            this.findPath(nodes)
+            this.findPathBetweenNodes(nodes)
 
             if (this.selectedNodes.length > 0) {
               this.highlightPath(nodes)
@@ -169,23 +195,35 @@ export class LeafletEditMap {
     let node = nodes[Number(this.selectionStart)]
 
     while (true) {
-      if (node.id === selectedNodeID) {
+      // the same node
+      if (node.details.id === selectedNodeID) {
         console.log("cond 1")
         break
       }
+
+      // switch or crossing
       if (
-        Object.keys(node.neighbors).length != 1 &&
-        node.id !== this.selectionStart
+        Object.keys(node.details.neighbors).length != 1 &&
+        node.details.id !== this.selectionStart
       ) {
         console.log("cond 2")
         break
       }
-      if (node.name !== null && node.id !== this.selectionStart) {
-        console.log("cond 3", node.name)
+
+      // tram stop
+      if (
+        node.details.node_type &&
+        node.details.node_type === "stop" &&
+        node.details.id !== this.selectionStart
+      ) {
+        console.log("cond 3", "details below")
+        console.log(node.details)
+        console.log(this.selectionStart)
         break
       }
 
-      const neighborID = Object.keys(node.neighbors)[0]
+      // out of rectangle bounds
+      const neighborID = Object.keys(node.details.neighbors)[0]
       if (!(neighborID in nodes)) {
         console.log("cond 4")
         break
@@ -194,10 +232,10 @@ export class LeafletEditMap {
       node = nodes[Number(neighborID)]
     }
 
-    return node.id
+    return node.details.id
   }
 
-  private findPath(nodes: Record<number, GraphNode>): void {
+  private findPathBetweenNodes(nodes: Record<number, GraphNode>) {
     if (!this.selectionStart || !this.selectionEnd)
       throw new Error("Nodes are not selected")
 
@@ -205,28 +243,28 @@ export class LeafletEditMap {
     let node = nodes[this.selectionStart]
 
     if (this.selectionStart === this.selectionEnd) {
-      this.selectedNodes = [node.id]
+      this.selectedNodes = [node.details.id]
       return
     }
 
     while (true) {
-      this.selectedNodes.push(node.id)
+      this.selectedNodes.push(node.details.id)
 
-      if (node.id === this.selectionEnd) break
+      if (node.details.id === this.selectionEnd) break
 
-      const nextNodeID = Object.keys(node.neighbors)[0]
+      const nextNodeID = Object.keys(node.details.neighbors)[0]
       node = nodes[Number(nextNodeID)]
     }
   }
 
-  private highlightPath(nodes: Record<number, GraphNode>): void {
+  private highlightPath(nodes: Record<number, GraphNode>) {
     this.tracksLayer.clearLayers()
 
     const latlngs: LatLngExpression[] = []
 
     this.selectedNodes.forEach(nodeID => {
       const node = nodes[nodeID]
-      latlngs.push([node.lat, node.lon])
+      latlngs.push([node.details.lat, node.details.lon])
     })
 
     const polyline = L.polyline(latlngs, {
@@ -261,7 +299,9 @@ export class LeafletEditMap {
             const nextNodeID = Number(this.selectedNodes[i + 1])
 
             if (!this.modifiedNodes[nodeID]) {
-              this.modifiedNodes[nodeID] = { neighborMaxSpeed: {} }
+              this.modifiedNodes[nodeID] = {
+                neighborMaxSpeed: {},
+              }
             }
             this.modifiedNodes[nodeID].neighborMaxSpeed[nextNodeID] =
               newSpeedValue

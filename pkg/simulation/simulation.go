@@ -67,14 +67,13 @@ func (s *Simulation) ResetSimulation() {
 }
 
 type SimulationParameters struct {
-	CityID          string       `json:"cityID"`
-	TramWorkerCount uint         `json:"tramWorkerCount,omitempty"`
-	Weekday         *api.Weekday `json:"weekday,omitempty"`
-	Date            *types.Date  `json:"date,omitempty"`
-	CustomSchedule  []byte       `json:"customSchedule,omitempty"`
+	CityID         string       `json:"cityID"`
+	Weekday        *api.Weekday `json:"weekday,omitempty"`
+	Date           *types.Date  `json:"date,omitempty"`
+	CustomSchedule []byte       `json:"customSchedule,omitempty"`
 }
 
-func (s *Simulation) InitializeSimulation(parameters SimulationParameters) string {
+func (s *Simulation) InitializeCityData(parameters SimulationParameters) string {
 	err := s.city.FetchCity(
 		s.apiClient,
 		parameters.CityID,
@@ -89,18 +88,26 @@ func (s *Simulation) InitializeSimulation(parameters SimulationParameters) strin
 		return err.Error()
 	}
 
+	return ""
+}
+
+func (s *Simulation) InitializeSimulation(tramWorkerCount uint) string {
+	if s.city.GetCityID() == "" {
+		panic("City data is not fetched")
+	}
+
 	s.controlCenter = controlcenter.NewControlCenter(s.city)
 	s.ResetSimulation()
 	s.tramWorkersData.reset(len(s.trams))
 
 	s.initialPassengers = passenger.CreatePassengers(s.city)
 
-	if parameters.TramWorkerCount == 0 {
+	if tramWorkerCount == 0 {
 		// CPU count * 110% for more efficiency
-		parameters.TramWorkerCount = uint(runtime.NumCPU()) * 11 / 10
+		tramWorkerCount = uint(runtime.NumCPU()) * 11 / 10
 	}
 
-	for range parameters.TramWorkerCount {
+	for range tramWorkerCount {
 		go s.tramWorker()
 	}
 
