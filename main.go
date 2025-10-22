@@ -7,6 +7,7 @@ import (
 	"github.com/TNSEngineerEdition/WailsClient/pkg/api"
 	"github.com/TNSEngineerEdition/WailsClient/pkg/city"
 	"github.com/TNSEngineerEdition/WailsClient/pkg/simulation"
+	"github.com/TNSEngineerEdition/WailsClient/pkg/simulation/tram"
 	"github.com/wailsapp/wails/v2"
 	"github.com/wailsapp/wails/v2/pkg/logger"
 	"github.com/wailsapp/wails/v2/pkg/options"
@@ -40,7 +41,8 @@ func main() {
 			&simulation,
 		},
 		EnumBind: []any{
-			api.AllWeekdays,
+			api.Weekdays,
+			tram.TramStates,
 		},
 		LogLevel: logger.WARNING,
 	})

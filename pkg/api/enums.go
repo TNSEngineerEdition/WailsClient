@@ -1,6 +1,6 @@
 package api
 
-var AllWeekdays = []struct {
+var Weekdays = []struct {
 	Value  Weekday
 	TSName string
 }{
