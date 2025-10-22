@@ -13,6 +13,7 @@ import (
 )
 
 type City struct {
+	CityID          string
 	tramRoutes      []trip.TramRoute
 	nodesByID       map[uint64]graph.GraphNode
 	stopsByID       map[uint64]*graph.GraphTramStop
@@ -72,6 +73,7 @@ func (c *City) FetchCity(
 		}
 	}
 
+	c.CityID = cityID
 	c.routesByStopID = c.GetRoutesByStopID()
 	c.Reset()
 
@@ -80,7 +82,7 @@ func (c *City) FetchCity(
 
 func (c *City) Reset() {
 	for _, node := range c.nodesByID {
-		node.Unblock(0)
+		node.ForceUnblock()
 	}
 
 	c.plannedArrivals = c.GetInitialPlannedArrivals()

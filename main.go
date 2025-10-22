@@ -1,11 +1,13 @@
 package main
 
 import (
+	"context"
 	"embed"
 
 	"github.com/TNSEngineerEdition/WailsClient/pkg/api"
 	"github.com/TNSEngineerEdition/WailsClient/pkg/city"
 	"github.com/TNSEngineerEdition/WailsClient/pkg/simulation"
+	"github.com/TNSEngineerEdition/WailsClient/pkg/simulation/tram"
 	"github.com/wailsapp/wails/v2"
 	"github.com/wailsapp/wails/v2/pkg/logger"
 	"github.com/wailsapp/wails/v2/pkg/options"
@@ -17,7 +19,6 @@ var assets embed.FS
 
 func main() {
 	// Create an instance of the app structure
-	app := NewApp()
 	apiClient := api.NewAPIClient()
 
 	city := city.City{}
@@ -31,12 +32,17 @@ func main() {
 		AssetServer: &assetserver.Options{
 			Assets: assets,
 		},
-		OnStartup: app.startup,
-		Bind: []interface{}{
-			app,
+		OnStartup: func(ctx context.Context) {
+			simulation.SetContext(ctx)
+		},
+		Bind: []any{
 			&apiClient,
 			&city,
 			&simulation,
+		},
+		EnumBind: []any{
+			api.Weekdays,
+			tram.TramStates,
 		},
 		LogLevel: logger.WARNING,
 	})

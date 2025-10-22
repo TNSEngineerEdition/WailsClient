@@ -1,10 +1,14 @@
 package simulation
 
 import (
+	"archive/zip"
+	"context"
 	"fmt"
 	"math"
+	"os"
 	"runtime"
 	"slices"
+	"time"
 
 	"github.com/TNSEngineerEdition/WailsClient/pkg/api"
 	"github.com/TNSEngineerEdition/WailsClient/pkg/city"
@@ -12,11 +16,13 @@ import (
 	"github.com/TNSEngineerEdition/WailsClient/pkg/simulation/passenger"
 	"github.com/TNSEngineerEdition/WailsClient/pkg/simulation/tram"
 	"github.com/oapi-codegen/runtime/types"
+	wails_runtime "github.com/wailsapp/wails/v2/pkg/runtime"
 )
 
 type Simulation struct {
 	apiClient       *api.APIClient
 	city            *city.City
+	ctx             context.Context
 	trams           map[uint]*tram.Tram
 	tramWorkersData workerData[*tram.Tram, tram.TramPositionChange]
 	controlCenter   controlcenter.ControlCenter
@@ -29,6 +35,10 @@ func NewSimulation(apiClient *api.APIClient, city *city.City) Simulation {
 		apiClient: apiClient,
 		city:      city,
 	}
+}
+
+func (s *Simulation) SetContext(ctx context.Context) {
+	s.ctx = ctx
 }
 
 func (s *Simulation) tramWorker() {
@@ -140,6 +150,21 @@ func (s *Simulation) GetTramDetails(id uint) tram.TramDetails {
 	panic(fmt.Sprintf("Tram with ID %d not found", id))
 }
 
+func (s *Simulation) StopResumeTram(id uint) tram.TramDetails {
+	tram, ok := s.trams[id]
+	if !ok {
+		panic(fmt.Sprintf("StopResumeTram: tram with ID %d not found", id))
+	}
+
+	if tram.IsStopped() {
+		tram.ResumeTram(s.time)
+	} else {
+		tram.StopTram()
+	}
+
+	return tram.GetDetails(s.city, s.time)
+}
+
 type Arrival struct {
 	Route        string `json:"route"`
 	TripHeadSign string `json:"tripHeadSign"`
@@ -191,4 +216,34 @@ func (s *Simulation) GetArrivalsForStop(stopID uint64, count int) []Arrival {
 
 func (s *Simulation) GetRoutePolylines(lineName string) controlcenter.RoutePolylines {
 	return s.controlCenter.GetRoutePolylines(lineName)
+}
+
+func (s *Simulation) ExportToFile() string {
+	filename, err := wails_runtime.SaveFileDialog(s.ctx, wails_runtime.SaveDialogOptions{
+		DefaultFilename:      fmt.Sprintf("%s-%d.zip", s.city.CityID, time.Now().Unix()),
+		CanCreateDirectories: true,
+		Filters: []wails_runtime.FileFilter{
+			{DisplayName: "ZIP file", Pattern: "*.zip"},
+		},
+	})
+	if err != nil {
+		return err.Error()
+	}
+
+	file, err := os.Create(filename)
+	if err != nil {
+		return err.Error()
+	}
+	defer file.Close()
+
+	zipWriter := zip.NewWriter(file)
+	defer zipWriter.Close()
+
+	if tramZipFileWriter, err := zipWriter.Create("trams.csv"); err != nil {
+		return err.Error()
+	} else if err := tram.TramsToCSVBuffer(s.trams, tramZipFileWriter); err != nil {
+		return err.Error()
+	}
+
+	return ""
 }
