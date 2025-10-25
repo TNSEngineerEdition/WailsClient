@@ -30,6 +30,10 @@ func NewPassengersStore(c *city.City) *PassengersStore {
 	return store
 }
 
+func (ps *PassengersStore) GetPassengerCountAtStop(stopID uint64) uint {
+	return ps.PassengersAtStops[stopID].GetPassengerCount()
+}
+
 func (ps *PassengersStore) generatePassengers(c *city.City) {
 	timeBounds := c.GetTimeBounds()
 	tramStops := c.GetStops()

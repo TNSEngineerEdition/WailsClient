@@ -513,7 +513,11 @@ type TramDetails struct {
 	StopNames       []string                   `json:"stop_names"`
 	Speed           uint8                      `json:"speed"`
 	State           TramState                  `json:"state"`
-	PassengersCount int                        `json:"passengers_count"`
+	PassengersCount uint                       `json:"passengers_count"`
+}
+
+func (t *Tram) GetPassengerCount() uint {
+	return uint(len(t.passengersInTram))
 }
 
 func (t *Tram) GetDetails(c *city.City, time uint) TramDetails {
@@ -538,7 +542,7 @@ func (t *Tram) GetDetails(c *city.City, time uint) TramDetails {
 		StopNames:       stopNames,
 		Speed:           t.getSpeed(),
 		State:           t.state,
-		PassengersCount: len(t.passengersInTram),
+		PassengersCount: t.GetPassengerCount(),
 	}
 }
 

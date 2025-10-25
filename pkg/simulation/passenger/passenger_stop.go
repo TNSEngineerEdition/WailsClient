@@ -9,6 +9,12 @@ type passengerStop struct {
 	mu         sync.Mutex
 }
 
+func (ps *passengerStop) GetPassengerCount() uint {
+	ps.mu.Lock()
+	defer ps.mu.Unlock()
+	return uint(len(ps.passengers))
+}
+
 func (ps *passengerStop) AddPassengerToStop(passenger *Passenger) {
 	ps.mu.Lock()
 	defer ps.mu.Unlock()

@@ -218,6 +218,19 @@ func (s *Simulation) GetRoutePolylines(lineName string) controlcenter.RoutePolyl
 	return s.controlCenter.GetRoutePolylines(lineName)
 }
 
+func (s *Simulation) GetPassengerCountAtStop(stopID uint64) uint {
+	return s.passengersStore.GetPassengerCountAtStop(stopID)
+}
+
+func (s *Simulation) GetPassengerCountOnRoute(routeName string) (count uint) {
+	for _, tram := range s.trams {
+		if tram.Route.Name == routeName {
+			count += tram.GetPassengerCount()
+		}
+	}
+	return
+}
+
 func (s *Simulation) ExportToFile() string {
 	filename, err := wails_runtime.SaveFileDialog(s.ctx, wails_runtime.SaveDialogOptions{
 		DefaultFilename:      fmt.Sprintf("%s-%d.zip", s.city.CityID, time.Now().Unix()),
