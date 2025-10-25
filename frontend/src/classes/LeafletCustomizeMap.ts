@@ -8,9 +8,6 @@ import L, {
   tileLayer,
 } from "leaflet"
 
-//
-// TYPES
-//
 type GraphNeighbor = {
   id: number
   distance: number
@@ -37,32 +34,30 @@ type CityRectangles = {
   nodes_by_id: Record<number, GraphNode>
 }
 
-//
-// CLASS
-//
 export class LeafletCustomizeMap {
   private tracksLayer = L.layerGroup()
   private selectedRectangle: L.Rectangle | null = null
-
   private selectedStart: number | null = null
   private selectedNodes: number[] = []
 
-  //
-  // CONSTRUCTOR
-  //
   constructor(
     private map: LMap,
     private modifiedNodes: typeof reactiveModifiedNodes,
+    private onSpeedDialogOpen: (context: {
+      onCancel: () => void
+      onSpeedSave: (newSpeed: number) => void
+    }) => void,
   ) {
     this.tracksLayer.addTo(this.map)
   }
 
-  //
-  // METHODS
-  //
   static async init(
     mapHTMLElement: HTMLElement,
     modifiedNodes: typeof reactiveModifiedNodes,
+    onSpeedDialogOpen: (context: {
+      onCancel: () => void
+      onSpeedSave: (newSpeed: number) => void
+    }) => void,
   ) {
     const leafletCustomizeMap = new LeafletCustomizeMap(
       await GetBounds()
@@ -82,6 +77,7 @@ export class LeafletCustomizeMap {
             }),
         ),
       modifiedNodes,
+      onSpeedDialogOpen,
     )
 
     const rectangles: CityRectangles[] = await GetCityRectangles()
@@ -117,7 +113,6 @@ export class LeafletCustomizeMap {
 
     rectangle.on("click", () => {
       if (this.selectedRectangle) this.map.addLayer(this.selectedRectangle)
-
       this.map.removeLayer(rectangle)
       this.selectedRectangle = rectangle
 
@@ -152,21 +147,16 @@ export class LeafletCustomizeMap {
           this.modifiedNodes[nodeID]?.neighborMaxSpeed[neighborID] ??
           node.neighbors[neighborID].max_speed
 
-        const polylineOptions = {
+        const polyline = L.polyline(latlngs, {
           weight: 4,
           color: this.getColorForSpeed(maxSpeed),
           fill: false,
           smoothFactor: 3,
-        } satisfies L.PolylineOptions
-
-        const polyline = L.polyline(latlngs, polylineOptions)
+        })
 
         polyline.on("click", () => {
           this.onPolylineClick(nodeID, nodes)
-          polyline.setStyle({
-            weight: 6,
-            color: "red",
-          })
+          polyline.setStyle({ weight: 6, color: "red" })
         })
 
         polyline.addTo(this.tracksLayer)
@@ -184,9 +174,8 @@ export class LeafletCustomizeMap {
     if (!this.selectedStart)
       throw new Error("First node of selection is not selected")
 
-    selectedNodeID = Number(selectedNodeID)
     this.selectedNodes = []
-
+    selectedNodeID = Number(selectedNodeID)
     let node = nodes[Number(this.selectedStart)].details
 
     while (true) {
@@ -234,25 +223,7 @@ export class LeafletCustomizeMap {
       nodes[nodeID].details.lon,
     ])
 
-    const polyline = L.polyline(latlngs, {
-      weight: 6,
-      color: "red",
-    })
-
-    polyline.bindPopup(() => {
-      const div = L.DomUtil.create("div")
-      div.innerHTML = `
-    <label>Max speed (km/h): </label>
-    <input id="maxSpeedInput" type="number" value="50" step="5" style="width:80px"/>
-    <button id="saveSpeedBtn">Save</button>
-  `
-      return div
-    })
-
-    polyline.on("popupopen", event => {
-      this.onPolylinePopupOpen(event, nodes)
-    })
-
+    const polyline = L.polyline(latlngs, { weight: 6, color: "red" })
     polyline.addTo(this.tracksLayer)
   }
 
@@ -264,31 +235,20 @@ export class LeafletCustomizeMap {
 
     this.findSelectionEndAndPath(nodeID, nodes)
 
-    if (this.selectedNodes.length > 0) {
-      this.highlightSelectedPath(nodes)
-    }
-  }
+    if (this.selectedNodes.length === 0) return
 
-  private onPolylinePopupOpen(
-    event: L.PopupEvent,
-    nodes: Record<number, GraphNode>,
-  ) {
-    const container = event.popup.getElement()
-    if (!container) return
+    this.highlightSelectedPath(nodes)
 
-    const input = container.querySelector<HTMLInputElement>("#maxSpeedInput")
-    const button = container.querySelector<HTMLButtonElement>("#saveSpeedBtn")
-
-    button?.addEventListener("click", () => {
-      if (!input) return
-
-      const newMaxSpeedValue = parseFloat(input.value) / 3.6
-      if (!isNaN(newMaxSpeedValue)) {
-        this.saveNewMaxSpeed(newMaxSpeedValue)
-      }
-
-      this.tracksLayer.clearLayers()
-      this.drawTracks(nodes)
+    this.onSpeedDialogOpen({
+      onCancel: () => {
+        this.tracksLayer.clearLayers()
+        this.drawTracks(nodes)
+      },
+      onSpeedSave: (newMaxSpeed: number) => {
+        this.saveNewMaxSpeed(newMaxSpeed / 3.59) // km/h to m/s
+        this.tracksLayer.clearLayers()
+        this.drawTracks(nodes)
+      },
     })
   }
 
@@ -298,16 +258,14 @@ export class LeafletCustomizeMap {
       const nextNodeID = Number(this.selectedNodes[i + 1])
 
       if (!this.modifiedNodes[nodeID]) {
-        this.modifiedNodes[nodeID] = {
-          neighborMaxSpeed: {},
-        }
+        this.modifiedNodes[nodeID] = { neighborMaxSpeed: {} }
       }
       this.modifiedNodes[nodeID].neighborMaxSpeed[nextNodeID] = newMaxSpeed
     }
   }
 
   private getColorForSpeed(speedMS: number): string {
-    const speed = speedMS * 3.59 // convert m/s to km/h
+    const speed = speedMS * 3.59 // m/s → km/h
     if (speed <= 10) return "#9100FF"
     if (speed <= 20) return "#7D88FF"
     if (speed <= 30) return "#05B6FC"
