@@ -44,12 +44,11 @@ export class LeafletCustomizeMap {
   private tracksLayer = L.layerGroup()
   private selectedRectangle: L.Rectangle | null = null
 
-  private selectionStart: number | null = null
-  private selectionEnd: number | null = null
+  private selectedStart: number | null = null
   private selectedNodes: number[] = []
 
   //
-  // METHODS
+  // CONSTRUCTOR
   //
   constructor(
     private map: LMap,
@@ -58,6 +57,9 @@ export class LeafletCustomizeMap {
     this.tracksLayer.addTo(this.map)
   }
 
+  //
+  // METHODS
+  //
   static async init(
     mapHTMLElement: HTMLElement,
     modifiedNodes: typeof reactiveModifiedNodes,
@@ -83,7 +85,6 @@ export class LeafletCustomizeMap {
     )
 
     const rectangles: CityRectangles[] = await GetCityRectangles()
-
     for (const { bounds, nodes_by_id: nodes } of rectangles) {
       leafletCustomizeMap.drawRectangle(bounds, nodes)
     }
@@ -97,11 +98,9 @@ export class LeafletCustomizeMap {
   }
 
   private drawRectangle(
-    bounds: city.LatLonBounds,
+    { minLat, minLon, maxLat, maxLon }: city.LatLonBounds,
     nodes: Record<number, GraphNode>,
   ) {
-    const { minLat, minLon, maxLat, maxLon } = bounds
-
     const rectangle = L.rectangle(
       [
         [minLat, minLon],
@@ -129,28 +128,29 @@ export class LeafletCustomizeMap {
     rectangle.addTo(this.map)
   }
 
+  // Draws tracks on the selected rectangle
   private drawTracks(nodes: Record<number, GraphNode>) {
-    this.selectionStart = null
-    this.selectionEnd = null
+    this.selectedStart = null
     this.selectedNodes = []
 
-    for (const [nodeIDstr, node] of Object.entries(nodes)) {
+    for (const [nodeIDstr, nodeObj] of Object.entries(nodes)) {
       const nodeID = Number(nodeIDstr)
+      const node = nodeObj.details
 
-      for (const neighborIDstr in node.details.neighbors) {
+      for (const neighborIDstr in node.neighbors) {
         if (!(neighborIDstr in nodes)) continue
 
         const neighborID = Number(neighborIDstr)
-        const neighbor = nodes[neighborID]
+        const neighbor = nodes[neighborID].details
 
         const latlngs = [
-          [node.details.lat, node.details.lon],
-          [neighbor.details.lat, neighbor.details.lon],
-        ] as LatLngExpression[]
+          [node.lat, node.lon],
+          [neighbor.lat, neighbor.lon],
+        ] satisfies LatLngExpression[]
 
         const maxSpeed =
           this.modifiedNodes[nodeID]?.neighborMaxSpeed[neighborID] ??
-          node.details.neighbors[neighborID].max_speed
+          node.neighbors[neighborID].max_speed
 
         const polylineOptions = {
           weight: 4,
@@ -162,17 +162,7 @@ export class LeafletCustomizeMap {
         const polyline = L.polyline(latlngs, polylineOptions)
 
         polyline.on("click", () => {
-          if (!this.selectionStart) {
-            this.selectionStart = nodeID
-          } else {
-            this.selectionEnd = this.findSelectionEnd(nodeID, nodes)
-            this.findPathBetweenNodes(nodes)
-
-            if (this.selectedNodes.length > 0) {
-              this.highlightPath(nodes)
-            }
-          }
-
+          this.onPolylineClick(nodeID, nodes)
           polyline.setStyle({
             weight: 6,
             color: "red",
@@ -184,88 +174,65 @@ export class LeafletCustomizeMap {
     }
   }
 
-  private findSelectionEnd(
+  // Travels through the graph to find the second selected node
+  // and determines the path to highlight.
+  // It stops at tram stops, switches and the end of the rectangle
+  private findSelectionEndAndPath(
     selectedNodeID: number | string,
     nodes: Record<number, GraphNode>,
-  ): number {
-    if (!this.selectionStart)
+  ) {
+    if (!this.selectedStart)
       throw new Error("First node of selection is not selected")
 
     selectedNodeID = Number(selectedNodeID)
-    let node = nodes[Number(this.selectionStart)]
+    this.selectedNodes = []
+
+    let node = nodes[Number(this.selectedStart)].details
 
     while (true) {
-      // the same node
-      if (node.details.id === selectedNodeID) {
+      this.selectedNodes.push(node.id)
+
+      // 1 - the same node
+      if (node.id === selectedNodeID) {
         console.log("cond 1")
         break
       }
 
-      // switch or crossing
+      // 2 - switch
       if (
-        Object.keys(node.details.neighbors).length != 1 &&
-        node.details.id !== this.selectionStart
+        Object.keys(node.neighbors).length !== 1 &&
+        node.id !== this.selectedStart
       ) {
         console.log("cond 2")
         break
       }
 
-      // tram stop
-      if (
-        node.details.node_type &&
-        node.details.node_type === "stop" &&
-        node.details.id !== this.selectionStart
-      ) {
+      // 3- tram stop
+      if (node.node_type === "stop" && node.id !== this.selectedStart) {
         console.log("cond 3", "details below")
-        console.log(node.details)
-        console.log(this.selectionStart)
+        console.log(node)
+        console.log(this.selectedStart)
         break
       }
 
-      // out of rectangle bounds
-      const neighborID = Object.keys(node.details.neighbors)[0]
+      // 4 - out of rectangle bounds
+      const neighborID = Object.keys(node.neighbors)[0]
       if (!(neighborID in nodes)) {
         console.log("cond 4")
         break
       }
 
-      node = nodes[Number(neighborID)]
-    }
-
-    return node.details.id
-  }
-
-  private findPathBetweenNodes(nodes: Record<number, GraphNode>) {
-    if (!this.selectionStart || !this.selectionEnd)
-      throw new Error("Nodes are not selected")
-
-    this.selectedNodes = []
-    let node = nodes[this.selectionStart]
-
-    if (this.selectionStart === this.selectionEnd) {
-      this.selectedNodes = [node.details.id]
-      return
-    }
-
-    while (true) {
-      this.selectedNodes.push(node.details.id)
-
-      if (node.details.id === this.selectionEnd) break
-
-      const nextNodeID = Object.keys(node.details.neighbors)[0]
-      node = nodes[Number(nextNodeID)]
+      node = nodes[Number(neighborID)].details
     }
   }
 
-  private highlightPath(nodes: Record<number, GraphNode>) {
+  private highlightSelectedPath(nodes: Record<number, GraphNode>) {
     this.tracksLayer.clearLayers()
 
-    const latlngs: LatLngExpression[] = []
-
-    this.selectedNodes.forEach(nodeID => {
-      const node = nodes[nodeID]
-      latlngs.push([node.details.lat, node.details.lon])
-    })
+    const latlngs: LatLngExpression[] = this.selectedNodes.map(nodeID => [
+      nodes[nodeID].details.lat,
+      nodes[nodeID].details.lon,
+    ])
 
     const polyline = L.polyline(latlngs, {
       weight: 6,
@@ -283,37 +250,60 @@ export class LeafletCustomizeMap {
     })
 
     polyline.on("popupopen", event => {
-      const container = event.popup.getElement()
-      if (!container) return
-
-      const input = container.querySelector<HTMLInputElement>("#maxSpeedInput")
-      const button = container.querySelector<HTMLButtonElement>("#saveSpeedBtn")
-
-      button?.addEventListener("click", () => {
-        if (!input) return
-        const newSpeedValue = parseFloat(input.value) / 3.6
-
-        if (!isNaN(newSpeedValue)) {
-          for (let i = 0; i < this.selectedNodes.length - 1; i++) {
-            const nodeID = Number(this.selectedNodes[i])
-            const nextNodeID = Number(this.selectedNodes[i + 1])
-
-            if (!this.modifiedNodes[nodeID]) {
-              this.modifiedNodes[nodeID] = {
-                neighborMaxSpeed: {},
-              }
-            }
-            this.modifiedNodes[nodeID].neighborMaxSpeed[nextNodeID] =
-              newSpeedValue
-          }
-        }
-
-        this.tracksLayer.clearLayers()
-        this.drawTracks(nodes)
-      })
+      this.onPolylinePopupOpen(event, nodes)
     })
 
     polyline.addTo(this.tracksLayer)
+  }
+
+  private onPolylineClick(nodeID: number, nodes: Record<number, GraphNode>) {
+    if (!this.selectedStart) {
+      this.selectedStart = nodeID
+      return
+    }
+
+    this.findSelectionEndAndPath(nodeID, nodes)
+
+    if (this.selectedNodes.length > 0) {
+      this.highlightSelectedPath(nodes)
+    }
+  }
+
+  private onPolylinePopupOpen(
+    event: L.PopupEvent,
+    nodes: Record<number, GraphNode>,
+  ) {
+    const container = event.popup.getElement()
+    if (!container) return
+
+    const input = container.querySelector<HTMLInputElement>("#maxSpeedInput")
+    const button = container.querySelector<HTMLButtonElement>("#saveSpeedBtn")
+
+    button?.addEventListener("click", () => {
+      if (!input) return
+
+      const newMaxSpeedValue = parseFloat(input.value) / 3.6
+      if (!isNaN(newMaxSpeedValue)) {
+        this.saveNewMaxSpeed(newMaxSpeedValue)
+      }
+
+      this.tracksLayer.clearLayers()
+      this.drawTracks(nodes)
+    })
+  }
+
+  private saveNewMaxSpeed(newMaxSpeed: number) {
+    for (let i = 0; i < this.selectedNodes.length - 1; i++) {
+      const nodeID = Number(this.selectedNodes[i])
+      const nextNodeID = Number(this.selectedNodes[i + 1])
+
+      if (!this.modifiedNodes[nodeID]) {
+        this.modifiedNodes[nodeID] = {
+          neighborMaxSpeed: {},
+        }
+      }
+      this.modifiedNodes[nodeID].neighborMaxSpeed[nextNodeID] = newMaxSpeed
+    }
   }
 
   private getColorForSpeed(speedMS: number): string {
