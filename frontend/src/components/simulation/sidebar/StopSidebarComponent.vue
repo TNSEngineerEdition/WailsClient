@@ -3,7 +3,10 @@ import SidebarComponent from "@components/simulation/sidebar/SidebarComponent.vu
 import { ref, watch } from "vue"
 import { city, simulation, api } from "@wails/go/models"
 import { GetRoutesForStop } from "@wails/go/city/City"
-import { GetArrivalsForStop } from "@wails/go/simulation/Simulation"
+import {
+  GetArrivalsForStop,
+  GetPassengerCountAtStop,
+} from "@wails/go/simulation/Simulation"
 
 const ARRIVALS_IN_TABLE = 5
 
@@ -29,6 +32,7 @@ const routes = ref<city.RouteInfo[]>([])
 const arrivalsInfo = ref<simulation.Arrival[]>([])
 const routeChipColumns = ref(5)
 const tab = ref<"arr" | "occ">("arr")
+const passengerCount = ref(0)
 
 const emit = defineEmits(["routeSelected"])
 
@@ -45,6 +49,18 @@ watch(
     } else {
       routes.value = []
       arrivalsInfo.value = []
+    }
+  },
+  { immediate: true },
+)
+
+watch(
+  [() => props.stop?.id, () => props.currentTime],
+  async ([id]) => {
+    if (id) {
+      passengerCount.value = await GetPassengerCountAtStop(id)
+    } else {
+      passengerCount.value = 0
     }
   },
   { immediate: true },
@@ -127,7 +143,7 @@ watch(
       </div>
 
       <div class="value">
-        <span> TODO </span>
+        <span>{{ passengerCount }}</span>
       </div>
     </div>
 

@@ -1,23 +1,38 @@
 <script setup lang="ts">
 import SidebarComponent from "@components/simulation/sidebar/SidebarComponent.vue"
-import { ref, computed } from "vue"
+import { ref, computed, watch } from "vue"
 import { city } from "@wails/go/models"
 import { TramMarker } from "@classes/TramMarker"
+import { GetPassengerCountOnRoute } from "@wails/go/simulation/Simulation"
+
 const model = defineModel<boolean>({ required: true })
 
 const props = defineProps<{
   route?: city.RouteInfo
   tramMarkers: Record<number, TramMarker>
+  currentTime: number
 }>()
 
 const tab = ref<"basic" | "occ" | "stops">("basic")
-
+const passengersOnRoute = ref(0)
 const tramsInService = computed(() => {
   if (!props.route?.name) return 0
   return Object.values(props.tramMarkers).filter(
     tram => tram.getRoute() === props.route!.name && tram.getIsOnMap(),
   ).length
 })
+
+watch(
+  [() => props.route?.name, () => props.currentTime],
+  async ([routeName]) => {
+    if (routeName) {
+      passengersOnRoute.value = await GetPassengerCountOnRoute(routeName)
+    } else {
+      passengersOnRoute.value = 0
+    }
+  },
+  { immediate: true },
+)
 </script>
 
 <template>
@@ -45,7 +60,7 @@ const tramsInService = computed(() => {
       </div>
 
       <div class="value">
-        <span> TODO </span>
+        <span>{{ passengersOnRoute }}</span>
       </div>
     </div>
 

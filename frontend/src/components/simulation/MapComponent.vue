@@ -176,6 +176,7 @@ onMounted(async () => {
       v-model="routeSidebar"
       :route="selectedRoute"
       :tram-markers="tramMarkerByID"
+      :current-time="time"
     />
   </div>
 </template>
