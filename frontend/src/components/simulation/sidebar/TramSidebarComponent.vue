@@ -149,11 +149,12 @@ watch(
 
     <div class="section">
       <div class="label">
-        <v-icon icon="mdi mdi-account-group" class="mr-2"></v-icon>
+        <v-icon icon="mdi-account-group" class="mr-2"></v-icon>
         Passenger count
       </div>
-      <div class="value">TODO</div>
+      <div class="value">{{ tramDetails?.passengers_count }}</div>
     </div>
+
     <div class="section">
       <div class="label">
         <v-icon icon="mdi mdi-wrench-cog" class="mr-2"></v-icon>
