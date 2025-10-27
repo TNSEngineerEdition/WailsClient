@@ -1,4 +1,5 @@
-import { modifiedNodes as reactiveModifiedNodes } from "@composables/store"
+import getColorForSpeed from "@utils/getColorForSpeed"
+import { CityRectangles, GraphNode, ModifiedNodes } from "@utils/types"
 import { GetBounds, GetCityRectangles } from "@wails/go/city/City"
 import { city } from "@wails/go/models"
 import L, {
@@ -8,32 +9,6 @@ import L, {
   tileLayer,
 } from "leaflet"
 
-type GraphNeighbor = {
-  id: number
-  distance: number
-  azimuth: number
-  max_speed: number
-}
-
-type GraphNode = {
-  details: {
-    id: number
-    lat: number
-    lon: number
-    neighbors: Record<number, GraphNeighbor>
-
-    // tram stop specific
-    gtfs_stop_ids?: string[]
-    name?: string
-    node_type?: string
-  }
-}
-
-type CityRectangles = {
-  bounds: city.CityRectangle["bounds"]
-  nodes_by_id: Record<number, GraphNode>
-}
-
 export class LeafletCustomizeMap {
   private tracksLayer = L.layerGroup()
   private selectedRectangle: L.Rectangle | null = null
@@ -42,7 +17,7 @@ export class LeafletCustomizeMap {
 
   constructor(
     private map: LMap,
-    private modifiedNodes: typeof reactiveModifiedNodes,
+    private modifiedNodes: ModifiedNodes,
     private onSpeedDialogOpen: (context: {
       onCancel: () => void
       onSpeedSave: (newSpeed: number) => void
@@ -53,7 +28,7 @@ export class LeafletCustomizeMap {
 
   static async init(
     mapHTMLElement: HTMLElement,
-    modifiedNodes: typeof reactiveModifiedNodes,
+    modifiedNodes: ModifiedNodes,
     onSpeedDialogOpen: (context: {
       onCancel: () => void
       onSpeedSave: (newSpeed: number) => void
@@ -149,7 +124,7 @@ export class LeafletCustomizeMap {
 
         const polyline = L.polyline(latlngs, {
           weight: 4,
-          color: this.getColorForSpeed(maxSpeed),
+          color: getColorForSpeed(maxSpeed),
           fill: false,
           smoothFactor: 3,
         })
@@ -262,16 +237,5 @@ export class LeafletCustomizeMap {
       }
       this.modifiedNodes[nodeID].neighborMaxSpeed[nextNodeID] = newMaxSpeed
     }
-  }
-
-  private getColorForSpeed(speedMS: number): string {
-    const speed = speedMS * 3.59 // m/s → km/h
-    if (speed <= 10) return "#9100FF"
-    if (speed <= 20) return "#7D88FF"
-    if (speed <= 30) return "#05B6FC"
-    if (speed <= 40) return "#1772FC"
-    if (speed <= 50) return "#3D00FF"
-    if (speed <= 60) return "#00b52aff"
-    return "#00e636ff"
   }
 }

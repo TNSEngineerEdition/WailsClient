@@ -1,26 +1,27 @@
 <script lang="ts" setup>
-import { onMounted, ref, toRaw, useTemplateRef } from "vue"
+import { onMounted, reactive, ref, toRaw, useTemplateRef } from "vue"
 import { LeafletCustomizeMap } from "@classes/LeafletCustomizeMap"
-import CustomizeSidebarComponent from "./CustomizeSidebarComponent.vue"
-import { modifiedNodes } from "@composables/store"
 import { UpdateTramTrackGraph } from "@wails/go/city/City"
 import router from "@plugins/router"
 import { InitializeSimulation } from "@wails/go/simulation/Simulation"
+import CustomizeHeaderComponent from "./CustomizeHeaderComponent.vue"
 import CustomizeSpeedDialogComponent from "./CustomizeSpeedDialogComponent.vue"
+import CustomizeSpeedLegendComponent from "./CustomizeSpeedLegendComponent.vue"
+import { ModifiedNodes } from "@utils/types"
 
 const loading = defineModel<boolean>("loading", { required: true })
 
+const modifiedNodes = reactive<ModifiedNodes>({})
+
 const mapHTMLElement = useTemplateRef("customize-map")
+
 const leafletCustomizeMap = ref<LeafletCustomizeMap>()
 const speedDialog = ref(false)
 const onCancelCallback = ref<() => void>()
 const onSpeedSaveCallback = ref<(newMaxSpeed: number) => void>()
 
 async function saveChanges() {
-  const rawModifiedNodes = toRaw(modifiedNodes)
-  console.log("sending to Go:", rawModifiedNodes)
-
-  await UpdateTramTrackGraph(rawModifiedNodes)
+  await UpdateTramTrackGraph(toRaw(modifiedNodes))
 
   const simulationErrorMessage = await InitializeSimulation(0)
   if (simulationErrorMessage) {
@@ -52,12 +53,13 @@ onMounted(async () => {
 
 <template>
   <div class="container">
-    <CustomizeSidebarComponent :save-changes="saveChanges" />
+    <CustomizeHeaderComponent :save-changes="saveChanges" />
     <CustomizeSpeedDialogComponent
       v-model:speed-dialog="speedDialog"
       v-model:on-cancel="onCancelCallback"
       v-model:on-speed-save="onSpeedSaveCallback"
     />
+    <CustomizeSpeedLegendComponent />
     <v-overlay
       v-model="loading"
       opacity="0.2"
@@ -78,11 +80,11 @@ onMounted(async () => {
   padding: 0;
   margin: 0;
   display: flex;
-  flex-direction: row;
+  flex-direction: column;
 }
 
 #customize-map {
-  width: calc(100vw - 350px);
-  height: 100vh;
+  width: 100%;
+  height: calc(100vh - 64px);
 }
 </style>
