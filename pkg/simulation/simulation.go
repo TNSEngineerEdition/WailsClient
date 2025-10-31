@@ -1,10 +1,14 @@
 package simulation
 
 import (
+	"archive/zip"
+	"context"
 	"fmt"
 	"math"
+	"os"
 	"runtime"
 	"slices"
+	"time"
 
 	"github.com/TNSEngineerEdition/WailsClient/pkg/api"
 	"github.com/TNSEngineerEdition/WailsClient/pkg/city"
@@ -12,17 +16,18 @@ import (
 	"github.com/TNSEngineerEdition/WailsClient/pkg/simulation/passenger"
 	"github.com/TNSEngineerEdition/WailsClient/pkg/simulation/tram"
 	"github.com/oapi-codegen/runtime/types"
+	wails_runtime "github.com/wailsapp/wails/v2/pkg/runtime"
 )
 
 type Simulation struct {
-	apiClient         *api.APIClient
-	city              *city.City
-	trams             map[uint]*tram.Tram
-	tramWorkersData   workerData[*tram.Tram, tram.TramPositionChange]
-	controlCenter     controlcenter.ControlCenter
-	time              uint
-	initialPassengers map[uint][]*passenger.Passenger
-	passengersAtStops map[uint64][]*passenger.Passenger
+	apiClient       *api.APIClient
+	city            *city.City
+	ctx             context.Context
+	trams           map[uint]*tram.Tram
+	tramWorkersData workerData[*tram.Tram, tram.TramPositionChange]
+	controlCenter   controlcenter.ControlCenter
+	time            uint
+	passengersStore *passenger.PassengersStore
 }
 
 func NewSimulation(apiClient *api.APIClient, city *city.City) Simulation {
@@ -30,6 +35,10 @@ func NewSimulation(apiClient *api.APIClient, city *city.City) Simulation {
 		apiClient: apiClient,
 		city:      city,
 	}
+}
+
+func (s *Simulation) SetContext(ctx context.Context) {
+	s.ctx = ctx
 }
 
 func (s *Simulation) tramWorker() {
@@ -43,26 +52,18 @@ func (s *Simulation) tramWorker() {
 	}
 }
 
-func (s *Simulation) getPassengersAt(time uint) []*passenger.Passenger {
-	return s.initialPassengers[time]
-}
-
 func (s *Simulation) resetTrams() {
 	s.trams = make(map[uint]*tram.Tram)
 	for _, route := range s.city.GetTramRoutes() {
 		for _, trip := range route.Trips {
-			s.trams[trip.ID] = tram.NewTram(trip.ID, &route, &trip, &s.controlCenter)
+			s.trams[trip.ID] = tram.NewTram(trip.ID, &route, &trip, &s.controlCenter, s.passengersStore)
 		}
 	}
 }
 
-func (s *Simulation) resetPassengers() {
-	s.passengersAtStops = make(map[uint64][]*passenger.Passenger)
-}
-
 func (s *Simulation) ResetSimulation() {
+	s.passengersStore = passenger.NewPassengersStore(s.city)
 	s.resetTrams()
-	s.resetPassengers()
 	s.city.Reset()
 }
 
@@ -92,15 +93,13 @@ func (s *Simulation) InitializeCityData(parameters SimulationParameters) string 
 }
 
 func (s *Simulation) InitializeSimulation(tramWorkerCount uint) string {
-	if s.city.GetCityID() == "" {
+	if s.city.CityID == "" {
 		panic("City data is not fetched")
 	}
 
 	s.controlCenter = controlcenter.NewControlCenter(s.city)
 	s.ResetSimulation()
 	s.tramWorkersData.reset(len(s.trams))
-
-	s.initialPassengers = passenger.CreatePassengers(s.city)
 
 	if tramWorkerCount == 0 {
 		// CPU count * 110% for more efficiency
@@ -133,11 +132,7 @@ func (s *Simulation) GetTramIDs() (result []TramIdentifier) {
 func (s *Simulation) AdvanceTrams(time uint) (result []tram.TramPositionChange) {
 	s.time = time
 
-	toSpawn := s.getPassengersAt(time)
-	for _, p := range toSpawn {
-		stopID := p.StartStopID
-		s.passengersAtStops[stopID] = append(s.passengersAtStops[stopID], p)
-	}
+	s.passengersStore.SpawnAtTime(time)
 
 	s.tramWorkersData.wg.Add(len(s.trams))
 	for _, tram := range s.trams {
@@ -160,6 +155,21 @@ func (s *Simulation) GetTramDetails(id uint) tram.TramDetails {
 	}
 
 	panic(fmt.Sprintf("Tram with ID %d not found", id))
+}
+
+func (s *Simulation) StopResumeTram(id uint) tram.TramDetails {
+	tram, ok := s.trams[id]
+	if !ok {
+		panic(fmt.Sprintf("StopResumeTram: tram with ID %d not found", id))
+	}
+
+	if tram.IsStopped() {
+		tram.ResumeTram(s.time)
+	} else {
+		tram.StopTram()
+	}
+
+	return tram.GetDetails(s.city, s.time)
 }
 
 type Arrival struct {
@@ -213,4 +223,47 @@ func (s *Simulation) GetArrivalsForStop(stopID uint64, count int) []Arrival {
 
 func (s *Simulation) GetRoutePolylines(lineName string) controlcenter.RoutePolylines {
 	return s.controlCenter.GetRoutePolylines(lineName)
+}
+
+func (s *Simulation) GetPassengerCountAtStop(stopID uint64) uint {
+	return s.passengersStore.GetPassengerCountAtStop(stopID)
+}
+
+func (s *Simulation) GetPassengerCountOnRoute(routeName string) (count uint) {
+	for _, tram := range s.trams {
+		if tram.Route.Name == routeName {
+			count += tram.GetPassengerCount()
+		}
+	}
+	return
+}
+
+func (s *Simulation) ExportToFile() string {
+	filename, err := wails_runtime.SaveFileDialog(s.ctx, wails_runtime.SaveDialogOptions{
+		DefaultFilename:      fmt.Sprintf("%s-%d.zip", s.city.CityID, time.Now().Unix()),
+		CanCreateDirectories: true,
+		Filters: []wails_runtime.FileFilter{
+			{DisplayName: "ZIP file", Pattern: "*.zip"},
+		},
+	})
+	if err != nil {
+		return err.Error()
+	}
+
+	file, err := os.Create(filename)
+	if err != nil {
+		return err.Error()
+	}
+	defer file.Close()
+
+	zipWriter := zip.NewWriter(file)
+	defer zipWriter.Close()
+
+	if tramZipFileWriter, err := zipWriter.Create("trams.csv"); err != nil {
+		return err.Error()
+	} else if err := tram.TramsToCSVBuffer(s.trams, tramZipFileWriter); err != nil {
+		return err.Error()
+	}
+
+	return ""
 }
