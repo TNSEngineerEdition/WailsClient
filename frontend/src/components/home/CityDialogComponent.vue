@@ -72,7 +72,7 @@ async function handleButtonClick(isCustomizeMap: boolean) {
     :error="error"
   ></ErrorDialogComponent>
 
-  <v-dialog max-width="400">
+  <v-dialog max-width="500">
     <template v-slot:activator="{ props: dialogProps }">
       <v-hover v-slot="{ isHovering, props: hoverProps }">
         <v-card
@@ -104,11 +104,11 @@ async function handleButtonClick(isCustomizeMap: boolean) {
       </template>
 
       <v-card-text>
-        <v-form :disabled="loading">
+        <v-form>
           <v-select
             v-model="date"
             :items="props.city.availableDates"
-            :disabled="disableDate"
+            :disabled="disableDate || loading"
             prepend-icon="mdi-calendar"
             label="Schedule date"
             clearable
@@ -125,7 +125,7 @@ async function handleButtonClick(isCustomizeMap: boolean) {
               'Saturday',
               'Sunday',
             ]"
-            :disabled="disableWeekday"
+            :disabled="disableWeekday || loading"
             prepend-icon="mdi-view-week"
             label="Weekday"
             clearable
@@ -133,7 +133,7 @@ async function handleButtonClick(isCustomizeMap: boolean) {
 
           <v-file-input
             v-model="customSchedule"
-            :disabled="disableCustomSchedule"
+            :disabled="disableCustomSchedule || loading"
             accept="application/zip"
             prepend-icon="mdi-invoice-text-clock"
             label="Custom GTFS Schedule file"
@@ -149,30 +149,51 @@ async function handleButtonClick(isCustomizeMap: boolean) {
       </v-card-text>
 
       <template v-slot:actions>
-        <v-btn
-          text="Customize speeds"
-          :disabled="loading"
-          :loading="loading"
-          style="width: 50%"
-          @click="
-            () => {
-              handleButtonClick(true)
-            }
-          "
-        >
-        </v-btn>
-        <v-btn
-          text="Start"
-          :disabled="loading"
-          :loading="loading"
-          style="width: 50%"
-          @click="
-            () => {
-              handleButtonClick(false)
-            }
-          "
-        ></v-btn>
+        <div class="btn-container">
+          <v-progress-linear
+            v-if="loading"
+            color="blue"
+            height="7"
+            indeterminate
+          />
+          <v-btn
+            v-if="!loading"
+            text="Customize speeds"
+            variant="elevated"
+            color="white"
+            style="width: 50%"
+            @click="
+              () => {
+                handleButtonClick(true)
+              }
+            "
+          >
+          </v-btn>
+          <v-btn
+            v-if="!loading"
+            text="Start"
+            variant="elevated"
+            color="blue"
+            style="width: 50%"
+            @click="
+              () => {
+                handleButtonClick(false)
+              }
+            "
+          ></v-btn>
+        </div>
       </template>
     </v-card>
   </v-dialog>
 </template>
+
+<style lang="scss" scoped>
+.btn-container {
+  width: 100%;
+  padding: 0 20px 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+}
+</style>
