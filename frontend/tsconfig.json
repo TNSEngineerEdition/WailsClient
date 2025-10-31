@@ -19,6 +19,7 @@
       "@components/*": ["./src/components/*"],
       "@plugins/*": ["./src/plugins/*"],
       "@assets/*": ["./src/assets/*"],
+      "@utils/*": ["./src/utils/*"]
     }
   },
   "include": ["src/**/*.ts", "src/**/*.d.ts", "src/**/*.tsx", "src/**/*.vue"],
