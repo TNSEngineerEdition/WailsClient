@@ -1,10 +1,6 @@
 package graph
 
-import (
-	"fmt"
-
-	"github.com/TNSEngineerEdition/WailsClient/pkg/api"
-)
+import "github.com/TNSEngineerEdition/WailsClient/pkg/api"
 
 type GraphTramStop struct {
 	NodeBlock
@@ -36,7 +32,6 @@ func (g *GraphTramStop) GetName() string {
 }
 
 func (g *GraphTramStop) UpdateMaxSpeed(neighborID uint64, maxSpeed float32) {
-	fmt.Printf("Updating speed for %d to %f m/s\n", neighborID, maxSpeed)
 	neighbor := g.Details.Neighbors[neighborID]
 	neighbor.MaxSpeed = maxSpeed
 	g.Details.Neighbors[neighborID] = neighbor
