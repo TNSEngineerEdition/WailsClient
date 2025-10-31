@@ -152,9 +152,11 @@ export class LeafletCustomizeMap {
     this.selectedNodes = []
     selectedNodeID = Number(selectedNodeID)
     let node = nodes[Number(this.selectedStart)].details
+    let isAdditionalNode = true
 
     while (true) {
       this.selectedNodes.push(node.id)
+      const nodeNeighbors = Object.keys(node.neighbors).map(Number)
 
       // 1 - the same node
       if (node.id === selectedNodeID) {
@@ -162,11 +164,9 @@ export class LeafletCustomizeMap {
         break
       }
 
-      // 2 - switch
-      if (
-        Object.keys(node.neighbors).length !== 1 &&
-        node.id !== this.selectedStart
-      ) {
+      // 2 - switch or crossing (>1 neighbors ahead)
+      if (nodeNeighbors.length !== 1 && node.id !== this.selectedStart) {
+        isAdditionalNode = false
         console.log("cond 2")
         break
       }
@@ -180,14 +180,20 @@ export class LeafletCustomizeMap {
       }
 
       // 4 - out of rectangle bounds
-      const neighborID = Object.keys(node.neighbors)[0]
-      if (!(neighborID in nodes)) {
+      if (!(nodeNeighbors[0] in nodes)) {
         console.log("cond 4")
         break
       }
 
-      node = nodes[Number(neighborID)].details
+      node = nodes[nodeNeighbors[0]].details
     }
+
+    if (!isAdditionalNode) return
+
+    // add one additional node at the end to include second selected node in selection
+    const neighborID = Number(Object.keys(node.neighbors)[0])
+    if (!(neighborID in nodes)) return
+    this.selectedNodes.push(nodes[neighborID].details.id)
   }
 
   private highlightSelectedPath(nodes: Record<number, GraphNode>) {

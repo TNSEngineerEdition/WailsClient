@@ -334,9 +334,7 @@ type Modifications struct {
 func (c *City) UpdateTramTrackGraph(modifiedNodes map[uint64]Modifications) {
 	for nodeID, mods := range modifiedNodes {
 		if node, ok := c.nodesByID[nodeID]; ok {
-			//fmt.Printf("Type of node %d: %T\n", nodeID, node)
 			for neighborID, maxSpeed := range mods.NeighborMaxSpeed {
-				//fmt.Printf("Calling updates for node: %d and neighbor: %d\n", nodeID, neighborID)
 				node.UpdateMaxSpeed(neighborID, maxSpeed)
 			}
 		}
