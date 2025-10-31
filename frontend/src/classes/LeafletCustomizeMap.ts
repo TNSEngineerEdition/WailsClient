@@ -12,7 +12,7 @@ import L, {
 export class LeafletCustomizeMap {
   private tracksLayer = L.layerGroup()
   private selectedRectangle: L.Rectangle | null = null
-  private selectedStart: number | null = null
+  private selectedStart: { edgeStart: number; edgeEnd: number } | null = null
   private selectedNodes: number[] = []
 
   constructor(
@@ -130,7 +130,7 @@ export class LeafletCustomizeMap {
         })
 
         polyline.on("click", () => {
-          this.onPolylineClick(nodeID, nodes)
+          this.onPolylineClick(nodeID, neighborID, nodes)
           polyline.setStyle({ weight: 6, color: "red" })
         })
 
@@ -143,57 +143,38 @@ export class LeafletCustomizeMap {
   // and determines the path to highlight.
   // It stops at tram stops, switches and the end of the rectangle
   private findSelectionEndAndPath(
-    selectedNodeID: number | string,
+    selectedEdgeEnd: number,
     nodes: Record<number, GraphNode>,
   ) {
     if (!this.selectedStart)
-      throw new Error("First node of selection is not selected")
+      throw new Error("First edge of selection is not selected")
 
-    this.selectedNodes = []
-    selectedNodeID = Number(selectedNodeID)
-    let node = nodes[Number(this.selectedStart)].details
-    let isAdditionalNode = true
+    this.selectedNodes = [this.selectedStart.edgeStart]
+    let node = nodes[Number(this.selectedStart.edgeEnd)].details
 
     while (true) {
       this.selectedNodes.push(node.id)
       const nodeNeighbors = Object.keys(node.neighbors).map(Number)
 
-      // 1 - the same node
-      if (node.id === selectedNodeID) {
-        console.log("cond 1")
-        break
-      }
+      // 1 - reached the end of the selected edge
+      if (node.id === selectedEdgeEnd) break
 
       // 2 - switch or crossing (>1 neighbors ahead)
-      if (nodeNeighbors.length !== 1 && node.id !== this.selectedStart) {
-        isAdditionalNode = false
-        console.log("cond 2")
+      if (
+        nodeNeighbors.length !== 1 &&
+        node.id !== this.selectedStart.edgeStart
+      )
         break
-      }
 
-      // 3- tram stop
-      if (node.node_type === "stop" && node.id !== this.selectedStart) {
-        console.log("cond 3", "details below")
-        console.log(node)
-        console.log(this.selectedStart)
+      // 3 - tram stop
+      if (node.node_type === "stop" && node.id !== this.selectedStart.edgeStart)
         break
-      }
 
       // 4 - out of rectangle bounds
-      if (!(nodeNeighbors[0] in nodes)) {
-        console.log("cond 4")
-        break
-      }
+      if (!(nodeNeighbors[0] in nodes)) break
 
       node = nodes[nodeNeighbors[0]].details
     }
-
-    if (!isAdditionalNode) return
-
-    // add one additional node at the end to include second selected node in selection
-    const neighborID = Number(Object.keys(node.neighbors)[0])
-    if (!(neighborID in nodes)) return
-    this.selectedNodes.push(nodes[neighborID].details.id)
   }
 
   private highlightSelectedPath(nodes: Record<number, GraphNode>) {
@@ -208,13 +189,17 @@ export class LeafletCustomizeMap {
     polyline.addTo(this.tracksLayer)
   }
 
-  private onPolylineClick(nodeID: number, nodes: Record<number, GraphNode>) {
+  private onPolylineClick(
+    edgeStart: number,
+    edgeEnd: number,
+    nodes: Record<number, GraphNode>,
+  ) {
     if (!this.selectedStart) {
-      this.selectedStart = nodeID
+      this.selectedStart = { edgeStart, edgeEnd }
       return
     }
 
-    this.findSelectionEndAndPath(nodeID, nodes)
+    this.findSelectionEndAndPath(edgeEnd, nodes)
 
     if (this.selectedNodes.length === 0) return
 
