@@ -6,19 +6,25 @@ import router from "@plugins/router"
 import { InitializeSimulation } from "@wails/go/simulation/Simulation"
 import CustomizeHeaderComponent from "./CustomizeHeaderComponent.vue"
 import CustomizeSpeedDialogComponent from "./CustomizeSpeedDialogComponent.vue"
-import CustomizeSpeedLegendComponent from "./CustomizeSpeedLegendComponent.vue"
 import { ModifiedNodes } from "@utils/types"
-
-const loading = defineModel<boolean>("loading", { required: true })
+import CustomizeGuideComponent from "./CustomizeGuideComponent.vue"
 
 const modifiedNodes = reactive<ModifiedNodes>({})
 
 const mapHTMLElement = useTemplateRef("customize-map")
 
+const loading = ref(true)
 const leafletCustomizeMap = ref<LeafletCustomizeMap>()
 const speedDialog = ref(false)
 const onCancelCallback = ref<() => void>()
 const onSpeedSaveCallback = ref<(newMaxSpeed: number) => void>()
+
+function resetChanges() {
+  Object.keys(modifiedNodes).forEach(nodeID => {
+    delete modifiedNodes[Number(nodeID)]
+  })
+  leafletCustomizeMap.value?.resetMapState()
+}
 
 async function saveChanges() {
   await UpdateTramTrackGraph(toRaw(modifiedNodes))
@@ -53,13 +59,16 @@ onMounted(async () => {
 
 <template>
   <div class="container">
-    <CustomizeHeaderComponent :save-changes="saveChanges" />
+    <CustomizeHeaderComponent
+      :reset-changes="resetChanges"
+      :save-changes="saveChanges"
+    />
     <CustomizeSpeedDialogComponent
       v-model:speed-dialog="speedDialog"
       v-model:on-cancel="onCancelCallback"
       v-model:on-speed-save="onSpeedSaveCallback"
     />
-    <CustomizeSpeedLegendComponent />
+    <CustomizeGuideComponent />
     <v-overlay
       v-model="loading"
       opacity="0.2"

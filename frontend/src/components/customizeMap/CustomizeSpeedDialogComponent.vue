@@ -2,7 +2,7 @@
 import { ref } from "vue"
 
 const speedDialog = defineModel<boolean>("speedDialog", { default: false })
-const currentSpeed = ref<number>(50) // domyślnie 50 km/h
+const currentSpeed = ref<number>(50)
 
 const onCancelCallback = defineModel<() => void>("onCancel", { default: null })
 const onSaveCallback = defineModel<(newMaxSpeed: number) => void>(

@@ -229,4 +229,16 @@ export class LeafletCustomizeMap {
       this.modifiedNodes[nodeID].neighborMaxSpeed[nextNodeID] = newMaxSpeed
     }
   }
+
+  public resetMapState() {
+    this.selectedStart = null
+    this.selectedNodes = []
+
+    if (this.selectedRectangle) {
+      this.map.addLayer(this.selectedRectangle)
+      this.selectedRectangle = null
+    }
+
+    this.tracksLayer.clearLayers()
+  }
 }
