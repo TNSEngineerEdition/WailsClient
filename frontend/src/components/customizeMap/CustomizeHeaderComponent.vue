@@ -22,9 +22,9 @@ const speedRanges = [
     <v-row no-gutters>
       <v-col>
         <div class="left">
-          <v-btn color="white" prepend-icon="mdi-restore" @click="resetChanges"
-            >Reset changes</v-btn
-          >
+          <v-btn variant="elevated" prepend-icon="mdi-backburger" to="/">
+            Menu
+          </v-btn>
         </div>
       </v-col>
       <v-col class="legend-bar-container">
@@ -45,9 +45,9 @@ const speedRanges = [
 
       <v-col>
         <div class="button-box-right">
-          <v-btn variant="elevated" prepend-icon="mdi-backburger" to="/">
-            Menu
-          </v-btn>
+          <v-btn color="white" prepend-icon="mdi-restore" @click="resetChanges"
+            >Reset changes</v-btn
+          >
           <v-btn variant="elevated" base-color="blue" @click="saveChanges">
             Save changes
           </v-btn>
