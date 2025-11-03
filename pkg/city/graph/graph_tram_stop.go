@@ -35,5 +35,4 @@ func (g *GraphTramStop) UpdateMaxSpeed(neighborID uint64, maxSpeed float32) {
 	neighbor := g.Details.Neighbors[neighborID]
 	neighbor.MaxSpeed = maxSpeed
 	g.Details.Neighbors[neighborID] = neighbor
-
 }

@@ -156,22 +156,15 @@ export class LeafletCustomizeMap {
       this.selectedNodes.push(node.id)
       const nodeNeighbors = Object.keys(node.neighbors).map(Number)
 
-      // 1 - reached the end of the selected edge
-      if (node.id === selectedEdgeEnd) break
+      const isSelectedEdge = node.id === selectedEdgeEnd
+      const isSwitchOrCrossing =
+        node.id !== this.selectedStart.edgeStart && nodeNeighbors.length !== 1
+      const isTramStop =
+        node.id !== this.selectedStart.edgeStart && node.node_type === "stop"
+      const isOutOfBounds = !(nodeNeighbors[0] in nodes)
 
-      // 2 - switch or crossing (>1 neighbors ahead)
-      if (
-        nodeNeighbors.length !== 1 &&
-        node.id !== this.selectedStart.edgeStart
-      )
+      if (isSelectedEdge || isSwitchOrCrossing || isTramStop || isOutOfBounds)
         break
-
-      // 3 - tram stop
-      if (node.node_type === "stop" && node.id !== this.selectedStart.edgeStart)
-        break
-
-      // 4 - out of rectangle bounds
-      if (!(nodeNeighbors[0] in nodes)) break
 
       node = nodes[nodeNeighbors[0]].details
     }
@@ -211,7 +204,7 @@ export class LeafletCustomizeMap {
         this.drawTracks(nodes)
       },
       onSpeedSave: (newMaxSpeed: number) => {
-        this.saveNewMaxSpeed(newMaxSpeed / 3.59) // km/h to m/s
+        this.saveNewMaxSpeed(newMaxSpeed / 3.6) // km/h to m/s
         this.tracksLayer.clearLayers()
         this.drawTracks(nodes)
       },

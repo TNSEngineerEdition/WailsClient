@@ -19,6 +19,7 @@ type City struct {
 	stopsByID       map[uint64]*graph.GraphTramStop
 	routesByStopID  map[uint64][]RouteInfo
 	plannedArrivals map[uint64][]PlannedArrival
+	bounds          LatLonBounds
 }
 
 type FetchCityParams struct {
@@ -79,6 +80,8 @@ func (c *City) FetchCity(
 	c.routesByStopID = c.GetRoutesByStopID()
 	c.Reset()
 
+	c.bounds = GetBoundsFromNodes(c.nodesByID)
+
 	return nil
 }
 
@@ -110,6 +113,10 @@ func (c *City) GetStops() []api.ResponseGraphTramStop {
 
 func (c *City) GetTramRoutes() []trip.TramRoute {
 	return c.tramRoutes
+}
+
+func (c *City) GetBounds() LatLonBounds {
+	return c.bounds
 }
 
 type RouteInfo struct {
@@ -196,34 +203,6 @@ func (c *City) GetPlannedArrivals(stopID uint64) *[]PlannedArrival {
 	panic(fmt.Sprintf("Stop ID %d not found", stopID))
 }
 
-type LatLonBounds struct {
-	MinLat float32 `json:"minLat"`
-	MinLon float32 `json:"minLon"`
-	MaxLat float32 `json:"maxLat"`
-	MaxLon float32 `json:"maxLon"`
-}
-
-func (c *City) GetBounds() LatLonBounds {
-	minLat, minLon := float32(math.Inf(1)), float32(math.Inf(1))
-	maxLat, maxLon := float32(math.Inf(-1)), float32(math.Inf(-1))
-
-	for _, node := range c.nodesByID {
-		lat, lon := node.GetCoordinates()
-
-		minLat = min(minLat, lat)
-		minLon = min(minLon, lon)
-		maxLat = max(maxLat, lat)
-		maxLon = max(maxLon, lon)
-	}
-
-	return LatLonBounds{
-		MinLat: minLat,
-		MinLon: minLon,
-		MaxLat: maxLat,
-		MaxLon: maxLon,
-	}
-}
-
 type TimeBounds struct {
 	StartTime uint `json:"startTime"`
 	EndTime   uint `json:"endTime"`
@@ -264,64 +243,62 @@ type CityRectangle struct {
 	NodesByID map[uint64]graph.GraphNode `json:"nodes_by_id"`
 }
 
-func (c *City) GetCityRectangles() (cityRectangles []CityRectangle) {
-	bounds := c.GetBounds()
-	latDistance := bounds.MaxLat - bounds.MinLat
-	lonDistance := bounds.MaxLon - bounds.MinLon
+func (c *City) GetCityRectangles() []CityRectangle {
+	//TODO: make these values based on city bounds
+	const (
+		nRows int = 6 // based on lat
+		nCols int = 7 // based on lon
+	)
 
-	const nRows int = 6 // based on lat
-	const nCols int = 7 // based on lon
+	latDistance := c.bounds.MaxLat - c.bounds.MinLat
+	lonDistance := c.bounds.MaxLon - c.bounds.MinLon
 
 	rowSize := latDistance / float32(nRows)
 	colSize := lonDistance / float32(nCols)
 
+	rects := make([]CityRectangle, 0, nRows*nCols)
 	for i := range nRows {
 		for j := range nCols {
-			bounds := LatLonBounds{
-				MinLat: bounds.MinLat + (float32(i) * rowSize),
-				MinLon: bounds.MinLon + (float32(j) * colSize),
-				MaxLat: bounds.MinLat + (float32(i+1) * rowSize),
-				MaxLon: bounds.MinLon + (float32(j+1) * colSize),
+			rectBounds := LatLonBounds{
+				MinLat: c.bounds.MinLat + float32(i)*rowSize,
+				MaxLat: c.bounds.MinLat + float32(i+1)*rowSize,
+				MinLon: c.bounds.MinLon + float32(j)*colSize,
+				MaxLon: c.bounds.MinLon + float32(j+1)*colSize,
 			}
-			nodesByID := c.getNodesForBounds(bounds)
-
-			if len(nodesByID) == 0 {
-				continue
-			}
-
-			rect := CityRectangle{
-				Bounds:    bounds,
-				NodesByID: c.getNodesForBounds(bounds),
-			}
-			cityRectangles = append(cityRectangles, rect)
+			rects = append(rects, CityRectangle{
+				Bounds:    rectBounds,
+				NodesByID: make(map[uint64]graph.GraphNode),
+			})
 		}
 	}
 
-	return cityRectangles
-}
-
-func (c *City) getNodesForBounds(bounds LatLonBounds) (nodesByID map[uint64]graph.GraphNode) {
-	nodesByID = make(map[uint64]graph.GraphNode)
 	for _, node := range c.nodesByID {
 		lat, lon := node.GetCoordinates()
-		if c.isInBounds(lat, lon, bounds) {
-			nodesByID[node.GetID()] = node
 
-			// add neighbors right outside of bounds for the border nodes
-			for neighborID := range node.GetNeighbors() {
-				neighbor := c.nodesByID[neighborID]
-				neiLat, neiLon := neighbor.GetCoordinates()
-				if !c.isInBounds(neiLat, neiLon, bounds) {
-					nodesByID[neighborID] = neighbor
+		for i := range rects {
+			if rects[i].Bounds.isInBounds(lat, lon) {
+				rects[i].NodesByID[node.GetID()] = node
+
+				// add neighbors right outside of bounds for the border nodes
+				for neighborID := range node.GetNeighbors() {
+					neighbor := c.nodesByID[neighborID]
+					neiLat, neiLon := neighbor.GetCoordinates()
+					if !rects[i].Bounds.isInBounds(neiLat, neiLon) {
+						rects[i].NodesByID[neighborID] = neighbor
+					}
 				}
 			}
 		}
 	}
-	return nodesByID
-}
 
-func (c *City) isInBounds(lat, lon float32, bounds LatLonBounds) bool {
-	return lat >= bounds.MinLat && lat <= bounds.MaxLat && lon >= bounds.MinLon && lon <= bounds.MaxLon
+	filteredRects := make([]CityRectangle, 0, len(rects))
+	for _, r := range rects {
+		if len(r.NodesByID) > 0 {
+			filteredRects = append(filteredRects, r)
+		}
+	}
+
+	return filteredRects
 }
 
 type Modifications struct {
@@ -330,10 +307,12 @@ type Modifications struct {
 
 func (c *City) UpdateTramTrackGraph(modifiedNodes map[uint64]Modifications) {
 	for nodeID, mods := range modifiedNodes {
-		if node, ok := c.nodesByID[nodeID]; ok {
-			for neighborID, maxSpeed := range mods.NeighborMaxSpeed {
-				node.UpdateMaxSpeed(neighborID, maxSpeed)
-			}
+		node, ok := c.nodesByID[nodeID]
+		if !ok {
+			continue
+		}
+		for neighborID, maxSpeed := range mods.NeighborMaxSpeed {
+			node.UpdateMaxSpeed(neighborID, maxSpeed)
 		}
 	}
 }
