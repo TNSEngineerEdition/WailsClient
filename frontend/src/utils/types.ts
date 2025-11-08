@@ -5,6 +5,7 @@ export type ModifiedNodes = Record<
   { neighborMaxSpeed: Record<number, number> }
 >
 
+// TODO: use types from `api` instead of manually typed ones
 type GraphNeighbor = {
   id: number
   distance: number
