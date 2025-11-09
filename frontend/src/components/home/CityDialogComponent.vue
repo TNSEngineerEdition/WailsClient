@@ -1,7 +1,10 @@
 <script setup lang="ts">
 import router from "@plugins/router"
 import { api, simulation } from "@wails/go/models"
-import { InitializeSimulation } from "@wails/go/simulation/Simulation"
+import {
+  InitializeCityData,
+  InitializeSimulation,
+} from "@wails/go/simulation/Simulation"
 import { computed, ref } from "vue"
 import ErrorDialogComponent from "@components/home/ErrorDialogComponent.vue"
 
@@ -34,7 +37,7 @@ const weekdayItems = computed(() => {
   }))
 })
 
-async function startSimulation() {
+async function handleButtonClick(isCustomizeMap: boolean) {
   loading.value = true
 
   const parameters = new simulation.SimulationParameters({
@@ -44,11 +47,24 @@ async function startSimulation() {
     customSchedule: Array.from((await customSchedule.value?.bytes()) ?? []),
   })
 
-  const errorMessage = await InitializeSimulation(parameters)
-  if (errorMessage) {
+  const dataErrorMessage = await InitializeCityData(parameters)
+  if (dataErrorMessage) {
     loading.value = false
     showError.value = true
-    error.value = errorMessage
+    error.value = dataErrorMessage
+    return
+  }
+
+  if (isCustomizeMap) {
+    router.push("/customize-map")
+    return
+  }
+
+  const simulationErrorMessage = await InitializeSimulation(0)
+  if (simulationErrorMessage) {
+    loading.value = false
+    showError.value = true
+    error.value = simulationErrorMessage
     return
   }
 
@@ -63,7 +79,7 @@ async function startSimulation() {
     :error="error"
   ></ErrorDialogComponent>
 
-  <v-dialog max-width="400">
+  <v-dialog max-width="500">
     <template v-slot:activator="{ props: dialogProps }">
       <v-hover v-slot="{ isHovering, props: hoverProps }">
         <v-card
@@ -96,16 +112,10 @@ async function startSimulation() {
 
       <v-card-text>
         <v-form>
-          <v-switch
-            class="d-flex flex-column align-center"
-            label="Customize speed limits"
-            disabled
-          ></v-switch>
-
           <v-select
             v-model="date"
             :items="props.city.availableDates"
-            :disabled="disableDate"
+            :disabled="disableDate || loading"
             prepend-icon="mdi-calendar"
             label="Schedule date"
             clearable
@@ -114,7 +124,7 @@ async function startSimulation() {
           <v-select
             v-model="weekday"
             :items="weekdayItems"
-            :disabled="disableWeekday"
+            :disabled="disableWeekday || loading"
             prepend-icon="mdi-view-week"
             label="Weekday"
             clearable
@@ -122,7 +132,7 @@ async function startSimulation() {
 
           <v-file-input
             v-model="customSchedule"
-            :disabled="disableCustomSchedule"
+            :disabled="disableCustomSchedule || loading"
             accept="application/zip"
             prepend-icon="mdi-invoice-text-clock"
             label="Custom GTFS Schedule file"
@@ -138,14 +148,51 @@ async function startSimulation() {
       </v-card-text>
 
       <template v-slot:actions>
-        <v-btn
-          text="Start"
-          :disabled="loading"
-          :loading="loading"
-          block
-          @click="startSimulation"
-        ></v-btn>
+        <div class="btn-container">
+          <v-progress-linear
+            v-if="loading"
+            color="blue"
+            height="7"
+            indeterminate
+          />
+          <v-btn
+            v-if="!loading"
+            text="Customize speeds"
+            variant="elevated"
+            color="white"
+            style="width: 50%"
+            @click="
+              () => {
+                handleButtonClick(true)
+              }
+            "
+          >
+          </v-btn>
+          <v-btn
+            v-if="!loading"
+            text="Start"
+            variant="elevated"
+            color="blue"
+            style="width: 50%"
+            @click="
+              () => {
+                handleButtonClick(false)
+              }
+            "
+          ></v-btn>
+        </div>
       </template>
     </v-card>
   </v-dialog>
 </template>
+
+<style lang="scss" scoped>
+.btn-container {
+  width: 100%;
+  padding: 0 20px 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+}
+</style>

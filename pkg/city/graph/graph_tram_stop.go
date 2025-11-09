@@ -4,7 +4,7 @@ import "github.com/TNSEngineerEdition/WailsClient/pkg/api"
 
 type GraphTramStop struct {
 	NodeBlock
-	details api.ResponseGraphTramStop
+	Details api.ResponseGraphTramStop `json:"details"`
 }
 
 func (g *GraphTramStop) IsTramStop() bool {
@@ -12,21 +12,27 @@ func (g *GraphTramStop) IsTramStop() bool {
 }
 
 func (g *GraphTramStop) GetDetails() api.ResponseGraphTramStop {
-	return g.details
+	return g.Details
 }
 
 func (g *GraphTramStop) GetID() uint64 {
-	return g.details.ID
+	return g.Details.ID
 }
 
 func (g *GraphTramStop) GetCoordinates() (float32, float32) {
-	return g.details.Lat, g.details.Lon
+	return g.Details.Lat, g.Details.Lon
 }
 
 func (g *GraphTramStop) GetNeighbors() map[uint64]api.ResponseGraphEdge {
-	return g.details.Neighbors
+	return g.Details.Neighbors
 }
 
 func (g *GraphTramStop) GetName() string {
-	return g.details.Name
+	return g.Details.Name
+}
+
+func (g *GraphTramStop) UpdateMaxSpeed(neighborID uint64, maxSpeed float32) {
+	neighbor := g.Details.Neighbors[neighborID]
+	neighbor.MaxSpeed = maxSpeed
+	g.Details.Neighbors[neighborID] = neighbor
 }

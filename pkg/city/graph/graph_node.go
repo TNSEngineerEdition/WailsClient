@@ -12,6 +12,7 @@ type GraphNode interface {
 	GetID() uint64
 	GetCoordinates() (float32, float32)
 	GetNeighbors() map[uint64]api.ResponseGraphEdge
+	UpdateMaxSpeed(neighborID uint64, maxSpeed float32)
 }
 
 func GraphNodesFromCityData(responseCityData *api.ResponseCityData) (map[uint64]GraphNode, error) {
@@ -25,9 +26,9 @@ func GraphNodesFromCityData(responseCityData *api.ResponseCityData) (map[uint64]
 
 		switch node := value.(type) {
 		case api.ResponseGraphTramStop:
-			nodesByID[node.ID] = &GraphTramStop{details: node}
+			nodesByID[node.ID] = &GraphTramStop{Details: node}
 		case api.ResponseGraphNode:
-			nodesByID[node.ID] = &GraphTrackNode{details: node}
+			nodesByID[node.ID] = &GraphTrackNode{Details: node}
 		default:
 			return nil, fmt.Errorf("Unrecognized node type: %s", node)
 		}
