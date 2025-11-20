@@ -51,6 +51,25 @@ func (ps *PassengersStore) generatePassengers(c *city.City) {
 			}
 			endStop := tramStops[j]
 			spawn := timeBounds.StartTime + uint(rand.IntN(int(timeBounds.EndTime-timeBounds.StartTime+1)))
+
+			// create graph for a passenger
+
+			//mock
+			startStopID := uint64(2846212107) // grota 2
+			endStopID := uint64(1768224703)   // bialucha 2
+			spawnTime := uint(18420)          // 05:00:00
+
+			startStopID = 2419106061 // miodowa 2
+			endStopID = 2423789754   // pedzichow 1
+			spawnTime = 18000        // 05:00:00
+
+			// startStopID = uint64(2420979790) // kampus -> cz.m.
+
+			passengerGraph := NewPassengerGraph(startStopID, endStopID, spawnTime, c)
+			passengerGraph.findFastestConnection(c.GetStopsByID(), c.GetStopsByName(), c.GetTripsByID())
+
+			// passengerGraph := NewPassengerGraph(startStop.ID, endStop.ID, spawn, c)
+
 			passenger := &Passenger{
 				strategy:    PassengerStrategy(rand.IntN(3)),
 				spawnTime:   spawn,
@@ -61,6 +80,7 @@ func (ps *PassengersStore) generatePassengers(c *city.City) {
 
 			ps.PassengersToSpawn[spawn] = append(ps.PassengersToSpawn[spawn], passenger)
 			counter++
+			return
 		}
 	}
 }

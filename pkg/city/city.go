@@ -1,7 +1,6 @@
 package city
 
 import (
-	"fmt"
 	"math"
 	"slices"
 
@@ -17,6 +16,8 @@ type City struct {
 	tramRoutes      []trip.TramRoute
 	nodesByID       map[uint64]graph.GraphNode
 	stopsByID       map[uint64]*graph.GraphTramStop
+	stopsByName     map[string]map[uint64]*graph.GraphTramStop
+	tripsByID       map[uint]*trip.TramTrip
 	routesByStopID  map[uint64][]RouteInfo
 	plannedArrivals map[uint64][]PlannedArrival
 	bounds          LatLonBounds
@@ -76,6 +77,22 @@ func (c *City) FetchCity(
 		}
 	}
 
+	c.stopsByName = make(map[string]map[uint64]*graph.GraphTramStop)
+	for stopID, stop := range c.stopsByID {
+		name := stop.GetGroupName()
+		if _, ok := c.stopsByName[name]; !ok {
+			c.stopsByName[name] = make(map[uint64]*graph.GraphTramStop)
+		}
+		c.stopsByName[name][stopID] = stop
+	}
+
+	c.tripsByID = make(map[uint]*trip.TramTrip)
+	for i, route := range c.tramRoutes {
+		for j, trip := range route.Trips {
+			c.tripsByID[trip.ID] = &c.tramRoutes[i].Trips[j]
+		}
+	}
+
 	c.CityID = cityID
 	c.routesByStopID = c.GetRoutesByStopID()
 	c.Reset()
@@ -101,6 +118,10 @@ func (c *City) GetStopsByID() map[uint64]*graph.GraphTramStop {
 	return c.stopsByID
 }
 
+func (c *City) GetStopsByName() map[string]map[uint64]*graph.GraphTramStop {
+	return c.stopsByName
+}
+
 func (c *City) GetStops() []api.ResponseGraphTramStop {
 	result := make([]api.ResponseGraphTramStop, 0, len(c.stopsByID))
 
@@ -117,6 +138,10 @@ func (c *City) GetTramRoutes() []trip.TramRoute {
 
 func (c *City) GetBounds() LatLonBounds {
 	return c.bounds
+}
+
+func (c *City) GetTripsByID() map[uint]*trip.TramTrip {
+	return c.tripsByID
 }
 
 type RouteInfo struct {
@@ -199,8 +224,25 @@ func (c *City) GetPlannedArrivals(stopID uint64) *[]PlannedArrival {
 	if arrivals, ok := c.plannedArrivals[stopID]; ok {
 		return &arrivals
 	}
+	return &[]PlannedArrival{}
+	//panic(fmt.Sprintf("Stop ID %d not found", stopID))
+}
 
-	panic(fmt.Sprintf("Stop ID %d not found", stopID))
+func (c *City) GetPlannedArrivalsInTimeSpan(stopID uint64, fromTime uint, toTime uint) *[]PlannedArrival {
+	if fromTime > toTime {
+		panic("Incorrect time span - 'fromTime' cannot be later than 'toTime'")
+	}
+
+	arrivals := *c.GetPlannedArrivals(stopID)
+
+	var filtered []PlannedArrival
+	for _, a := range arrivals {
+		if a.Time >= fromTime && a.Time <= toTime {
+			filtered = append(filtered, a)
+		}
+	}
+
+	return &filtered
 }
 
 type TimeBounds struct {

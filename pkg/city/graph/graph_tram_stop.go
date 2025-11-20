@@ -1,6 +1,10 @@
 package graph
 
-import "github.com/TNSEngineerEdition/WailsClient/pkg/api"
+import (
+	"unicode"
+
+	"github.com/TNSEngineerEdition/WailsClient/pkg/api"
+)
 
 type GraphTramStop struct {
 	NodeBlock
@@ -28,6 +32,18 @@ func (g *GraphTramStop) GetNeighbors() map[uint64]api.ResponseGraphEdge {
 }
 
 func (g *GraphTramStop) GetName() string {
+	return g.Details.Name
+}
+
+func (g *GraphTramStop) GetGroupName() string {
+	runeName := []rune(g.Details.Name)
+	n := len(runeName)
+	if n < 3 {
+		return ""
+	}
+	if unicode.IsDigit(runeName[n-1]) && unicode.IsDigit(runeName[n-2]) {
+		return g.Details.Name[:n-3]
+	}
 	return g.Details.Name
 }
 
