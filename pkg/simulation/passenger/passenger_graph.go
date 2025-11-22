@@ -7,8 +7,6 @@ import (
 	"github.com/TNSEngineerEdition/WailsClient/pkg/city"
 	"github.com/TNSEngineerEdition/WailsClient/pkg/city/graph"
 	"github.com/TNSEngineerEdition/WailsClient/pkg/city/trip"
-	// "github.com/TNSEngineerEdition/WailsClient/pkg/city/graph"
-	// "github.com/TNSEngineerEdition/WailsClient/pkg/city/trip"
 )
 
 type node struct {
@@ -31,97 +29,105 @@ type edge struct {
 type PassengerGraph struct {
 	startStopID uint64
 	endStopID   uint64
+	spawnTime   uint
 	nodes       map[uint64]*node
 	c           *city.City
 }
 
+const MAX_WAITING_TIME = 30 * 60    // 30 min
+const MAX_TRAVEL_TIME = 2 * 60 * 60 // 2 hrs
+const MIN_CHANGE_TIME = 0
+const MAX_FORWARD_BFS_LIMIT_OFFSET = 5 // BFS limit + offset
+
 func NewPassengerGraph(startStopID, endStopID uint64, spawnTime uint, c *city.City) PassengerGraph {
-	stops := c.GetStopsByID()
-	stopGroups := c.GetStopsByName()
+	stopsByID := c.GetStopsByID()
 
-	startStop := stops[startStopID]
-	endStop := stops[endStopID]
-
-	endStopGroupName := endStop.GetGroupName()
+	startStop := stopsByID[startStopID]
+	endStop := stopsByID[endStopID]
 
 	fmt.Printf("\n==> Hello! I will spawn at %d\n", spawnTime)
 	fmt.Printf("I will travel from %s [%d] to %s [%d]\n\n", startStop.GetName(), startStopID, endStop.GetName(), endStopID)
 
-	graph := PassengerGraph{
+	pg := PassengerGraph{
 		startStopID: startStopID,
 		endStopID:   endStopID,
+		spawnTime:   spawnTime,
 		nodes:       make(map[uint64]*node),
 		c:           c,
 	}
 
-	const MAX_WAITING_TIME = 30 * 60    // 30 min
-	const MAX_TRAVEL_TIME = 2 * 60 * 60 // 2 hrs
-	const MIN_CHANGE_TIME = 0
+	visitedStopsForward := pg.forwardBFS()
+	visitedStopsBackward := pg.backwardBFS()
+	pg.cleanup(visitedStopsForward, visitedStopsBackward)
 
-	trips := c.GetTripsByID()
-
-	/////// ========= ///////
-	///////    BFS    ///////
-	/////// ========= ///////
-
-	type bfsState struct {
-		stopID       uint64
-		time         uint
-		visitCounter uint
+	fmt.Println("\n\nStops in graph after")
+	for _, node := range pg.nodes {
+		fmt.Println(stopsByID[node.stopID].GetName())
 	}
 
-	type visitedState struct {
-		visited             bool
-		earliestArrivalTime uint
-	}
+	return pg
+}
 
-	visitedStops := make(map[uint64]visitedState)
-	for _, stop := range stops {
-		visitedStops[stop.GetID()] = visitedState{
+type bfsState struct {
+	stopID       uint64
+	time         uint
+	visitCounter uint
+}
+
+type visitState struct {
+	visited             bool
+	earliestArrivalTime uint
+}
+
+func (pg *PassengerGraph) forwardBFS() map[uint64]visitState {
+	stopsByID := pg.c.GetStopsByID()
+	endStop := stopsByID[pg.endStopID]
+	trips := pg.c.GetTripsByID()
+
+	queue := []bfsState{{stopID: pg.startStopID, time: pg.spawnTime, visitCounter: 0}}
+
+	isTargetAlreadyReached := false
+	BFSLimit := uint(100)
+
+	visitedStops := make(map[uint64]visitState)
+	for _, stop := range stopsByID {
+		visitedStops[stop.GetID()] = visitState{
 			visited:             false,
 			earliestArrivalTime: 93600, // 02:00:00
 		}
 	}
-
-	targetAlreadyReached := false
-	BFSLimit := uint(100)
-
-	queue := []bfsState{{stopID: startStopID, time: spawnTime, visitCounter: 0}}
 
 	for len(queue) > 0 {
 		state := queue[0]
 		queue = queue[1:]
 
 		// end conditions
-		killBFS := state.visitCounter > BFSLimit
-		exceededTravelTime := state.time > spawnTime+MAX_TRAVEL_TIME
-		alreadyVisitedStop := visitedStops[state.stopID].visited
-		isAlreadyVisitedLater := visitedStops[state.stopID].earliestArrivalTime > state.time
+		killBFS := state.visitCounter > BFSLimit                                          // prevent unnecessary looping over the tram network
+		isTravelTimeExceeded := state.time > pg.spawnTime+MAX_TRAVEL_TIME                 // exceeded total travel time
+		isStopVisited := visitedStops[state.stopID].visited                               // true if stop is already visited
+		isStopVisitedLater := visitedStops[state.stopID].earliestArrivalTime > state.time // true if stop was visited "later" than the current's iteration time
 
-		if killBFS || exceededTravelTime || (alreadyVisitedStop && !isAlreadyVisitedLater) {
+		if killBFS || isTravelTimeExceeded || (isStopVisited && !isStopVisitedLater) {
 			continue
 		}
 
-		visitedStops[state.stopID] = visitedState{
+		visitedStops[state.stopID] = visitState{
 			visited:             true,
 			earliestArrivalTime: state.time,
 		}
 
-		reachedTarget := state.stopID == endStopID || stops[state.stopID].GetGroupName() == endStopGroupName
-		if reachedTarget {
-			if !targetAlreadyReached {
-				BFSLimit = state.visitCounter + 5
-				targetAlreadyReached = true
+		isTargetReached := state.stopID == pg.endStopID || stopsByID[state.stopID].GetGroupName() == endStop.GetGroupName()
+		if isTargetReached {
+			if !isTargetAlreadyReached {
+				BFSLimit = state.visitCounter + MAX_FORWARD_BFS_LIMIT_OFFSET
+				isTargetAlreadyReached = true
 			}
-
 			continue
 		}
 
-		// get arrivals on current stop
-		arrivals := *c.GetPlannedArrivalsInTimeSpan(state.stopID, state.time, state.time+MAX_WAITING_TIME)
-
+		// iterate over every tram arrival in the upcoming MAX_WAITING_TIME starting from current state.time
+		arrivals := *pg.c.GetPlannedArrivalsInTimeSpan(state.stopID, state.time, state.time+MAX_WAITING_TIME)
 		for _, arrival := range arrivals {
-			// add next stop for each arrival to new state
 			trip := trips[arrival.TripID]
 
 			if len(trip.Stops) == arrival.StopIndex+1 {
@@ -129,12 +135,17 @@ func NewPassengerGraph(startStopID, endStopID uint64, spawnTime uint, c *city.Ci
 			}
 
 			nextStop := trip.Stops[arrival.StopIndex+1]
-			graph.addEdge(state.stopID, nextStop.ID, arrival.TripID, nextStop.Time-arrival.Time, state.visitCounter, state.time, nextStop.Time, arrival.StopIndex)
 
-			// skip if the stop was already visited
-			if visitedStops[nextStop.ID].visited {
-				continue
-			}
+			pg.addEdge(
+				state.stopID,
+				nextStop.ID,
+				arrival.TripID,
+				nextStop.Time-arrival.Time,
+				state.visitCounter,
+				state.time,
+				nextStop.Time,
+				arrival.StopIndex,
+			)
 
 			queue = append(queue, bfsState{
 				stopID:       nextStop.ID,
@@ -144,174 +155,136 @@ func NewPassengerGraph(startStopID, endStopID uint64, spawnTime uint, c *city.Ci
 		}
 	}
 
-	////// =========== ///////
-	////// REVERSE BFS ///////
-	////// =========== ///////
-	// travel the graph backwards to mark possible interchange stops
+	return visitedStops
+}
 
-	visitedStopsReverse := make(map[uint64]visitedState)
+func (pg *PassengerGraph) backwardBFS() map[uint64]visitState {
+	stopsByID := pg.c.GetStopsByID()
+	stopsByName := pg.c.GetStopsByName()
+	endStop := stopsByID[pg.endStopID]
 
-	for stopID := range stops {
-		visitedStopsReverse[stopID] = visitedState{visited: false}
+	trips := pg.c.GetTripsByID()
+
+	visitedStops := make(map[uint64]visitState)
+	for stopID := range stopsByID {
+		visitedStops[stopID] = visitState{
+			visited:             false,
+			earliestArrivalTime: 93600, // 02:00:00
+		}
 	}
 
-	for stopID := range stopGroups[endStopGroupName] {
+	queue := []bfsState{}
+	for stopID := range stopsByName[endStop.GetGroupName()] {
 		queue = append(queue, bfsState{stopID: stopID})
 	}
 
 	for len(queue) > 0 {
-		// opis algorytmu
-		// cofamy sie w grafie biorąc pod uwage przyjazdy
-		// cel - chcemy dorzucić do grafu przystanki, na których można się przesiąść i dotrzeć z nich do celu
-
-		// gdy natrafiamy na stopID, ktorego nie ma (ale są inne z jego grupy!), a mamy podanego poprzednika
-		// to sprawdzamy kiedy mamy najwczesniejszy przyjazd (+ czas na przesiadke)
-		// pobieramy odjazdy z tego przystanku
-		// patrzymy ktore tramID sa w nodes[succStopID]
-		// dla tych tramID tworzymy krawedzie i ofc dodajemy node
-		// TO BEDZIE NASZA PRZESIADKA
-
 		state := queue[0]
 		queue = queue[1:]
 
-		if visitedStopsReverse[state.stopID].visited {
-			continue // already visited
-		}
-
-		visitedStopsReverse[state.stopID] = visitedState{visited: true}
-
-		//fmt.Println("Analyzing stop: ", stops[state.stopID].GetName())
-
-		if state.stopID == startStopID {
-			continue // reached end
-		}
-
-		// changing between trams
-		if _, ok := graph.nodes[state.stopID]; !ok {
-			if state.stopID == 2423481568 {
-				continue
-			}
-			groupName := stops[state.stopID].GetGroupName()
-
-			if len(stopGroups[groupName]) < 3 {
-				continue
-			}
-
-			earliestArrival := graph.getEarliestArrivalForStopsGroup(groupName).time
-
-			arrivals := *c.GetPlannedArrivalsInTimeSpan(
-				state.stopID,
-				earliestArrival+MIN_CHANGE_TIME,
-				earliestArrival+MIN_CHANGE_TIME+MAX_WAITING_TIME,
-			)
-
-			// fmt.Println("New tram stop: ", stops[state.stopID].GetName())
-			// fmt.Println("   => Odjazdy")
-			// fmt.Println(arrivals)
-
-			// bierzemy tylko te arrivals, dla ktorych next stop jest w naszym grafie
-			for _, arrival := range arrivals {
-				trip := trips[arrival.TripID]
-
-				// fmt.Println("   => StopIndex check")
-				if len(trip.Stops) <= arrival.StopIndex+1 {
-					continue // in case we reached the final stop of a trip
-				}
-
-				// fmt.Println("   => Assinging next stop")
-				nextStop := trips[arrival.TripID].Stops[arrival.StopIndex+1]
-
-				// fmt.Println("   => Checking if next stop is in the graph, next stop: ", stops[nextStop.ID].GetName())
-				if _, ok := graph.nodes[nextStop.ID]; !ok {
-					continue
-				}
-
-				// check if this trip is in the node
-				// fmt.Println("   => Check if this trip is actually in the next node, this trip is to: ", trip.TripHeadSign)
-				if _, ok := graph.nodes[nextStop.ID].edgesOut[arrival.TripID]; !ok {
-					continue
-				}
-
-				// fmt.Printf("      ==> Trying to add edge between %s -> %s\n", stops[state.stopID].GetName(), stops[nextStop.ID].GetName())
-				visitedStops[state.stopID] = visitedState{visited: true}
-				graph.addEdge(state.stopID, nextStop.ID, arrival.TripID, nextStop.Time-arrival.Time, 0, arrival.Time, nextStop.Time, arrival.StopIndex)
-
-			}
+		isStopVisited := visitedStops[state.stopID].visited
+		if isStopVisited {
 			continue
 		}
 
-		// look for other nodes that can be potentially in graph
-		for _, edgeOut := range graph.nodes[state.stopID].edgesOut {
-			trip := trips[edgeOut.tramID]
-			stopIndex := edgeOut.fromStopIndex
-			if stopIndex == 0 {
+		visitedStops[state.stopID] = visitState{visited: true}
+
+		isStartReached := state.stopID == pg.startStopID
+		if isStartReached {
+			continue
+		}
+
+		// look for potential changes between trams at interchange point (>2 stops in one group)
+		// we only consider nodes not yet present in the graph
+		// as they were not processed and potential changes can be found there
+		if _, ok := pg.nodes[state.stopID]; !ok {
+			stopGroupName := stopsByID[state.stopID].GetGroupName()
+
+			if len(stopsByName[stopGroupName]) < 3 {
 				continue
 			}
-			prevStop := trip.Stops[stopIndex-1]
-			if visitedStops[prevStop.ID].visited {
-				continue // this means that this node exists in the graph
+
+			earliestArrivalTime := pg.getEarliestArrivalForStopsGroup(stopGroupName).time
+			arrivals := *pg.c.GetPlannedArrivalsInTimeSpan(
+				state.stopID,
+				earliestArrivalTime+MIN_CHANGE_TIME,
+				earliestArrivalTime+MIN_CHANGE_TIME+MAX_WAITING_TIME,
+			)
+
+			for _, arrival := range arrivals {
+				trip := pg.c.GetTripsByID()[arrival.TripID]
+
+				if len(trip.Stops) <= arrival.StopIndex+1 {
+					continue // in case here is the final stop of a trip
+				}
+
+				nextStop := trip.Stops[arrival.StopIndex+1]
+				if _, ok := pg.nodes[nextStop.ID]; !ok {
+					continue // we only care about trams that are going where we just came from (so towards passenger's target stop)
+				}
+				if _, ok := pg.nodes[nextStop.ID].edgesOut[arrival.TripID]; !ok {
+					continue // we only care about trams that we already have in the graph
+				}
+
+				visitedStops[state.stopID] = visitState{visited: true}
+
+				pg.addEdge(state.stopID, nextStop.ID, arrival.TripID, nextStop.Time-arrival.Time, 0, arrival.Time, nextStop.Time, arrival.StopIndex)
 			}
+			continue // because we do not want to go deeper when we discover a "new" tram stop in the stops group
+		}
+
+		// look for other nodes that can be potentially added to the graph (like new tram stop in a stops group)
+		//
+		// example:
+		// passenger wants to go from Poczta Glowna to Rondo Mogilskie,
+		// so we have Teatr Slowackiego 03 in graph (lines 10, 52)
+		// but we might also try to take line 3, get off at Teatr Slowackiego 03 and then change to 4 or 14 departing from Teatr Slowackiego 02
+		// current stop is Lubicz and all mentioned trams departure from there (except 3),
+		// but we do not have Teatr Slowackiego 02 in the graph
+		// - this for loop solves this issue by adding this stop to the queue
+		for _, edgeOut := range pg.nodes[state.stopID].edgesOut {
+			trip := trips[edgeOut.tramID]
+
+			if edgeOut.fromStopIndex == 0 {
+				continue
+			}
+
+			prevStop := trip.Stops[edgeOut.fromStopIndex-1]
+			if visitedStops[prevStop.ID].visited {
+				continue // node is already in the graph
+			}
+
 			queue = append(queue, bfsState{stopID: prevStop.ID})
 		}
 
-		// go backwards to previousNodes in graph
-		for _, edgeIn := range graph.nodes[state.stopID].edgesIn {
+		// go backwards to previous nodes in graph
+		for _, edgeIn := range pg.nodes[state.stopID].edgesIn {
 			prevStopID := edgeIn.from
 			queue = append(queue, bfsState{stopID: prevStopID})
 		}
 	}
 
-	fmt.Println("\n\nStops in graph before")
-	for _, node := range graph.nodes {
-		fmt.Println(stops[node.stopID].GetName())
-	}
+	return visitedStops
+}
 
-	// fmt.Println("\n\nStops without edges in")
-	// for _, node := range graph.nodes {
-	// 	if len(node.edgesIn) == 0 {
-	// 		fmt.Println(stops[node.stopID].GetName())
-	// 	}
-	// }
-
-	////// =========== ///////
-	//////   CLEANUP   ///////
-	////// =========== ///////
-
-	// zostawiamy tylko przystanki odwiedzone w obu etapach :)
-
-	for nodeID, node := range graph.nodes {
-		if visitedStops[nodeID].visited && visitedStopsReverse[nodeID].visited {
-			continue
+func (pg *PassengerGraph) cleanup(visitedStopsForward, visitedStopsBackward map[uint64]visitState) {
+	for nodeID, node := range pg.nodes {
+		if visitedStopsForward[nodeID].visited && visitedStopsBackward[nodeID].visited {
+			continue // if node was visited in both forward and backward BFS, it means it is relevant
 		}
 
-		// delete edges - also in neighbors
-
-		// edges in
 		for edgeID, edgeIn := range node.edgesIn {
-			// delete in neighbor
-			delete(graph.nodes[edgeIn.from].edgesOut, edgeID)
-			// delete in this node
-			delete(node.edgesIn, edgeID)
+			delete(pg.nodes[edgeIn.from].edgesOut, edgeID) // delete in neighbor
+			delete(node.edgesIn, edgeID)                   // delete in this node
 		}
 
-		// edges out
 		for edgeID, edgeOut := range node.edgesOut {
-			// delete in neighbor
-			delete(graph.nodes[edgeOut.to].edgesIn, edgeID)
-			// delete in this node
-			delete(node.edgesOut, edgeID)
+			delete(pg.nodes[edgeOut.to].edgesIn, edgeID) // delete in neighbor
+			delete(node.edgesOut, edgeID)                // delete in this node
 		}
 
-		// delete node from graph
-		delete(graph.nodes, nodeID)
+		delete(pg.nodes, nodeID) // delete node from graph
 	}
-
-	fmt.Println("\n\nStops in graph after")
-	for _, node := range graph.nodes {
-		fmt.Println(stops[node.stopID].GetName())
-	}
-
-	return graph
 }
 
 type earliestArrival struct {
@@ -368,12 +341,10 @@ func (pg *PassengerGraph) addEdge(from uint64, to uint64, tramID uint, travelTim
 		fromStopIndex: fromStopIndex,
 	}
 
-	// 1️⃣ pobierz kopię node'a, zmodyfikuj, potem zapisz z powrotem
 	fromNode := pg.nodes[from]
 	fromNode.edgesOut[tramID] = &e
 	pg.nodes[from] = fromNode
 
-	// 2️⃣ to samo dla node’a docelowego
 	toNode := pg.nodes[to]
 	toNode.edgesIn[tramID] = &e
 
@@ -386,7 +357,7 @@ func (pg *PassengerGraph) addEdge(from uint64, to uint64, tramID uint, travelTim
 }
 
 func (pg *PassengerGraph) findFastestConnection(
-	stops map[uint64]*graph.GraphTramStop,
+	stopsByID map[uint64]*graph.GraphTramStop,
 	stopsByName map[string]map[uint64]*graph.GraphTramStop,
 	trips map[uint]*trip.TramTrip,
 ) {
@@ -399,7 +370,7 @@ func (pg *PassengerGraph) findFastestConnection(
 	fmt.Println("\nWyznaczanie najkrotszej trasy")
 
 	// find the stop with the earliest arrivals
-	endStopName := stops[pg.endStopID].GetGroupName()
+	endStopName := stopsByID[pg.endStopID].GetGroupName()
 	endStopsByName := stopsByName[endStopName]
 	earliestArrivalTime := uint(99999)
 	var currentStop *node
@@ -439,6 +410,6 @@ func (pg *PassengerGraph) findFastestConnection(
 
 	fmt.Println("\n=> Travel plan:")
 	for _, p := range path {
-		fmt.Printf("\t%s -> %s by %d to %s\n", stops[p.from].GetName(), stops[p.to].GetName(), p.tramID, trips[p.tramID].TripHeadSign)
+		fmt.Printf("\t%s -> %s by %d to %s\n", stopsByID[p.from].GetName(), stopsByID[p.to].GetName(), p.tramID, trips[p.tramID].TripHeadSign)
 	}
 }
