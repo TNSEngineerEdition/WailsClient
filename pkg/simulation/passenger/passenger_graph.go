@@ -2,11 +2,8 @@ package passenger
 
 import (
 	"fmt"
-	"slices"
 
 	"github.com/TNSEngineerEdition/WailsClient/pkg/city"
-	"github.com/TNSEngineerEdition/WailsClient/pkg/city/graph"
-	"github.com/TNSEngineerEdition/WailsClient/pkg/city/trip"
 )
 
 type node struct {
@@ -19,11 +16,12 @@ type node struct {
 }
 
 type edge struct {
-	tramID        uint
-	from          uint64
-	to            uint64
-	travelTime    uint
-	fromStopIndex int
+	tramID          uint
+	from            uint64
+	to              uint64
+	fromArrivalTime uint
+	toArrivalTime   uint
+	fromStopIndex   int
 }
 
 type PassengerGraph struct {
@@ -57,13 +55,8 @@ func NewPassengerGraph(startStopID, endStopID uint64, spawnTime uint, c *city.Ci
 	}
 
 	visitedStopsForward := pg.forwardBFS()
-	visitedStopsBackward := pg.backwardBFS()
+	visitedStopsBackward := pg.backwardBFS(visitedStopsForward)
 	pg.cleanup(visitedStopsForward, visitedStopsBackward)
-
-	fmt.Println("\n\nStops in graph after")
-	for _, node := range pg.nodes {
-		fmt.Println(stopsByID[node.stopID].GetName())
-	}
 
 	return pg
 }
@@ -140,9 +133,8 @@ func (pg *PassengerGraph) forwardBFS() map[uint64]visitState {
 				state.stopID,
 				nextStop.ID,
 				arrival.TripID,
-				nextStop.Time-arrival.Time,
 				state.visitCounter,
-				state.time,
+				arrival.Time,
 				nextStop.Time,
 				arrival.StopIndex,
 			)
@@ -158,7 +150,7 @@ func (pg *PassengerGraph) forwardBFS() map[uint64]visitState {
 	return visitedStops
 }
 
-func (pg *PassengerGraph) backwardBFS() map[uint64]visitState {
+func (pg *PassengerGraph) backwardBFS(visitedStopsForward map[uint64]visitState) map[uint64]visitState {
 	stopsByID := pg.c.GetStopsByID()
 	stopsByName := pg.c.GetStopsByName()
 	endStop := stopsByID[pg.endStopID]
@@ -227,8 +219,17 @@ func (pg *PassengerGraph) backwardBFS() map[uint64]visitState {
 				}
 
 				visitedStops[state.stopID] = visitState{visited: true}
+				visitedStopsForward[state.stopID] = visitState{visited: true}
 
-				pg.addEdge(state.stopID, nextStop.ID, arrival.TripID, nextStop.Time-arrival.Time, 0, arrival.Time, nextStop.Time, arrival.StopIndex)
+				pg.addEdge(
+					state.stopID,
+					nextStop.ID,
+					arrival.TripID,
+					0,
+					arrival.Time,
+					nextStop.Time,
+					arrival.StopIndex,
+				)
 			}
 			continue // because we do not want to go deeper when we discover a "new" tram stop in the stops group
 		}
@@ -287,17 +288,17 @@ func (pg *PassengerGraph) cleanup(visitedStopsForward, visitedStopsBackward map[
 	}
 }
 
-type earliestArrival struct {
+type arrival struct {
 	stopID uint64
 	tramID uint
 	time   uint
 }
 
-func (pg *PassengerGraph) getEarliestArrivalForStopsGroup(groupName string) earliestArrival {
-	stopsGroup := pg.c.GetStopsByName()
-	earliestArrival := earliestArrival{time: 93600}
+func (pg *PassengerGraph) getEarliestArrivalForStopsGroup(groupName string) arrival {
+	stopsByName := pg.c.GetStopsByName()
+	earliestArrival := arrival{time: 93600}
 
-	for stopID := range stopsGroup[groupName] {
+	for stopID := range stopsByName[groupName] {
 		node, ok := pg.nodes[stopID]
 		if !ok {
 			continue
@@ -312,7 +313,35 @@ func (pg *PassengerGraph) getEarliestArrivalForStopsGroup(groupName string) earl
 	return earliestArrival
 }
 
-func (pg *PassengerGraph) addEdge(from uint64, to uint64, tramID uint, travelTime uint, visitCounter uint, fromTime, toTime uint, fromStopIndex int) {
+func (pg *PassengerGraph) getArrivalsFromTimeForGroupExcept(groupName, groupNameToAvoid string, minArrivalTime uint) []arrival {
+	arrivals := make([]arrival, 0)
+	stopsByID := pg.c.GetStopsByID()
+	stopsByName := pg.c.GetStopsByName()
+
+	for stopID := range stopsByName[groupName] {
+		node, ok := pg.nodes[stopID]
+		if !ok {
+			continue
+		}
+		for edgeID, edge := range node.edgesOut {
+			if edge.fromArrivalTime < minArrivalTime {
+				continue
+			}
+			if stopsByID[edge.to].GetGroupName() == groupNameToAvoid {
+				continue
+			}
+			arrivals = append(arrivals, arrival{
+				stopID: stopID,
+				tramID: edgeID,
+				time:   edge.fromArrivalTime,
+			})
+		}
+	}
+
+	return arrivals
+}
+
+func (pg *PassengerGraph) addEdge(from, to uint64, tramID, visitCounter, fromTime, toTime uint, fromStopIndex int) {
 	if _, ok := pg.nodes[from]; !ok {
 		pg.nodes[from] = &node{
 			stopID:              from,
@@ -334,11 +363,12 @@ func (pg *PassengerGraph) addEdge(from uint64, to uint64, tramID uint, travelTim
 	}
 
 	e := edge{
-		tramID:        tramID,
-		from:          from,
-		to:            to,
-		travelTime:    travelTime,
-		fromStopIndex: fromStopIndex,
+		tramID:          tramID,
+		from:            from,
+		to:              to,
+		fromArrivalTime: fromTime,
+		toArrivalTime:   toTime,
+		fromStopIndex:   fromStopIndex,
 	}
 
 	fromNode := pg.nodes[from]
@@ -354,62 +384,4 @@ func (pg *PassengerGraph) addEdge(from uint64, to uint64, tramID uint, travelTim
 	}
 
 	pg.nodes[to] = toNode
-}
-
-func (pg *PassengerGraph) findFastestConnection(
-	stopsByID map[uint64]*graph.GraphTramStop,
-	stopsByName map[string]map[uint64]*graph.GraphTramStop,
-	trips map[uint]*trip.TramTrip,
-) {
-	type TravelPath struct {
-		from, to uint64
-		tramID   uint
-	}
-	path := make([]TravelPath, 0)
-
-	fmt.Println("\nWyznaczanie najkrotszej trasy")
-
-	// find the stop with the earliest arrivals
-	endStopName := stopsByID[pg.endStopID].GetGroupName()
-	endStopsByName := stopsByName[endStopName]
-	earliestArrivalTime := uint(99999)
-	var currentStop *node
-
-	for stopID := range endStopsByName {
-		if _, ok := pg.nodes[stopID]; !ok {
-			continue
-		}
-		arrivalTime := pg.nodes[stopID].earliestArrivalTime
-		if arrivalTime < earliestArrivalTime {
-			earliestArrivalTime = arrivalTime
-			currentStop = pg.nodes[stopID]
-		}
-	}
-
-	fmt.Println("\nWyznaczono poczatkowy przystanek")
-
-	if currentStop == nil {
-		panic("End stop not reached apparently")
-	}
-
-	for currentStop.stopID != pg.startStopID {
-		tramID := currentStop.earliestTram
-		from := currentStop.edgesIn[tramID].from
-
-		p := TravelPath{
-			from:   from,
-			to:     currentStop.stopID,
-			tramID: tramID,
-		}
-		path = append(path, p)
-
-		currentStop = pg.nodes[from]
-	}
-
-	slices.Reverse(path)
-
-	fmt.Println("\n=> Travel plan:")
-	for _, p := range path {
-		fmt.Printf("\t%s -> %s by %d to %s\n", stopsByID[p.from].GetName(), stopsByID[p.to].GetName(), p.tramID, trips[p.tramID].TripHeadSign)
-	}
 }

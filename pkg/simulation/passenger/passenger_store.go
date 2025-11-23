@@ -1,6 +1,7 @@
 package passenger
 
 import (
+	"fmt"
 	"math/rand/v2"
 
 	"github.com/TNSEngineerEdition/WailsClient/pkg/city"
@@ -52,23 +53,44 @@ func (ps *PassengersStore) generatePassengers(c *city.City) {
 			endStop := tramStops[j]
 			spawn := timeBounds.StartTime + uint(rand.IntN(int(timeBounds.EndTime-timeBounds.StartTime+1)))
 
-			// create graph for a passenger
+			var startStopID, endStopID uint64
+			var spawnTime uint
 
 			//mock
-			startStopID := uint64(2846212107) // grota 2
-			endStopID := uint64(1768224703)   // bialucha 2
-			spawnTime := uint(18420)          // 05:00:00
+			spawnTime = 18420 // 05:00:00
 
-			startStopID = 2419106061 // miodowa 2
-			endStopID = 2423789754   // pedzichow 1
-			spawnTime = 18000        // 05:00:00
+			startStopID = 2846212107 // grota 2
+			endStopID = 1768224703   // bialucha 2
+
+			//startStopID = 2419106061 // miodowa 2
+			//endStopID = 2423789754   // pedzichow 1
+			//spawnTime = 18000        // 05:00:00
 
 			// startStopID = uint64(2420979790) // kampus -> cz.m.
 
-			passengerGraph := NewPassengerGraph(startStopID, endStopID, spawnTime, c)
-			passengerGraph.findFastestConnection(c.GetStopsByID(), c.GetStopsByName(), c.GetTripsByID())
+			//startStopID = 12297835419 // jarzebiny -> centrum
 
-			// passengerGraph := NewPassengerGraph(startStop.ID, endStop.ID, spawn, c)
+			pg := NewPassengerGraph(startStopID, endStopID, spawnTime, c)
+			tp := pg.getTravelPlan(SURE)
+
+			stopsByID := pg.c.GetStopsByID()
+			trips := pg.c.GetTripsByID()
+			fmt.Println("\nTravel plan for strategy ", SURE)
+			for _, stop := range tp.stops {
+				fmt.Printf(" - stop: %s\n", stopsByID[stop.ID].GetName())
+				if len(stop.arrivals) > 0 {
+					fmt.Println("    arrivals:")
+					for _, arrival := range stop.arrivals {
+						fmt.Printf("        [%d] %s ... => %s\n", arrival.ID, stopsByID[arrival.to].GetName(), trips[arrival.ID].TripHeadSign)
+					}
+				}
+				if len(stop.departures) > 0 {
+					fmt.Println("    departures:")
+					for _, departure := range stop.departures {
+						fmt.Printf("        [%d] %s ... => %s\n", departure.ID, stopsByID[departure.to].GetName(), trips[departure.ID].TripHeadSign)
+					}
+				}
+			}
 
 			passenger := &Passenger{
 				strategy:    PassengerStrategy(rand.IntN(3)),
@@ -76,6 +98,7 @@ func (ps *PassengersStore) generatePassengers(c *city.City) {
 				StartStopID: startStop.ID,
 				EndStopID:   endStop.ID,
 				ID:          counter,
+				TravelPlan:  tp,
 			}
 
 			ps.PassengersToSpawn[spawn] = append(ps.PassengersToSpawn[spawn], passenger)

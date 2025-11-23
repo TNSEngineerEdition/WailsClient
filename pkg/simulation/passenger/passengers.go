@@ -5,4 +5,5 @@ type Passenger struct {
 	spawnTime              uint
 	StartStopID, EndStopID uint64
 	ID                     uint64
+	TravelPlan             TravelPlan
 }
