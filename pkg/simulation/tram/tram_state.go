@@ -77,9 +77,7 @@ func (t *Tram) onPassengersBoarding(time uint) {
 }
 
 func (t *Tram) onPassengersDisembarking(time uint) {
-	stopID := t.TripDetails.Trip.Stops[t.TripDetails.Index].ID
-	disembarkingPassengers, isDisembarkingFinished := t.disembarkPassengers()
-	t.passengersStore.DisembarkPassengers(stopID, disembarkingPassengers)
+	_, isDisembarkingFinished := t.disembarkPassengers()
 
 	if !isDisembarkingFinished {
 		return

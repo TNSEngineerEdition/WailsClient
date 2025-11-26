@@ -1,8 +1,6 @@
 package tram
 
 import (
-	"fmt"
-
 	"github.com/TNSEngineerEdition/WailsClient/pkg/consts"
 	"github.com/TNSEngineerEdition/WailsClient/pkg/simulation/passenger"
 )
@@ -25,7 +23,7 @@ func (t *Tram) disembarkPassengers() ([]*passenger.Passenger, bool) {
 	disembarkingPassengers := make([]*passenger.Passenger, 0, consts.MAX_PASSENGERS_CHANGE_RATE)
 
 	for _, p := range t.passengersInTram {
-		if p.TravelPlan.CheckIfConnectionIsInPlan(stopID, t.ID) {
+		if p.TravelPlan.GetConnectionEnd(t.ID) == stopID {
 			disembarkingPassengers = append(disembarkingPassengers, p)
 			counter++
 		}
@@ -36,10 +34,6 @@ func (t *Tram) disembarkPassengers() ([]*passenger.Passenger, bool) {
 
 	for _, p := range disembarkingPassengers {
 		delete(t.passengersInTram, p.ID)
-	}
-
-	if len(disembarkingPassengers) > 0 {
-		fmt.Println("Tram", t.ID, "is disembarking", len(disembarkingPassengers), "passengers!")
 	}
 
 	isDisembarkingFinished := len(disembarkingPassengers) < consts.MAX_PASSENGERS_CHANGE_RATE

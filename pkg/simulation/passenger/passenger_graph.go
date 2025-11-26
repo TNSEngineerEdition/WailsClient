@@ -1,6 +1,7 @@
 package passenger
 
 import (
+	"fmt"
 	"math/rand"
 
 	"github.com/TNSEngineerEdition/WailsClient/pkg/city"
@@ -20,6 +21,7 @@ type travelConnection struct {
 
 type TravelPlan struct {
 	stops                  map[uint64]*travelStop
+	connections            map[uint]*travelConnection
 	startStopID, endStopID uint64
 	spawnTime              uint
 	c                      *city.City
@@ -28,17 +30,18 @@ type TravelPlan struct {
 func GetTravelPlan(startStopID uint64, spawnTime uint, c *city.City) TravelPlan {
 	tp := TravelPlan{
 		stops:       make(map[uint64]*travelStop),
+		connections: make(map[uint]*travelConnection),
 		startStopID: startStopID,
 		spawnTime:   spawnTime,
 		c:           c,
 	}
 
-	tp.endStopID = tp.pickTramToEndStop(startStopID, spawnTime)
+	tp.endStopID = tp.addConnectionToStop(startStopID, spawnTime)
 
 	return tp
 }
 
-func (tp *TravelPlan) CheckIfConnectionIsInPlan(stopID uint64, tramID uint) bool {
+func (tp *TravelPlan) checkIfConnectionIsInPlan(stopID uint64, tramID uint) bool {
 	if _, ok := tp.stops[stopID]; !ok {
 		return false
 	}
@@ -48,7 +51,14 @@ func (tp *TravelPlan) CheckIfConnectionIsInPlan(stopID uint64, tramID uint) bool
 	return false
 }
 
-func (tp *TravelPlan) pickTramToEndStop(fromStopID uint64, time uint) (toStopID uint64) {
+func (tp *TravelPlan) GetConnectionEnd(tramID uint) uint64 {
+	if _, ok := tp.connections[tramID]; !ok {
+		panic(fmt.Sprintf("Connection %d not found", tramID))
+	}
+	return tp.connections[tramID].to
+}
+
+func (tp *TravelPlan) addConnectionToStop(fromStopID uint64, time uint) (toStopID uint64) {
 	trips := tp.c.GetTripsByID()
 	arrivals, ok := tp.c.GetPlannedArrivalsInTimeSpan(
 		fromStopID,
@@ -82,6 +92,9 @@ func (tp *TravelPlan) pickTramToEndStop(fromStopID uint64, time uint) (toStopID 
 		stopsLeft = stopsTotal - arrival.StopIndex - 1
 	}
 
+	// TODO: make passengers travel for as long as they want later, after the presentation
+	//stopsToTravel := rand.Intn(stopsLeft) + 1 // we want to travel for at least 1 stop
+	stopsLeft = min(stopsLeft, 1)             // force passengers to travel for no more than 2 stops
 	stopsToTravel := rand.Intn(stopsLeft) + 1 // we want to travel for at least 1 stop
 	trip := trips[arrival.TripID]
 
@@ -126,4 +139,6 @@ func (tp *TravelPlan) addConnection(from, to uint64, tripID, arrivalTime, travel
 	fromNode := tp.stops[from]
 	fromNode.connections[tripID] = &conn
 	tp.stops[from] = fromNode
+
+	tp.connections[tripID] = &conn
 }
