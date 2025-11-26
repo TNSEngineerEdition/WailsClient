@@ -1,8 +1,9 @@
 package passenger
 
 type Passenger struct {
+	ID                     uint64
 	strategy               PassengerStrategy
 	spawnTime              uint
-	StartStopID, EndStopID uint64
-	ID                     uint64
+	startStopID, endStopID uint64
+	TravelPlan             TravelPlan
 }
