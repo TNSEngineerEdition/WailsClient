@@ -7,6 +7,7 @@ type TramRoute struct {
 	BackgroundColor string
 	TextColor       string
 	Trips           []TramTrip
+	Variants        *map[string][]uint64
 	routeDetails    *api.ResponseTramRoute
 }
 
@@ -16,6 +17,7 @@ func NewTramRoute(tramRouteData *api.ResponseTramRoute, tripID *uint) TramRoute 
 		BackgroundColor: tramRouteData.BackgroundColor,
 		TextColor:       tramRouteData.TextColor,
 		Trips:           make([]TramTrip, 0),
+		Variants:        tramRouteData.Variants,
 		routeDetails:    tramRouteData,
 	}
 

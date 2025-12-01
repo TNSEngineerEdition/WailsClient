@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"slices"
 
-	"github.com/TNSEngineerEdition/WailsClient/pkg/city"
 	"github.com/TNSEngineerEdition/WailsClient/pkg/city/graph"
 	"github.com/umahmood/haversine"
 )
@@ -20,9 +19,7 @@ func (p *Path) GetProgressForIndex(index int) float32 {
 	return p.DistancePrefixSum[index] / p.DistancePrefixSum[len(p.DistancePrefixSum)-1]
 }
 
-func getShortestPath(city *city.City, stops stopPair) (result Path) {
-	nodesByID := city.GetNodesByID()
-
+func getShortestPath(nodesByID map[uint64]graph.GraphNode, stops stopPair) (result Path) {
 	nodesToProcess := &priorityQueue{}
 	heap.Init(nodesToProcess)
 	heap.Push(nodesToProcess, &nodeRecord{ID: stops.source})

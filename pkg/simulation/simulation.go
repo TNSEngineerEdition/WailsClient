@@ -221,8 +221,8 @@ func (s *Simulation) GetArrivalsForStop(stopID uint64, count int) []Arrival {
 	return arrivals[:min(len(arrivals), count)]
 }
 
-func (s *Simulation) GetRoutePolylines(lineName string) controlcenter.RoutePolylines {
-	return s.controlCenter.GetRoutePolylines(lineName)
+func (s *Simulation) GetSegmentsForRoute(routeName string) []controlcenter.RouteSegment {
+	return s.controlCenter.GetSegmentsForRoute(routeName)
 }
 
 func (s *Simulation) GetPassengerCountAtStop(stopID uint64) uint {
