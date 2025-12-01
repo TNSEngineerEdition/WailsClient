@@ -126,20 +126,28 @@ type RouteInfo struct {
 }
 
 func (c *City) GetRoutesByStopID() map[uint64][]RouteInfo {
-	routeSetByStopID := make(map[uint64]map[string]struct{})
+	routeSetByStopID := make(map[uint64]*Set[string])
 
 	for _, route := range c.tramRoutes {
-		route.AddRouteNamesToStopSet(&routeSetByStopID)
-	}
-
-	routeNamesByStopID := make(map[uint64][]string, len(routeSetByStopID))
-
-	for stopID, routeSet := range routeSetByStopID {
-		routes := make([]string, 0, len(routeSet))
-		for r := range routeSet {
-			routes = append(routes, r)
+		if route.Variants == nil {
+			continue
 		}
 
+		for _, stopIDs := range *route.Variants {
+			for _, stopID := range stopIDs {
+				if _, ok := routeSetByStopID[stopID]; !ok {
+					set := NewSet[string]()
+					routeSetByStopID[stopID] = &set
+				}
+
+				routeSetByStopID[stopID].Add(route.Name)
+			}
+		}
+	}
+
+	routeNamesByStopID := make(map[uint64][]string)
+	for stopID, routeSet := range routeSetByStopID {
+		routes := slices.Collect(routeSet.GetItems())
 		natsort.Sort(routes)
 		routeNamesByStopID[stopID] = routes
 	}

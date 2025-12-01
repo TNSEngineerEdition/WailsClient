@@ -32,15 +32,3 @@ func (t *TramRoute) ResetTrips(tripID *uint) {
 		*tripID += 1
 	}
 }
-
-func (t *TramRoute) AddRouteNamesToStopSet(routeSetByStopID *map[uint64]map[string]struct{}) {
-	for _, trip := range t.Trips {
-		for _, stop := range trip.Stops {
-			if _, ok := (*routeSetByStopID)[stop.ID]; !ok {
-				(*routeSetByStopID)[stop.ID] = make(map[string]struct{})
-			}
-
-			(*routeSetByStopID)[stop.ID][t.Name] = struct{}{}
-		}
-	}
-}
