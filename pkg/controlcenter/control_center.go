@@ -6,6 +6,7 @@ import (
 	"github.com/TNSEngineerEdition/WailsClient/pkg/city"
 	"github.com/TNSEngineerEdition/WailsClient/pkg/city/graph"
 	"github.com/TNSEngineerEdition/WailsClient/pkg/city/trip"
+	"github.com/TNSEngineerEdition/WailsClient/pkg/structs"
 )
 
 type stopPair struct {
@@ -69,12 +70,12 @@ func (c *ControlCenter) addPathsFromTrip(
 	}
 }
 
-func getGraphNodes(route *trip.TramRoute) map[uint64]*city.Set[uint64] {
-	nodes := make(map[uint64]*city.Set[uint64])
+func getGraphNodes(route *trip.TramRoute) map[uint64]*structs.Set[uint64] {
+	nodes := make(map[uint64]*structs.Set[uint64])
 
 	for _, stopIDs := range *route.Variants {
 		for _, stopID := range stopIDs {
-			set := city.NewSet[uint64]()
+			set := structs.NewSet[uint64]()
 			nodes[stopID] = &set
 		}
 	}

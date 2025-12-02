@@ -1,4 +1,4 @@
-package city
+package structs
 
 import "iter"
 

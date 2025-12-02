@@ -8,6 +8,7 @@ import (
 	"github.com/TNSEngineerEdition/WailsClient/pkg/api"
 	"github.com/TNSEngineerEdition/WailsClient/pkg/city/graph"
 	"github.com/TNSEngineerEdition/WailsClient/pkg/city/trip"
+	"github.com/TNSEngineerEdition/WailsClient/pkg/structs"
 	"github.com/facette/natsort"
 	"github.com/oapi-codegen/runtime/types"
 )
@@ -126,7 +127,7 @@ type RouteInfo struct {
 }
 
 func (c *City) GetRoutesByStopID() map[uint64][]RouteInfo {
-	routeSetByStopID := make(map[uint64]*Set[string])
+	routeSetByStopID := make(map[uint64]*structs.Set[string])
 
 	for _, route := range c.tramRoutes {
 		if route.Variants == nil {
@@ -136,7 +137,7 @@ func (c *City) GetRoutesByStopID() map[uint64][]RouteInfo {
 		for _, stopIDs := range *route.Variants {
 			for _, stopID := range stopIDs {
 				if _, ok := routeSetByStopID[stopID]; !ok {
-					set := NewSet[string]()
+					set := structs.NewSet[string]()
 					routeSetByStopID[stopID] = &set
 				}
 
