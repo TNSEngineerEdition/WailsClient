@@ -6,6 +6,7 @@ import (
 	"slices"
 
 	"github.com/TNSEngineerEdition/WailsClient/pkg/city/graph"
+	"github.com/TNSEngineerEdition/WailsClient/pkg/structs"
 	"github.com/umahmood/haversine"
 )
 
@@ -20,16 +21,17 @@ func (p *Path) GetProgressForIndex(index int) float32 {
 }
 
 func getShortestPath(nodesByID *map[uint64]graph.GraphNode, stops stopPair) (result Path) {
-	nodesToProcess := &priorityQueue{}
+	nodesToProcess := &structs.PriorityQueue[uint64]{}
 	heap.Init(nodesToProcess)
-	heap.Push(nodesToProcess, &nodeRecord{ID: stops.source})
+	heap.Push(nodesToProcess, &structs.PQRecord[uint64]{Value: stops.source})
 
 	predecessors := make(map[uint64]uint64)
 	tentativeDistFromSource := make(map[uint64]float32)
 	visitedNodes := make(map[uint64]bool)
 
 	for nodesToProcess.Len() > 0 {
-		currentID := heap.Pop(nodesToProcess).(*nodeRecord).ID
+		nodeRecord := heap.Pop(nodesToProcess).(*structs.PQRecord[uint64])
+		currentID := nodeRecord.Value
 
 		if currentID == stops.destination {
 			result.Nodes = reconstructPath(predecessors, nodesByID, currentID)
@@ -59,9 +61,9 @@ func getShortestPath(nodesByID *map[uint64]graph.GraphNode, stops stopPair) (res
 				(*nodesByID)[neighbor.ID], (*nodesByID)[stops.destination],
 			)
 			heap.Push(
-				nodesToProcess,
-				&nodeRecord{
-					ID: neighbor.ID, Priority: heuristicDistance + tentativeDistance,
+				nodesToProcess, &structs.PQRecord[uint64]{
+					Value:    neighbor.ID,
+					Priority: heuristicDistance + tentativeDistance,
 				},
 			)
 		}
