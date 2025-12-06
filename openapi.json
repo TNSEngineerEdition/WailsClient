@@ -500,6 +500,17 @@
                         "type": "string",
                         "title": "Text Color"
                     },
+                    "variants": {
+                        "additionalProperties": {
+                            "items": {
+                                "type": "integer"
+                            },
+                            "type": "array"
+                        },
+                        "type": "object",
+                        "title": "Variants",
+                        "x-go-type": "map[string][]uint64"
+                    },
                     "trips": {
                         "items": {
                             "$ref": "#/components/schemas/ResponseTramTrip"
@@ -521,6 +532,11 @@
                     "trip_head_sign": {
                         "type": "string",
                         "title": "Trip Head Sign"
+                    },
+                    "variant": {
+                        "type": "string",
+                        "nullable": true,
+                        "title": "Variant"
                     },
                     "stops": {
                         "items": {

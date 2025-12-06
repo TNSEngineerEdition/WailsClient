@@ -7,6 +7,7 @@ type TramRoute struct {
 	BackgroundColor string
 	TextColor       string
 	Trips           []TramTrip
+	Variants        *map[string][]uint64
 	routeDetails    *api.ResponseTramRoute
 }
 
@@ -16,6 +17,7 @@ func NewTramRoute(tramRouteData *api.ResponseTramRoute, tripID *uint) TramRoute 
 		BackgroundColor: tramRouteData.BackgroundColor,
 		TextColor:       tramRouteData.TextColor,
 		Trips:           make([]TramTrip, 0),
+		Variants:        tramRouteData.Variants,
 		routeDetails:    tramRouteData,
 	}
 
@@ -28,17 +30,5 @@ func (t *TramRoute) ResetTrips(tripID *uint) {
 	for _, item := range *t.routeDetails.Trips {
 		t.Trips = append(t.Trips, NewTramTrip(*tripID, &item))
 		*tripID += 1
-	}
-}
-
-func (t *TramRoute) AddRouteNamesToStopSet(routeSetByStopID *map[uint64]map[string]struct{}) {
-	for _, trip := range t.Trips {
-		for _, stop := range trip.Stops {
-			if _, ok := (*routeSetByStopID)[stop.ID]; !ok {
-				(*routeSetByStopID)[stop.ID] = make(map[string]struct{})
-			}
-
-			(*routeSetByStopID)[stop.ID][t.Name] = struct{}{}
-		}
 	}
 }
