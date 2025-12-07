@@ -11,13 +11,13 @@ import (
 )
 
 type Path struct {
-	Nodes             []graph.GraphNode
-	MaxSpeeds         []float32
-	DistancePrefixSum []float32
+	Nodes         []graph.GraphNode
+	MaxSpeeds     []float32
+	TimePrefixSum []float32
 }
 
 func (p *Path) GetProgressForIndex(index int) float32 {
-	return p.DistancePrefixSum[index] / p.DistancePrefixSum[len(p.DistancePrefixSum)-1]
+	return p.TimePrefixSum[index] / p.TimePrefixSum[len(p.TimePrefixSum)-1]
 }
 
 func getShortestPath(nodesByID *map[uint64]graph.GraphNode, stops stopPair) (result Path) {
@@ -36,7 +36,7 @@ func getShortestPath(nodesByID *map[uint64]graph.GraphNode, stops stopPair) (res
 		if currentID == stops.destination {
 			result.Nodes = reconstructPath(predecessors, nodesByID, currentID)
 			result.MaxSpeeds = getMaxSpeeds(result.Nodes)
-			result.DistancePrefixSum = getPathDistancePrefixSum(result.Nodes)
+			result.TimePrefixSum = getPathTimePrefixSum(result.Nodes)
 			return
 		}
 
@@ -125,13 +125,13 @@ func getDistanceInMeters(source, destination graph.GraphNode) float32 {
 	return float32(kilometers * 1000)
 }
 
-func getPathDistancePrefixSum(nodes []graph.GraphNode) []float32 {
+func getPathTimePrefixSum(nodes []graph.GraphNode) []float32 {
 	prefixSum := make([]float32, len(nodes))
 
 	for i := 1; i < len(nodes); i++ {
 		neighbors := nodes[i-1].GetNeighbors()
 		nextNode := neighbors[nodes[i].GetID()]
-		prefixSum[i] = nextNode.Distance + prefixSum[i-1]
+		prefixSum[i] = nextNode.Distance/nextNode.MaxSpeed + prefixSum[i-1]
 	}
 
 	return prefixSum
