@@ -38,6 +38,7 @@ func (ps *PassengersStore) GetPassengerCountAtStop(stopID uint64) uint {
 func (ps *PassengersStore) generatePassengers(c *city.City) {
 	timeBounds := c.GetTimeBounds()
 	stopsByID := c.GetStopsByID()
+
 	var counter uint64
 
 	for startStopID := range stopsByID {
@@ -80,9 +81,12 @@ func (ps *PassengersStore) BoardPassengers(stopID uint64, tramID uint) []*Passen
 	return passengerStop.boardPassengersToTram(tramID)
 }
 
-func (ps *PassengersStore) UnloadAllToStop(stopID uint64, passengers []*Passenger) {
-	stop := ps.passengerStops[stopID]
+func (ps *PassengersStore) DisembarkPassengers(passengers []*Passenger, stopID uint64, time uint) {
 	for _, p := range passengers {
-		stop.addPassengerToStop(p)
+		if p.TravelPlan.isEndStopReached(stopID) {
+			continue
+		}
+		changeStopID := p.TravelPlan.stops[stopID].changeStopTo
+		ps.passengerStops[changeStopID].addPassengerToStop(p)
 	}
 }

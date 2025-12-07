@@ -1,6 +1,7 @@
 package city
 
 import (
+	"fmt"
 	"math"
 	"slices"
 
@@ -130,6 +131,24 @@ func (c *City) GetStops() []api.ResponseGraphTramStop {
 
 func (c *City) GetStopsByName() map[string]map[uint64]*graph.GraphTramStop {
 	return c.stopsByName
+}
+
+func (c *City) IsInterchangeStop(stopID uint64) bool {
+	stops := c.GetStopsInGroup(stopID)
+	return len(stops) > 2
+}
+
+func (c *City) GetStopsInGroup(stopID uint64) map[uint64]*graph.GraphTramStop {
+	if _, ok := c.stopsByID[stopID]; !ok {
+		panic(fmt.Sprintf("Stop with ID %d not found", stopID))
+	}
+
+	groupName := c.stopsByID[stopID].GetGroupName()
+	if _, ok := c.stopsByName[groupName]; !ok {
+		panic(fmt.Sprintf("Stops with name %s not found", groupName))
+	}
+
+	return c.stopsByName[groupName]
 }
 
 func (c *City) GetTramRoutes() []trip.TramRoute {

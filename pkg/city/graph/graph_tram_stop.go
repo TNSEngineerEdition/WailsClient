@@ -38,12 +38,16 @@ func (g *GraphTramStop) GetName() string {
 func (g *GraphTramStop) GetGroupName() string {
 	runeName := []rune(g.Details.Name)
 	n := len(runeName)
+
 	if n < 3 {
 		return ""
 	}
-	if unicode.IsDigit(runeName[n-1]) && unicode.IsDigit(runeName[n-2]) {
+
+	// stop name pattern: "[groupName] [twoDigitStopNumber]"
+	if unicode.IsDigit(runeName[n-1]) && unicode.IsDigit(runeName[n-2]) && unicode.IsSpace(runeName[n-3]) {
 		return g.Details.Name[:n-3]
 	}
+
 	return g.Details.Name
 }
 

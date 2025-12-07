@@ -17,7 +17,7 @@ func (t *Tram) boardPassengers() bool {
 	return len(boardedPassengers) < consts.MAX_PASSENGERS_CHANGE_RATE
 }
 
-func (t *Tram) disembarkPassengers() ([]*passenger.Passenger, bool) {
+func (t *Tram) disembarkPassengers(time uint) bool {
 	stopID := t.TripDetails.Trip.Stops[t.TripDetails.Index].ID
 	counter := 0
 	disembarkingPassengers := make([]*passenger.Passenger, 0, consts.MAX_PASSENGERS_CHANGE_RATE)
@@ -36,7 +36,8 @@ func (t *Tram) disembarkPassengers() ([]*passenger.Passenger, bool) {
 		delete(t.passengersInTram, p.ID)
 	}
 
+	t.passengersStore.DisembarkPassengers(disembarkingPassengers, stopID, time)
 	isDisembarkingFinished := len(disembarkingPassengers) < consts.MAX_PASSENGERS_CHANGE_RATE
 
-	return disembarkingPassengers, isDisembarkingFinished
+	return isDisembarkingFinished
 }

@@ -77,7 +77,7 @@ func (t *Tram) onPassengersBoarding(time uint) {
 }
 
 func (t *Tram) onPassengersDisembarking(time uint) {
-	_, isDisembarkingFinished := t.disembarkPassengers()
+	isDisembarkingFinished := t.disembarkPassengers(time)
 
 	if !isDisembarkingFinished {
 		return
