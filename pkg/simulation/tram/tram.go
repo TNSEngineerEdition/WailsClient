@@ -181,33 +181,35 @@ func (t *Tram) GetEstimatedArrival(stopIndex int, time uint) uint {
 		return t.TripDetails.Arrivals[stopIndex]
 	}
 
-	// For not yet started trips, default to scheduled departure time
-	lastDeparture := t.TripDetails.Trip.Stops[0].Time
-	if t.TripDetails.Index > 0 {
-		lastDeparture = t.TripDetails.Departures[t.TripDetails.Index-1]
-	}
-
 	pathDistanceProgress := t.getTravelPath().GetProgressForIndex(t.pathIndex)
 
-	if t.TripDetails.Index == 0 || stopIndex == 0 || pathDistanceProgress == 0 {
-		return lastDeparture + t.TripDetails.Trip.GetScheduledTravelTime(t.TripDetails.Index, stopIndex)
+	// For not yet started trips, default to scheduled departure time
+	lastDeparture := t.TripDetails.Trip.Stops[0].Time
+	scheduledTravelTime := t.TripDetails.Trip.GetScheduledTravelTime(0, stopIndex)
+
+	if t.TripDetails.Index > 0 {
+		lastDeparture = t.TripDetails.Departures[t.TripDetails.Index-1]
+		scheduledTravelTime = t.TripDetails.Trip.GetScheduledTravelTime(t.TripDetails.Index-1, stopIndex)
 	}
 
-	timeSinceLastDeparture := float64(time - lastDeparture)
-	estimatedTravelTimeToNextStop := uint(math.Round(timeSinceLastDeparture / float64(pathDistanceProgress)))
-	estimatedArrivalToNextStop := lastDeparture + estimatedTravelTimeToNextStop
+	if t.TripDetails.Index == 0 || stopIndex == 0 || pathDistanceProgress == 0 {
+		return lastDeparture + scheduledTravelTime
+	}
 
+	remainingTravelTimeToNextStop := uint(math.Round(float64(scheduledTravelTime) * float64(1-pathDistanceProgress) * 0.8))
+	estimatedArrivalAtNextStop := time + remainingTravelTimeToNextStop
+
+	// Estimating arrival at next tram stop
 	if t.TripDetails.Index == stopIndex {
-		return estimatedArrivalToNextStop
+		return estimatedArrivalAtNextStop
 	}
 
 	var estimatedPositiveDelay uint
-	if estimatedArrivalToNextStop > t.TripDetails.Trip.Stops[t.TripDetails.Index].Time {
-		estimatedPositiveDelay = estimatedArrivalToNextStop - t.TripDetails.Trip.Stops[t.TripDetails.Index].Time
+	if estimatedArrivalAtNextStop > t.TripDetails.Trip.Stops[t.TripDetails.Index].Time {
+		estimatedPositiveDelay = estimatedArrivalAtNextStop - t.TripDetails.Trip.Stops[t.TripDetails.Index].Time
 	}
 
-	scheduledTravelTime := t.TripDetails.Trip.GetScheduledTravelTime(t.TripDetails.Index, stopIndex)
-	return t.TripDetails.Trip.Stops[t.TripDetails.Index].Time + scheduledTravelTime + estimatedPositiveDelay
+	return t.TripDetails.Trip.Stops[t.TripDetails.Index-1].Time + scheduledTravelTime + estimatedPositiveDelay
 }
 
 type TramPositionChange struct {
