@@ -28,7 +28,7 @@ type TravelPlan struct {
 	c                      *city.City
 }
 
-func GetTravelPlan(startStopID uint64, spawnTime uint, c *city.City) TravelPlan {
+func GetRandomTravelPlan(startStopID uint64, spawnTime uint, c *city.City) TravelPlan {
 	tp := TravelPlan{
 		stops:       make(map[uint64]*travelStop),
 		connections: make(map[uint]*travelConnection),
@@ -37,7 +37,7 @@ func GetTravelPlan(startStopID uint64, spawnTime uint, c *city.City) TravelPlan 
 		c:           c,
 	}
 
-	isPassengerChangingStops := rand.Float32() < 0.5
+	isPassengerChangingStops := rand.Float32() < consts.TRAM_CHANGE_PROBABILITY
 
 	// direct trip
 	if !isPassengerChangingStops {
@@ -66,7 +66,7 @@ func GetTravelPlan(startStopID uint64, spawnTime uint, c *city.City) TravelPlan 
 		i++
 	}
 	tp.addStopChange(stopID, changeStopID)
-	tp.endStopID, _ = tp.findConnectionToStop(changeStopID, time, false)
+	tp.endStopID, _ = tp.findConnectionToStop(changeStopID, time+consts.TRAM_CHANGE_TIME, false)
 
 	return tp
 }
@@ -91,47 +91,6 @@ func (tp *TravelPlan) isConnectionInPlan(stopID uint64, tramID uint) bool {
 func (tp *TravelPlan) isEndStopReached(stopID uint64) bool {
 	stopsByID := tp.c.GetStopsByID()
 	return stopID == tp.endStopID || stopsByID[stopID].GetGroupName() == stopsByID[tp.endStopID].GetGroupName()
-}
-
-func (tp *TravelPlan) getRandomArrivalFromStop(stopID uint64, time uint) (arrival *city.PlannedArrival, stopsLeft int) {
-	trips := tp.c.GetTripsByID()
-	arrivals, ok := tp.c.GetPlannedArrivalsInTimeSpan(
-		stopID,
-		time,
-		time+consts.MAX_WAITING_TIME,
-	)
-
-	if !ok {
-		return nil, 0
-	}
-
-	filteredArrivals := make([]city.PlannedArrival, 0)
-	for _, arrival := range *arrivals {
-		if len(trips[arrival.TripID].Stops)-1 == arrival.StopIndex {
-			continue // do not consider trams which are at their last stop
-		}
-		filteredArrivals = append(filteredArrivals, arrival)
-	}
-
-	if len(filteredArrivals) == 0 {
-		return nil, 0
-	}
-
-	loopCounter := 0
-
-	for stopsLeft == 0 {
-		if loopCounter >= 10 {
-			return nil, 0
-		}
-
-		n := len(filteredArrivals)
-		arrival = &filteredArrivals[rand.Intn(n)]
-		stopsTotal := len(trips[arrival.TripID].Stops)
-		stopsLeft = stopsTotal - arrival.StopIndex - 1
-		loopCounter++
-	}
-
-	return arrival, stopsLeft
 }
 
 func (tp *TravelPlan) findConnectionToStop(fromStopID uint64, time uint, goToInterchangeStop bool) (toStopID uint64, arrivalTime uint) {
@@ -192,6 +151,47 @@ func (tp *TravelPlan) findConnectionToStop(fromStopID uint64, time uint, goToInt
 	)
 
 	return toStopID, arrival.Time + travelTime
+}
+
+func (tp *TravelPlan) getRandomArrivalFromStop(stopID uint64, time uint) (arrival *city.PlannedArrival, stopsLeft int) {
+	trips := tp.c.GetTripsByID()
+	arrivals, ok := tp.c.GetPlannedArrivalsInTimeSpan(
+		stopID,
+		time,
+		time+consts.MAX_WAITING_TIME,
+	)
+
+	if !ok {
+		return nil, 0
+	}
+
+	filteredArrivals := make([]city.PlannedArrival, 0)
+	for _, arrival := range *arrivals {
+		if len(trips[arrival.TripID].Stops)-1 == arrival.StopIndex {
+			continue // do not consider trams which are at their last stop
+		}
+		filteredArrivals = append(filteredArrivals, arrival)
+	}
+
+	if len(filteredArrivals) == 0 {
+		return nil, 0
+	}
+
+	loopCounter := 0
+
+	for stopsLeft == 0 {
+		if loopCounter >= 10 {
+			return nil, 0
+		}
+
+		n := len(filteredArrivals)
+		arrival = &filteredArrivals[rand.Intn(n)]
+		stopsTotal := len(trips[arrival.TripID].Stops)
+		stopsLeft = stopsTotal - arrival.StopIndex - 1
+		loopCounter++
+	}
+
+	return arrival, stopsLeft
 }
 
 func (tp *TravelPlan) addStop(stopID uint64) {

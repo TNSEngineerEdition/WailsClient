@@ -1,14 +1,24 @@
 package passenger
 
 import (
+	"fmt"
 	"math/rand/v2"
+	"sync"
 
 	"github.com/TNSEngineerEdition/WailsClient/pkg/city"
+	"github.com/TNSEngineerEdition/WailsClient/pkg/consts"
 )
+
+type passengerSpawn struct {
+	passenger *Passenger
+	stopID    uint64
+}
 
 type PassengersStore struct {
 	passengerStops    map[uint64]*passengerStop
-	passengersToSpawn map[uint][]*Passenger
+	passengersToSpawn map[uint][]passengerSpawn
+	despawnCounter    uint
+	mu                sync.Mutex
 }
 
 func NewPassengersStore(c *city.City) *PassengersStore {
@@ -16,7 +26,8 @@ func NewPassengersStore(c *city.City) *PassengersStore {
 
 	store := &PassengersStore{
 		passengerStops:    make(map[uint64]*passengerStop, len(stopsByID)),
-		passengersToSpawn: make(map[uint][]*Passenger),
+		passengersToSpawn: make(map[uint][]passengerSpawn),
+		despawnCounter:    0,
 	}
 
 	for id := range stopsByID {
@@ -47,7 +58,7 @@ func (ps *PassengersStore) generatePassengers(c *city.City) {
 			//spawnTime := timeBounds.StartTime + uint(rand.IntN(int(timeBounds.EndTime-timeBounds.StartTime+1)))
 			spawnTime := timeBounds.StartTime + uint(rand.IntN(int(18000-timeBounds.StartTime+1)))
 
-			tp := GetTravelPlan(startStopID, spawnTime, c)
+			tp := GetRandomTravelPlan(startStopID, spawnTime, c)
 
 			if startStopID == tp.endStopID {
 				continue // no trips found
@@ -62,17 +73,47 @@ func (ps *PassengersStore) generatePassengers(c *city.City) {
 				TravelPlan:  tp,
 			}
 
-			ps.passengersToSpawn[spawnTime] = append(ps.passengersToSpawn[spawnTime], passenger)
+			ps.passengersToSpawn[spawnTime] = append(ps.passengersToSpawn[spawnTime], passengerSpawn{
+				passenger: passenger,
+				stopID:    passenger.startStopID,
+			})
 			counter++
 		}
 	}
+
+	fmt.Printf("Spawned %d passengers\n", counter)
 }
 
 func (ps *PassengersStore) SpawnPassengersAtTime(time uint) {
-	passengersToSpawn := ps.passengersToSpawn[time]
-	for _, p := range passengersToSpawn {
-		stop := ps.passengerStops[p.startStopID]
-		stop.addPassengerToStop(p)
+	ps.mu.Lock()
+	defer ps.mu.Unlock()
+
+	spawnList := ps.passengersToSpawn[time]
+	for _, entry := range spawnList {
+		stop := ps.passengerStops[entry.stopID]
+		stop.addPassengerToStop(entry.passenger)
+	}
+}
+
+func (ps *PassengersStore) DespawnPassengersAtTime(time uint) {
+	ps.mu.Lock()
+	defer ps.mu.Unlock()
+
+	despawnTime := time - consts.MAX_WAITING_TIME - consts.DESPAWN_TIME_OFFSET
+	spawnList, ok := ps.passengersToSpawn[despawnTime]
+	if !ok {
+		return
+	}
+
+	for _, entry := range spawnList {
+		stop := ps.passengerStops[entry.stopID]
+		if stop.despawnPassenger(entry.passenger) {
+			ps.despawnCounter++
+		}
+	}
+
+	if time%600 == 0 {
+		fmt.Printf("-> Despawned %d so far\n", ps.despawnCounter)
 	}
 }
 
@@ -82,11 +123,19 @@ func (ps *PassengersStore) BoardPassengers(stopID uint64, tramID uint) []*Passen
 }
 
 func (ps *PassengersStore) DisembarkPassengers(passengers []*Passenger, stopID uint64, time uint) {
+	ps.mu.Lock()
+	defer ps.mu.Unlock()
+
 	for _, p := range passengers {
 		if p.TravelPlan.isEndStopReached(stopID) {
 			continue
 		}
+
 		changeStopID := p.TravelPlan.stops[stopID].changeStopTo
-		ps.passengerStops[changeStopID].addPassengerToStop(p)
+		changeTime := time + consts.TRAM_CHANGE_TIME
+		ps.passengersToSpawn[changeTime] = append(ps.passengersToSpawn[time], passengerSpawn{
+			passenger: p,
+			stopID:    changeStopID,
+		})
 	}
 }

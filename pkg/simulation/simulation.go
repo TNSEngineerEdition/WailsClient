@@ -133,6 +133,7 @@ func (s *Simulation) AdvanceTrams(time uint) (result []tram.TramPositionChange) 
 	s.time = time
 
 	s.passengersStore.SpawnPassengersAtTime(time)
+	s.passengersStore.DespawnPassengersAtTime(time)
 
 	s.tramWorkersData.wg.Add(len(s.trams))
 	for _, tram := range s.trams {

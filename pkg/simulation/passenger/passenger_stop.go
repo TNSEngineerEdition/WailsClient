@@ -24,6 +24,19 @@ func (ps *passengerStop) addPassengerToStop(passenger *Passenger) {
 	ps.passengers = append(ps.passengers, passenger)
 }
 
+func (ps *passengerStop) despawnPassenger(passenger *Passenger) bool {
+	ps.mu.Lock()
+	defer ps.mu.Unlock()
+
+	for i, p := range ps.passengers {
+		if p.ID == passenger.ID {
+			ps.passengers = append(ps.passengers[:i], ps.passengers[i+1:]...)
+			return true
+		}
+	}
+	return false
+}
+
 func (ps *passengerStop) boardPassengersToTram(tramID uint) []*Passenger {
 	ps.mu.Lock()
 	defer ps.mu.Unlock()
