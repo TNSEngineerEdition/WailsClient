@@ -6,11 +6,14 @@ import { ResetSimulation } from "@wails/go/simulation/Simulation"
 import HeaderRestartConfirmationDialogComponent from "@components/simulation/header/HeaderRestartConfirmationDialogComponent.vue"
 import useTimer from "@composables/useTimer"
 import { ExportToFile } from "@wails/go/simulation/Simulation"
+import { useRouter } from "vue-router"
 
 const props = defineProps<{
   time: number
   loading: boolean
 }>()
+
+const router = useRouter()
 
 const isRunning = defineModel<boolean>("is-running", { required: true })
 const speed = defineModel<number>("speed", { required: true })
@@ -47,6 +50,12 @@ async function exportData() {
   if (error) {
     console.error(error)
   }
+}
+
+async function menu() {
+  stop()
+  await reset()
+  router.push("/")
 }
 </script>
 
@@ -105,7 +114,7 @@ async function exportData() {
             text="Menu"
             class="mx-1"
             prepend-icon="mdi-backburger"
-            to="/"
+            @click="menu"
           ></v-btn>
         </div>
       </v-col>

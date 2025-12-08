@@ -24,7 +24,7 @@ type Simulation struct {
 	city            *city.City
 	ctx             context.Context
 	trams           map[uint]*tram.Tram
-	tramWorkersData workerData[*tram.Tram, tram.TramPositionChange]
+	tramWorkersData *workerData[*tram.Tram, tram.TramPositionChange]
 	controlCenter   controlcenter.ControlCenter
 	time            uint
 	passengersStore *passenger.PassengersStore
@@ -41,24 +41,27 @@ func (s *Simulation) SetContext(ctx context.Context) {
 	s.ctx = ctx
 }
 
-func (s *Simulation) tramWorker() {
-	for tram := range s.tramWorkersData.inputChannel {
+func (s *Simulation) tramWorker(data *workerData[*tram.Tram, tram.TramPositionChange]) {
+	for tram := range data.inputChannel {
 		positionChange, update := tram.Advance(s.time, s.city.GetStopsByID())
 		if update {
-			s.tramWorkersData.outputChannel <- positionChange
+			data.outputChannel <- positionChange
 		}
 
-		s.tramWorkersData.wg.Done()
+		data.wg.Done()
 	}
 }
 
 func (s *Simulation) resetTrams() {
-	s.trams = make(map[uint]*tram.Tram)
+	trams := make(map[uint]*tram.Tram)
+
 	for _, route := range s.city.GetTramRoutes() {
 		for _, trip := range route.Trips {
-			s.trams[trip.ID] = tram.NewTram(trip.ID, &route, &trip, &s.controlCenter, s.passengersStore)
+			trams[trip.ID] = tram.NewTram(trip.ID, &route, &trip, &s.controlCenter, s.passengersStore)
 		}
 	}
+
+	s.trams = trams
 }
 
 func (s *Simulation) ResetSimulation() {
@@ -99,7 +102,12 @@ func (s *Simulation) InitializeSimulation(tramWorkerCount uint) string {
 
 	s.controlCenter = controlcenter.NewControlCenter(s.city)
 	s.ResetSimulation()
-	s.tramWorkersData.reset(len(s.trams))
+
+	if s.tramWorkersData != nil {
+		s.tramWorkersData.stop()
+	}
+
+	s.tramWorkersData = newWorkerData[*tram.Tram, tram.TramPositionChange](len(s.trams))
 
 	if tramWorkerCount == 0 {
 		// CPU count * 110% for more efficiency
@@ -107,7 +115,7 @@ func (s *Simulation) InitializeSimulation(tramWorkerCount uint) string {
 	}
 
 	for range tramWorkerCount {
-		go s.tramWorker()
+		go s.tramWorker(s.tramWorkersData)
 	}
 
 	return ""
