@@ -57,10 +57,10 @@ func (t *Tram) Advance(time uint, stopsByID map[uint64]*graph.GraphTramStop) (re
 	switch t.state {
 	case StateTripNotStarted:
 		result, update = t.onTripNotStarted(time, stopsByID)
-	case StatePassengersBoarding:
-		t.onPassengersBoarding(time)
-	case StatePassengersDisembarking:
-		t.onPassengersDisembarking(time)
+	case StatePassengersLoading:
+		t.onPassengersLoading(time)
+	case StatePassengersUnloading:
+		t.onPassengersUnloading(time)
 	case StateTravelling, StateStopping:
 		result, update = t.onTravelling(time)
 	case StateTripFinished:
@@ -71,10 +71,10 @@ func (t *Tram) Advance(time uint, stopsByID map[uint64]*graph.GraphTramStop) (re
 
 func (t *Tram) IsAtStop() bool {
 	if t.state == StateStopped {
-		return t.prevState == StatePassengersBoarding || t.prevState == StatePassengersDisembarking
+		return t.prevState == StatePassengersLoading || t.prevState == StatePassengersUnloading
 	}
 
-	return t.state == StatePassengersBoarding || t.state == StatePassengersDisembarking
+	return t.state == StatePassengersLoading || t.state == StatePassengersUnloading
 }
 
 func (t *Tram) getTravelPath() *controlcenter.Path {
@@ -413,7 +413,7 @@ func (t *Tram) StopTram() {
 	case StateTravelling, StateStopping:
 		t.prevState = t.state
 		t.state = StateStopping
-	case StatePassengersBoarding, StatePassengersDisembarking:
+	case StatePassengersLoading, StatePassengersUnloading:
 		t.prevState = t.state
 		t.state = StateStopped
 		t.unblockNodesAhead()
@@ -422,13 +422,13 @@ func (t *Tram) StopTram() {
 
 func (t *Tram) ResumeTram(currentTime uint) {
 	switch t.prevState {
-	case StatePassengersBoarding:
-		t.state = StatePassengersBoarding
+	case StatePassengersLoading:
+		t.state = StatePassengersLoading
 		if t.departureTime < currentTime {
 			t.departureTime = currentTime + 1
 		}
-	case StatePassengersDisembarking:
-		t.state = StatePassengersDisembarking
+	case StatePassengersUnloading:
+		t.state = StatePassengersUnloading
 	default:
 		t.state = StateTravelling
 	}

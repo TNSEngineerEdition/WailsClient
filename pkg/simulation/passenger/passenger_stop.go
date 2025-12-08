@@ -36,7 +36,7 @@ func (ps *passengerStop) despawnPassenger(passenger *Passenger) {
 	}
 }
 
-func (ps *passengerStop) boardPassengersToTram(tramID uint) []*Passenger {
+func (ps *passengerStop) loadPassengersToTram(tramID uint) []*Passenger {
 	ps.mu.Lock()
 	defer ps.mu.Unlock()
 

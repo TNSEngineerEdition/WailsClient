@@ -10,8 +10,8 @@ type TramState uint8
 
 const (
 	StateTripNotStarted TramState = iota
-	StatePassengersBoarding
-	StatePassengersDisembarking
+	StatePassengersLoading
+	StatePassengersUnloading
 	StateTravelling
 	StateTripFinished
 	StateStopping
@@ -23,8 +23,8 @@ var TramStates = []struct {
 	TSName string
 }{
 	{StateTripNotStarted, "TRIP_NOT_STARTED"},
-	{StatePassengersBoarding, "PASSENGERS_BOARDING"},
-	{StatePassengersDisembarking, "PASSENGERS_DISEMBARKING"},
+	{StatePassengersLoading, "PASSENGERS_LOADING"},
+	{StatePassengersUnloading, "PASSENGERS_UNLOADING"},
 	{StateTravelling, "TRAVELLING"},
 	{StateTripFinished, "TRIP_FINISHED"},
 	{StateStopping, "STOPPING"},
@@ -39,7 +39,7 @@ func (t *Tram) onTripNotStarted(
 		return
 	}
 
-	t.state = StatePassengersBoarding
+	t.state = StatePassengersLoading
 	t.TripDetails.saveArrival(time)
 	t.departureTime = t.TripDetails.Trip.Stops[0].Time
 
@@ -64,10 +64,10 @@ func (t *Tram) onTripNotStarted(
 	return
 }
 
-func (t *Tram) onPassengersBoarding(time uint) {
-	isBoardingFinished := t.boardPassengers()
+func (t *Tram) onPassengersLoading(time uint) {
+	isLoadingFinished := t.loadPassengers()
 
-	if !isBoardingFinished || time < t.departureTime {
+	if !isLoadingFinished || time < t.departureTime {
 		return
 	}
 
@@ -76,10 +76,10 @@ func (t *Tram) onPassengersBoarding(time uint) {
 	t.state = StateTravelling
 }
 
-func (t *Tram) onPassengersDisembarking(time uint) {
-	isDisembarkingFinished := t.disembarkPassengers(time)
+func (t *Tram) onPassengersUnloading(time uint) {
+	isUnloadingFinished := t.unloadPassengers(time)
 
-	if !isDisembarkingFinished {
+	if !isUnloadingFinished {
 		return
 	}
 
@@ -87,7 +87,7 @@ func (t *Tram) onPassengersDisembarking(time uint) {
 		t.TripDetails.saveDeparture(time)
 		t.state = StateTripFinished
 	} else {
-		t.state = StatePassengersBoarding
+		t.state = StatePassengersLoading
 	}
 }
 
@@ -110,11 +110,11 @@ func (t *Tram) onTravelling(time uint) (result TramPositionChange, update bool) 
 			time+uint(rand.IntN(11))+15,
 		)
 		if t.state == StateStopping {
-			t.prevState = StatePassengersDisembarking
+			t.prevState = StatePassengersUnloading
 			t.state = StateStopped
 			t.unblockNodesAhead()
 		} else {
-			t.state = StatePassengersDisembarking
+			t.state = StatePassengersUnloading
 		}
 	} else if t.state == StateStopping && t.speed <= 0.01 {
 		t.prevState = StateTravelling

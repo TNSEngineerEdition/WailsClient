@@ -106,12 +106,12 @@ func (ps *PassengersStore) DespawnPassengersAtTime(time uint) {
 	}
 }
 
-func (ps *PassengersStore) BoardPassengers(stopID uint64, tramID uint) []*Passenger {
+func (ps *PassengersStore) LoadPassengers(stopID uint64, tramID uint) []*Passenger {
 	passengerStop := ps.passengerStops[stopID]
-	return passengerStop.boardPassengersToTram(tramID)
+	return passengerStop.loadPassengersToTram(tramID)
 }
 
-func (ps *PassengersStore) DisembarkPassengers(passengers []*Passenger, stopID uint64, time uint) {
+func (ps *PassengersStore) UnloadPassengers(passengers []*Passenger, stopID uint64, time uint) {
 	ps.mu.Lock()
 	defer ps.mu.Unlock()
 
