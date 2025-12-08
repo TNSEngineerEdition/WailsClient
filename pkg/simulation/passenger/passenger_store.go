@@ -1,7 +1,6 @@
 package passenger
 
 import (
-	"fmt"
 	"math/rand/v2"
 	"sync"
 
@@ -17,7 +16,6 @@ type passengerSpawn struct {
 type PassengersStore struct {
 	passengerStops    map[uint64]*passengerStop
 	passengersToSpawn map[uint][]passengerSpawn
-	despawnCounter    uint
 	mu                sync.Mutex
 }
 
@@ -27,7 +25,6 @@ func NewPassengersStore(c *city.City) *PassengersStore {
 	store := &PassengersStore{
 		passengerStops:    make(map[uint64]*passengerStop, len(stopsByID)),
 		passengersToSpawn: make(map[uint][]passengerSpawn),
-		despawnCounter:    0,
 	}
 
 	for id := range stopsByID {
@@ -54,9 +51,9 @@ func (ps *PassengersStore) generatePassengers(c *city.City) {
 
 	for startStopID := range stopsByID {
 		for range 50 {
-			// TODO: time's upper bound is set to 18000 (5:00:00) for presentation purposes
+			// TODO: time's upper bound is set to 18360 (6:00:00) for presentation purposes
 			//spawnTime := timeBounds.StartTime + uint(rand.IntN(int(timeBounds.EndTime-timeBounds.StartTime+1)))
-			spawnTime := timeBounds.StartTime + uint(rand.IntN(int(18000-timeBounds.StartTime+1)))
+			spawnTime := timeBounds.StartTime + uint(rand.IntN(int(18360-timeBounds.StartTime+1)))
 
 			tp := GetRandomTravelPlan(startStopID, spawnTime, c)
 
@@ -80,8 +77,6 @@ func (ps *PassengersStore) generatePassengers(c *city.City) {
 			counter++
 		}
 	}
-
-	fmt.Printf("Spawned %d passengers\n", counter)
 }
 
 func (ps *PassengersStore) SpawnPassengersAtTime(time uint) {
@@ -107,13 +102,7 @@ func (ps *PassengersStore) DespawnPassengersAtTime(time uint) {
 
 	for _, entry := range spawnList {
 		stop := ps.passengerStops[entry.stopID]
-		if stop.despawnPassenger(entry.passenger) {
-			ps.despawnCounter++
-		}
-	}
-
-	if time%600 == 0 {
-		fmt.Printf("-> Despawned %d so far\n", ps.despawnCounter)
+		stop.despawnPassenger(entry.passenger)
 	}
 }
 
