@@ -1,6 +1,7 @@
 package tram
 
 import (
+	"fmt"
 	"math"
 	"math/rand/v2"
 
@@ -364,6 +365,8 @@ func (t *Tram) updateSpeedAndReserveNodes(path *controlcenter.Path) (availableDi
 	var reservedDistanceAhead float32
 	var distToStop, distToMaxSpeedChange float32
 	var upcomingMaxSpeed float32
+	var isTramAhead bool
+	var blockedNodesIfNotBreaking []graph.GraphNode
 
 	// reserve nodes ahead until we reach a stopping point or have enough reserved distance
 	for i := t.pathIndex; i < len(path.Nodes)-1 && reservedDistanceIfAccel < neededReserveIfAccel; i++ {
@@ -377,7 +380,12 @@ func (t *Tram) updateSpeedAndReserveNodes(path *controlcenter.Path) (availableDi
 		}
 
 		if !u.TryBlocking(t.ID) {
-			distToStop = reservedDistanceAhead
+			distToStop = neededReserveAtCurrentSpeed - 2*t.length
+			isTramAhead = true
+			for _, blockedNode := range blockedNodesIfNotBreaking {
+				blockedNode.Unblock(t.ID)
+			}
+
 			break
 		}
 
@@ -410,14 +418,24 @@ func (t *Tram) updateSpeedAndReserveNodes(path *controlcenter.Path) (availableDi
 			neededReserveAtCurrentSpeed,
 			distToNextNode,
 		)
+
+		if reservedDistanceAhead > neededReserveAtCurrentSpeed-2*t.length {
+			blockedNodesIfNotBreaking = append(blockedNodesIfNotBreaking, u)
+		}
 	}
 
 	if t.state == StateStopping && (distToStop == 0 || 1e-3 < distToStop) {
 		distToStop = 1e-3
 	}
 
+	if t.ID == 1030 || t.ID == 280 {
+		fmt.Println("ID, distToStop: ", t.ID, distToStop)
+	}
+
 	var nextSpeed float32
-	if distToStop > 0 {
+	if isTramAhead {
+		nextSpeed = max(0, t.speed-MAX_ACCELERATION)
+	} else if distToStop > 0 {
 		nextSpeed = t.handleDeceleration(distToStop, 0, currentMaxSpeed)
 	} else if distToMaxSpeedChange > 0 {
 		nextSpeed = t.handleDeceleration(distToMaxSpeedChange, upcomingMaxSpeed, currentMaxSpeed)
