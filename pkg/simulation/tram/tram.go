@@ -1,7 +1,6 @@
 package tram
 
 import (
-	"fmt"
 	"math"
 	"math/rand/v2"
 
@@ -380,7 +379,6 @@ func (t *Tram) updateSpeedAndReserveNodes(path *controlcenter.Path) (availableDi
 		}
 
 		if !u.TryBlocking(t.ID) {
-			distToStop = neededReserveAtCurrentSpeed - 2*t.length
 			isTramAhead = true
 			for _, blockedNode := range blockedNodesIfNotBreaking {
 				blockedNode.Unblock(t.ID)
@@ -426,10 +424,6 @@ func (t *Tram) updateSpeedAndReserveNodes(path *controlcenter.Path) (availableDi
 
 	if t.state == StateStopping && (distToStop == 0 || 1e-3 < distToStop) {
 		distToStop = 1e-3
-	}
-
-	if t.ID == 1030 || t.ID == 280 {
-		fmt.Println("ID, distToStop: ", t.ID, distToStop)
 	}
 
 	var nextSpeed float32
