@@ -64,7 +64,7 @@ watch(
       </div>
     </div>
 
-    <div class="section">
+    <!-- <div class="section">
       <div class="label">
         <v-icon icon="mdi-wrench-check" class="mr-2"></v-icon>
         Route status
@@ -73,8 +73,8 @@ watch(
       <div class="value">
         <span> TODO </span>
       </div>
-    </div>
-    <v-tabs v-model="tab" grow>
+    </div> -->
+    <!-- <v-tabs v-model="tab" grow>
       <v-tab value="basic">Basic information</v-tab>
       <v-tab value="occ">Occupancy graph</v-tab>
       <v-tab value="stops">Stops list</v-tab>
@@ -92,6 +92,6 @@ watch(
 
         <v-tabs-window-item value="stops"> Stops list TODO </v-tabs-window-item>
       </v-tabs-window>
-    </v-card-text>
+    </v-card-text> -->
   </SidebarComponent>
 </template>
