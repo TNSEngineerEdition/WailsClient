@@ -97,13 +97,12 @@ func (t *Tram) findNewLocation(path []graph.GraphNode, distanceToDrive float32) 
 }
 
 func (t *Tram) findIntermediateLocation(path []graph.GraphNode, remainingPart float32) {
-	currentLat, currentLon := path[t.pathIndex].GetCoordinates()
 	nextLat, nextLon := path[t.pathIndex+1].GetCoordinates()
 
-	vectorLat := nextLat - currentLat
-	vectorLon := nextLon - currentLon
-	t.lat = currentLat + vectorLat*remainingPart
-	t.lon = currentLon + vectorLon*remainingPart
+	vectorLat := nextLat - t.lat
+	vectorLon := nextLon - t.lon
+	t.lat += vectorLat * remainingPart
+	t.lon += vectorLon * remainingPart
 }
 
 func (t *Tram) setAzimuthAndDistanceToNextNode(path []graph.GraphNode) {
