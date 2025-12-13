@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"math"
 	"slices"
+	"sort"
 
 	"github.com/TNSEngineerEdition/WailsClient/pkg/api"
 	"github.com/TNSEngineerEdition/WailsClient/pkg/city/graph"
@@ -239,35 +240,43 @@ func (c *City) GetInitialPlannedArrivals() map[uint64][]PlannedArrival {
 	return plannedArrivals
 }
 
-func (c *City) GetPlannedArrivals(stopID uint64) (*[]PlannedArrival, bool) {
+func (c *City) GetPlannedArrivals(stopID uint64) *[]PlannedArrival {
 	if arrivals, ok := c.plannedArrivals[stopID]; ok {
-		return &arrivals, true
+		return &arrivals
 	}
-	return nil, false
+	return nil
 }
 
-func (c *City) GetPlannedArrivalsInTimeSpan(stopID uint64, fromTime uint, toTime uint) (*[]PlannedArrival, bool) {
+func (c *City) GetPlannedArrivalsInTimeSpan(stopID uint64, fromTime uint, toTime uint) []PlannedArrival {
 	if fromTime > toTime {
 		panic("Incorrect time span - 'fromTime' cannot be later than 'toTime'")
 	}
 
-	arrivals, ok := c.GetPlannedArrivals(stopID)
-	if !ok {
-		return nil, false
+	plannedArrivals := c.GetPlannedArrivals(stopID)
+	if plannedArrivals == nil {
+		return nil
 	}
 
-	var filtered []PlannedArrival
-	for _, a := range *arrivals {
-		if a.Time >= fromTime && a.Time <= toTime {
-			filtered = append(filtered, a)
+	arrivals := *plannedArrivals
+
+	// binary search for the first arrival in a time span
+	sliceStart := sort.Search(len(arrivals), func(i int) bool {
+		return arrivals[i].Time >= fromTime
+	})
+
+	// linear search for the last arrival in a time span
+	var sliceEnd int
+	for sliceEnd = sliceStart; sliceEnd < len(arrivals); sliceEnd++ {
+		if arrivals[sliceEnd].Time > toTime {
+			break
 		}
 	}
 
-	if len(filtered) > 0 {
-		return &filtered, true
+	if sliceEnd-sliceStart == 0 {
+		return nil
 	}
 
-	return nil, false
+	return arrivals[sliceStart:sliceEnd]
 }
 
 type TimeBounds struct {

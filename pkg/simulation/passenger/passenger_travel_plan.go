@@ -155,18 +155,18 @@ func (tp *TravelPlan) findConnectionToStop(fromStopID uint64, time uint, goToInt
 
 func (tp *TravelPlan) getRandomArrivalFromStop(stopID uint64, time uint) (arrival *city.PlannedArrival, stopsLeft int) {
 	trips := tp.c.GetTripsByID()
-	arrivals, ok := tp.c.GetPlannedArrivalsInTimeSpan(
+	arrivals := tp.c.GetPlannedArrivalsInTimeSpan(
 		stopID,
 		time,
 		time+consts.MAX_WAITING_TIME,
 	)
 
-	if !ok {
+	if arrivals == nil {
 		return nil, 0
 	}
 
 	filteredArrivals := make([]city.PlannedArrival, 0)
-	for _, arrival := range *arrivals {
+	for _, arrival := range arrivals {
 		if len(trips[arrival.TripID].Stops)-1 == arrival.StopIndex {
 			continue // do not consider trams which are at their last stop
 		}

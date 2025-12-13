@@ -180,11 +180,11 @@ type Arrival struct {
 }
 
 func (s *Simulation) GetArrivalsForStop(stopID uint64, count int) []Arrival {
-	plannedArrivals, ok := s.city.GetPlannedArrivals(stopID)
+	plannedArrivals := s.city.GetPlannedArrivals(stopID)
 	arrivals := make([]Arrival, 0)
 
-	if !ok {
-		return arrivals
+	if plannedArrivals == nil {
+		return nil
 	}
 
 	// Skip trams which have already departed for future iterations
