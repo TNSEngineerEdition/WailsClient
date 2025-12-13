@@ -111,13 +111,12 @@ func (t *Tram) findNewLocation(path []graph.GraphNode, distanceToDrive float32) 
 }
 
 func (t *Tram) findIntermediateLocation(path []graph.GraphNode, remainingPart float32) {
-	currentLat, currentLon := path[t.pathIndex].GetCoordinates()
 	nextLat, nextLon := path[t.pathIndex+1].GetCoordinates()
 
-	vectorLat := nextLat - currentLat
-	vectorLon := nextLon - currentLon
-	t.lat = currentLat + vectorLat*remainingPart
-	t.lon = currentLon + vectorLon*remainingPart
+	vectorLat := nextLat - t.lat
+	vectorLon := nextLon - t.lon
+	t.lat += vectorLat * remainingPart
+	t.lon += vectorLon * remainingPart
 }
 
 func (t *Tram) setAzimuthAndDistanceToNextNode(path []graph.GraphNode) {
@@ -195,33 +194,31 @@ func (t *Tram) GetEstimatedArrival(stopIndex int, time uint) uint {
 		return t.TripDetails.Arrivals[stopIndex]
 	}
 
-	// For not yet started trips, default to scheduled departure time
-	lastDeparture := t.TripDetails.Trip.Stops[0].Time
-	if t.TripDetails.Index > 0 {
-		lastDeparture = t.TripDetails.Departures[t.TripDetails.Index-1]
+	pathProgress := t.getTravelPath().GetProgressForIndex(t.pathIndex)
+
+	if t.TripDetails.Index == 0 || stopIndex == 0 {
+		lastDeparture := t.TripDetails.Trip.Stops[0].Time
+		scheduledTravelTime := t.TripDetails.Trip.GetScheduledTravelTime(0, stopIndex)
+		return lastDeparture + scheduledTravelTime
 	}
 
-	pathDistanceProgress := t.getTravelPath().GetProgressForIndex(t.pathIndex)
+	pathLeft := float64(1 - pathProgress)
+	scheduledTravelTimeToNextStop := t.TripDetails.Trip.GetScheduledTravelTime(t.TripDetails.Index-1, t.TripDetails.Index)
 
-	if t.TripDetails.Index == 0 || stopIndex == 0 || pathDistanceProgress == 0 {
-		return lastDeparture + t.TripDetails.Trip.GetScheduledTravelTime(t.TripDetails.Index, stopIndex)
-	}
+	remainingTravelTimeToNextStop := uint(math.Round(float64(scheduledTravelTimeToNextStop) * pathLeft))
+	estimatedArrivalAtNextStop := time + remainingTravelTimeToNextStop
 
-	timeSinceLastDeparture := float64(time - lastDeparture)
-	estimatedTravelTimeToNextStop := uint(math.Round(timeSinceLastDeparture / float64(pathDistanceProgress)))
-	estimatedArrivalToNextStop := lastDeparture + estimatedTravelTimeToNextStop
-
+	// Estimating arrival at next tram stop
 	if t.TripDetails.Index == stopIndex {
-		return estimatedArrivalToNextStop
+		return estimatedArrivalAtNextStop
 	}
 
 	var estimatedPositiveDelay uint
-	if estimatedArrivalToNextStop > t.TripDetails.Trip.Stops[t.TripDetails.Index].Time {
-		estimatedPositiveDelay = estimatedArrivalToNextStop - t.TripDetails.Trip.Stops[t.TripDetails.Index].Time
+	if estimatedArrivalAtNextStop > t.TripDetails.Trip.Stops[t.TripDetails.Index].Time {
+		estimatedPositiveDelay = estimatedArrivalAtNextStop - t.TripDetails.Trip.Stops[t.TripDetails.Index].Time
 	}
 
-	scheduledTravelTime := t.TripDetails.Trip.GetScheduledTravelTime(t.TripDetails.Index, stopIndex)
-	return t.TripDetails.Trip.Stops[t.TripDetails.Index].Time + scheduledTravelTime + estimatedPositiveDelay
+	return t.TripDetails.Trip.Stops[stopIndex].Time + estimatedPositiveDelay
 }
 
 type TramPositionChange struct {
@@ -281,6 +278,7 @@ func (t *Tram) updateSpeedAndReserveNodes(path *controlcenter.Path) (availableDi
 	var reservedDistanceAhead float32
 	var distToStop, distToMaxSpeedChange float32
 	var upcomingMaxSpeed float32
+	var optimisticallyBlockedNodes []graph.GraphNode
 
 	// reserve nodes ahead until we reach a stopping point or have enough reserved distance
 	for i := t.pathIndex; i < len(path.Nodes)-1 && reservedDistanceIfAccel < neededReserveIfAccel; i++ {
@@ -294,7 +292,11 @@ func (t *Tram) updateSpeedAndReserveNodes(path *controlcenter.Path) (availableDi
 		}
 
 		if !u.TryBlocking(t.ID) {
-			distToStop = reservedDistanceAhead
+			distToStop = 1e-3
+			for _, blockedNode := range optimisticallyBlockedNodes {
+				blockedNode.Unblock(t.ID)
+			}
+
 			break
 		}
 
@@ -327,6 +329,10 @@ func (t *Tram) updateSpeedAndReserveNodes(path *controlcenter.Path) (availableDi
 			neededReserveAtCurrentSpeed,
 			distToNextNode,
 		)
+		//in case we need to stop immediately after detecting blocked node we have to free optimistically blocked nodes
+		if reservedDistanceAhead > neededReserveAtCurrentSpeed-2*t.length {
+			optimisticallyBlockedNodes = append(optimisticallyBlockedNodes, u)
+		}
 	}
 
 	if t.state == StateStopping && (distToStop == 0 || 1e-3 < distToStop) {

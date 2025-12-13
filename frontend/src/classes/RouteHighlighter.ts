@@ -1,5 +1,5 @@
 import L, { FeatureGroup, Polyline, Map as LMap } from "leaflet"
-import { GetRoutePolylines } from "@wails/go/simulation/Simulation"
+import { GetSegmentsForRoute } from "@wails/go/simulation/Simulation"
 import { city } from "@wails/go/models"
 
 export class RouteHighlighter {
@@ -12,18 +12,18 @@ export class RouteHighlighter {
   }
 
   public async highlight(route: city.RouteInfo) {
-    const { forward, backward } = await GetRoutePolylines(route.name)
-    const fwd = forward as [number, number][]
-    const bwd = backward as [number, number][]
+    const routeVariants = await GetSegmentsForRoute(route.name)
 
     if (this.routeLayer) {
       this.map.removeLayer(this.routeLayer)
     }
 
-    const layers: Polyline[] = [
-      this.makePolyline(fwd, route.background_color),
-      this.makePolyline(bwd, route.background_color),
-    ]
+    const layers: Polyline[] = routeVariants.map(variant =>
+      this.makePolyline(
+        variant.polyline.map(item => [item.lat, item.lon]),
+        route.background_color,
+      ),
+    )
 
     this.routeLayer = new FeatureGroup(layers).addTo(this.map)
     this.stopAnts()

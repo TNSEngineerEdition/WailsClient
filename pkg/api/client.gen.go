@@ -119,16 +119,18 @@ type ResponseGraphTramStop struct {
 
 // ResponseTramRoute defines model for ResponseTramRoute.
 type ResponseTramRoute struct {
-	BackgroundColor string              `json:"background_color"`
-	Name            string              `json:"name"`
-	TextColor       string              `json:"text_color"`
-	Trips           *[]ResponseTramTrip `json:"trips,omitempty"`
+	BackgroundColor string               `json:"background_color"`
+	Name            string               `json:"name"`
+	TextColor       string               `json:"text_color"`
+	Trips           *[]ResponseTramTrip  `json:"trips,omitempty"`
+	Variants        *map[string][]uint64 `json:"variants,omitempty"`
 }
 
 // ResponseTramTrip defines model for ResponseTramTrip.
 type ResponseTramTrip struct {
 	Stops        []ResponseTramTripStop `json:"stops"`
 	TripHeadSign string                 `json:"trip_head_sign"`
+	Variant      *string                `json:"variant"`
 }
 
 // ResponseTramTripStop defines model for ResponseTramTripStop.

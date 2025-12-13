@@ -5,39 +5,38 @@ import (
 	"fmt"
 	"slices"
 
-	"github.com/TNSEngineerEdition/WailsClient/pkg/city"
 	"github.com/TNSEngineerEdition/WailsClient/pkg/city/graph"
+	"github.com/TNSEngineerEdition/WailsClient/pkg/structs"
 	"github.com/umahmood/haversine"
 )
 
 type Path struct {
-	Nodes             []graph.GraphNode
-	MaxSpeeds         []float32
-	DistancePrefixSum []float32
+	Nodes         []graph.GraphNode
+	MaxSpeeds     []float32
+	TimePrefixSum []float32
 }
 
 func (p *Path) GetProgressForIndex(index int) float32 {
-	return p.DistancePrefixSum[index] / p.DistancePrefixSum[len(p.DistancePrefixSum)-1]
+	return p.TimePrefixSum[index] / p.TimePrefixSum[len(p.TimePrefixSum)-1]
 }
 
-func getShortestPath(city *city.City, stops stopPair) (result Path) {
-	nodesByID := city.GetNodesByID()
-
-	nodesToProcess := &priorityQueue{}
+func getShortestPath(nodesByID *map[uint64]graph.GraphNode, stops stopPair) (result Path) {
+	nodesToProcess := &structs.PriorityQueue[uint64]{}
 	heap.Init(nodesToProcess)
-	heap.Push(nodesToProcess, &nodeRecord{ID: stops.source})
+	heap.Push(nodesToProcess, &structs.PQRecord[uint64]{Value: stops.source})
 
 	predecessors := make(map[uint64]uint64)
 	tentativeDistFromSource := make(map[uint64]float32)
 	visitedNodes := make(map[uint64]bool)
 
 	for nodesToProcess.Len() > 0 {
-		currentID := heap.Pop(nodesToProcess).(*nodeRecord).ID
+		nodeRecord := heap.Pop(nodesToProcess).(*structs.PQRecord[uint64])
+		currentID := nodeRecord.Value
 
 		if currentID == stops.destination {
 			result.Nodes = reconstructPath(predecessors, nodesByID, currentID)
 			result.MaxSpeeds = getMaxSpeeds(result.Nodes)
-			result.DistancePrefixSum = getPathDistancePrefixSum(result.Nodes)
+			result.TimePrefixSum = getPathTimePrefixSum(result.Nodes)
 			return
 		}
 
@@ -47,7 +46,7 @@ func getShortestPath(city *city.City, stops stopPair) (result Path) {
 
 		visitedNodes[currentID] = true
 
-		for _, neighbor := range nodesByID[currentID].GetNeighbors() {
+		for _, neighbor := range (*nodesByID)[currentID].GetNeighbors() {
 			tentativeDistance := tentativeDistFromSource[currentID] + neighbor.Distance
 			cost, wasVisited := tentativeDistFromSource[neighbor.ID]
 
@@ -59,12 +58,12 @@ func getShortestPath(city *city.City, stops stopPair) (result Path) {
 			tentativeDistFromSource[neighbor.ID] = tentativeDistance
 
 			heuristicDistance := getDistanceInMeters(
-				nodesByID[neighbor.ID], nodesByID[stops.destination],
+				(*nodesByID)[neighbor.ID], (*nodesByID)[stops.destination],
 			)
 			heap.Push(
-				nodesToProcess,
-				&nodeRecord{
-					ID: neighbor.ID, Priority: heuristicDistance + tentativeDistance,
+				nodesToProcess, &structs.PQRecord[uint64]{
+					Value:    neighbor.ID,
+					Priority: heuristicDistance + tentativeDistance,
 				},
 			)
 		}
@@ -75,11 +74,11 @@ func getShortestPath(city *city.City, stops stopPair) (result Path) {
 
 func reconstructPath(
 	predecessors map[uint64]uint64,
-	nodesByID map[uint64]graph.GraphNode,
+	nodesByID *map[uint64]graph.GraphNode,
 	currentID uint64,
 ) (nodes []graph.GraphNode) {
 	for {
-		nodes = append(nodes, nodesByID[currentID])
+		nodes = append(nodes, (*nodesByID)[currentID])
 
 		if previousNodeID, ok := predecessors[currentID]; ok {
 			currentID = previousNodeID
@@ -126,13 +125,13 @@ func getDistanceInMeters(source, destination graph.GraphNode) float32 {
 	return float32(kilometers * 1000)
 }
 
-func getPathDistancePrefixSum(nodes []graph.GraphNode) []float32 {
+func getPathTimePrefixSum(nodes []graph.GraphNode) []float32 {
 	prefixSum := make([]float32, len(nodes))
 
 	for i := 1; i < len(nodes); i++ {
 		neighbors := nodes[i-1].GetNeighbors()
 		nextNode := neighbors[nodes[i].GetID()]
-		prefixSum[i] = nextNode.Distance + prefixSum[i-1]
+		prefixSum[i] = nextNode.Distance/nextNode.MaxSpeed + prefixSum[i-1]
 	}
 
 	return prefixSum
