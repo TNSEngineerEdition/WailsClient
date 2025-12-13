@@ -6,6 +6,7 @@ import (
 
 	"github.com/TNSEngineerEdition/WailsClient/pkg/city"
 	"github.com/TNSEngineerEdition/WailsClient/pkg/consts"
+	"github.com/TNSEngineerEdition/WailsClient/pkg/simulation/passenger/travelplan"
 )
 
 type passengerSpawn struct {
@@ -54,19 +55,20 @@ func (ps *PassengersStore) generatePassengers(c *city.City) {
 			// TODO: time's upper bound is set to 18360 (6:00:00) for presentation purposes
 			//spawnTime := timeBounds.StartTime + uint(rand.IntN(int(timeBounds.EndTime-timeBounds.StartTime+1)))
 			spawnTime := timeBounds.StartTime + uint(rand.IntN(int(18360-timeBounds.StartTime+1)))
+			strategy := travelplan.RANDOM
 
-			tp := GetRandomTravelPlan(startStopID, spawnTime, c)
+			tp, endStopID := travelplan.GetTravelPlan(strategy, startStopID, spawnTime, c)
 
-			if startStopID == tp.endStopID {
+			if startStopID == endStopID {
 				continue // no trips found
 			}
 
 			passenger := &Passenger{
 				ID:          counter,
-				strategy:    PassengerStrategy(rand.IntN(3)),
+				strategy:    strategy,
 				spawnTime:   spawnTime,
 				startStopID: startStopID,
-				endStopID:   tp.endStopID,
+				endStopID:   endStopID,
 				TravelPlan:  tp,
 			}
 
@@ -116,11 +118,11 @@ func (ps *PassengersStore) UnloadPassengers(passengers []*Passenger, stopID uint
 	defer ps.mu.Unlock()
 
 	for _, p := range passengers {
-		if p.TravelPlan.isEndStopReached(stopID) {
+		if p.TravelPlan.IsEndStopReached(stopID) {
 			continue
 		}
 
-		changeStopID := p.TravelPlan.stops[stopID].changeStopTo
+		changeStopID := p.TravelPlan.GetChangeStop(stopID)
 		changeTime := time + consts.TRAM_CHANGE_TIME
 		ps.passengersToSpawn[changeTime] = append(ps.passengersToSpawn[time], passengerSpawn{
 			passenger: p,

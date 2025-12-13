@@ -1,58 +1,39 @@
-package passenger
+package travelplan
 
 import (
-	"fmt"
 	"math/rand"
 
 	"github.com/TNSEngineerEdition/WailsClient/pkg/city"
 	"github.com/TNSEngineerEdition/WailsClient/pkg/consts"
 )
 
-type travelStop struct {
-	id           uint64
-	changeStopTo uint64
-	connections  map[uint]*travelConnection
-}
+/*
 
-type travelConnection struct {
-	id                      uint
-	to                      uint64
-	arrivalTime, travelTime uint
-}
+Random strategy selects one random arrival and then picks one stop on the selected arrival's route.
+This becomes a travel plan.
 
-type TravelPlan struct {
-	stops                  map[uint64]*travelStop
-	connections            map[uint]*travelConnection
-	startStopID, endStopID uint64
-	spawnTime              uint
-	c                      *city.City
-}
+Optionally, for some passengers the travel plan includes one tram change on an interchange stop
 
-func GetRandomTravelPlan(startStopID uint64, spawnTime uint, c *city.City) TravelPlan {
-	tp := TravelPlan{
-		stops:       make(map[uint64]*travelStop),
-		connections: make(map[uint]*travelConnection),
-		startStopID: startStopID,
-		spawnTime:   spawnTime,
-		c:           c,
-	}
+*/
 
+func (tp *TravelPlan) GenerateRandomTravelPlan() {
 	isPassengerChangingStops := rand.Float32() < consts.TRAM_CHANGE_PROBABILITY
 
 	// direct trip
 	if !isPassengerChangingStops {
-		tp.endStopID, _ = tp.findConnectionToStop(startStopID, spawnTime, false)
-		return tp
+		tp.endStopID, _ = tp.findConnectionToStop(tp.startStopID, tp.spawnTime, false)
+		return
 	}
 
 	// trip with tram change
-	stopID, time := tp.findConnectionToStop(startStopID, spawnTime, true)
-	if !c.IsInterchangeStop(stopID) {
+	stopID, time := tp.findConnectionToStop(tp.startStopID, tp.spawnTime, true)
+	if !tp.c.IsInterchangeStop(stopID) {
 		tp.endStopID = stopID
-		return tp
+		return
 	}
 
-	stops := c.GetStopsInGroup(stopID)
+	// select random stop to change to
+	stops := tp.c.GetStopsInGroup(stopID)
 	n := len(stops)
 	a := rand.Intn(n)
 	i := 0
@@ -67,30 +48,6 @@ func GetRandomTravelPlan(startStopID uint64, spawnTime uint, c *city.City) Trave
 	}
 	tp.addStopChange(stopID, changeStopID)
 	tp.endStopID, _ = tp.findConnectionToStop(changeStopID, time+consts.TRAM_CHANGE_TIME, false)
-
-	return tp
-}
-
-func (tp *TravelPlan) GetConnectionEnd(tramID uint) uint64 {
-	if _, ok := tp.connections[tramID]; !ok {
-		panic(fmt.Sprintf("Connection %d not found", tramID))
-	}
-	return tp.connections[tramID].to
-}
-
-func (tp *TravelPlan) isConnectionInPlan(stopID uint64, tramID uint) bool {
-	if _, ok := tp.stops[stopID]; !ok {
-		return false
-	}
-	if _, ok := tp.stops[stopID].connections[tramID]; ok {
-		return true
-	}
-	return false
-}
-
-func (tp *TravelPlan) isEndStopReached(stopID uint64) bool {
-	stopsByID := tp.c.GetStopsByID()
-	return stopID == tp.endStopID || stopsByID[stopID].GetGroupName() == stopsByID[tp.endStopID].GetGroupName()
 }
 
 func (tp *TravelPlan) findConnectionToStop(fromStopID uint64, time uint, goToInterchangeStop bool) (toStopID uint64, arrivalTime uint) {
@@ -110,20 +67,20 @@ func (tp *TravelPlan) findConnectionToStop(fromStopID uint64, time uint, goToInt
 			stopID      uint64
 			arrivalTime uint
 		}, 0)
-		currStopIndex := arrival.StopIndex + 1
+		currentStopIndex := arrival.StopIndex + 1
 
-		for currStopIndex < len(trip.Stops) {
-			currStopID := trip.Stops[currStopIndex].ID
+		for currentStopIndex < len(trip.Stops) {
+			currStopID := trip.Stops[currentStopIndex].ID
 			if tp.c.IsInterchangeStop(currStopID) {
 				interchangeStops = append(interchangeStops, struct {
 					stopID      uint64
 					arrivalTime uint
 				}{
 					stopID:      currStopID,
-					arrivalTime: trip.Stops[currStopIndex].Time,
+					arrivalTime: trip.Stops[currentStopIndex].Time,
 				})
 			}
-			currStopIndex++
+			currentStopIndex++
 		}
 
 		n := len(interchangeStops)
@@ -192,47 +149,4 @@ func (tp *TravelPlan) getRandomArrivalFromStop(stopID uint64, time uint) (arriva
 	}
 
 	return arrival, stopsLeft
-}
-
-func (tp *TravelPlan) addStop(stopID uint64) {
-	if _, ok := tp.stops[stopID]; !ok {
-		tp.stops[stopID] = &travelStop{
-			id:          stopID,
-			connections: make(map[uint]*travelConnection),
-		}
-	}
-}
-
-func (tp *TravelPlan) addConnection(from, to uint64, tripID, arrivalTime, travelTime uint) {
-	if _, ok := tp.stops[from]; !ok {
-		tp.addStop(from)
-	}
-	if _, ok := tp.stops[to]; !ok {
-		tp.addStop(to)
-	}
-
-	conn := travelConnection{
-		id:          tripID,
-		to:          to,
-		arrivalTime: arrivalTime,
-		travelTime:  travelTime,
-	}
-
-	fromNode := tp.stops[from]
-	fromNode.connections[tripID] = &conn
-	tp.stops[from] = fromNode
-
-	tp.connections[tripID] = &conn
-}
-
-func (tp *TravelPlan) addStopChange(from, to uint64) {
-	if _, ok := tp.stops[from]; !ok {
-		tp.addStop(from)
-	}
-	if _, ok := tp.stops[to]; !ok {
-		tp.addStop(to)
-	}
-
-	fromNode := tp.stops[from]
-	fromNode.changeStopTo = to
 }

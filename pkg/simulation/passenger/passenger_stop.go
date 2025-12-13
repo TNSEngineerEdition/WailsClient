@@ -36,7 +36,7 @@ func (ps *passengerStop) loadPassengersToTram(tramID uint) []*Passenger {
 
 	boardingPassengers := make([]*Passenger, 0, consts.MAX_PASSENGERS_CHANGE_RATE)
 	for _, p := range ps.passengers {
-		if p.TravelPlan.isConnectionInPlan(ps.stopID, tramID) {
+		if p.TravelPlan.IsConnectionInPlan(ps.stopID, tramID) {
 			boardingPassengers = append(boardingPassengers, p)
 		}
 		if len(boardingPassengers) >= consts.MAX_PASSENGERS_CHANGE_RATE {
