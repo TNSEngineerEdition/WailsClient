@@ -19,15 +19,13 @@ func (t *Tram) loadPassengers() bool {
 
 func (t *Tram) unloadPassengers(time uint) bool {
 	stopID := t.TripDetails.Trip.Stops[t.TripDetails.Index].ID
-	counter := 0
 	disembarkingPassengers := make([]*passenger.Passenger, 0, consts.MAX_PASSENGERS_CHANGE_RATE)
 
 	for _, p := range t.passengersInTram {
 		if p.TravelPlan.GetConnectionEnd(t.ID) == stopID {
 			disembarkingPassengers = append(disembarkingPassengers, p)
-			counter++
 		}
-		if counter == consts.MAX_PASSENGERS_CHANGE_RATE {
+		if len(disembarkingPassengers) == consts.MAX_PASSENGERS_CHANGE_RATE {
 			break
 		}
 	}
