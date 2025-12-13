@@ -30,7 +30,7 @@ func NewPassengersStore(c *city.City) *PassengersStore {
 	for id := range stopsByID {
 		store.passengerStops[id] = &passengerStop{
 			stopID:     id,
-			passengers: make([]*Passenger, 0),
+			passengers: make(map[uint64]*Passenger),
 		}
 	}
 

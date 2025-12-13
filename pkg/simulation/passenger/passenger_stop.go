@@ -8,7 +8,7 @@ import (
 
 type passengerStop struct {
 	stopID     uint64
-	passengers []*Passenger
+	passengers map[uint64]*Passenger
 	mu         sync.Mutex
 }
 
@@ -21,39 +21,32 @@ func (ps *passengerStop) GetPassengerCount() uint {
 func (ps *passengerStop) addPassengerToStop(passenger *Passenger) {
 	ps.mu.Lock()
 	defer ps.mu.Unlock()
-	ps.passengers = append(ps.passengers, passenger)
+	ps.passengers[passenger.ID] = passenger
 }
 
 func (ps *passengerStop) despawnPassenger(passenger *Passenger) {
 	ps.mu.Lock()
 	defer ps.mu.Unlock()
-
-	for i, p := range ps.passengers {
-		if p.ID == passenger.ID {
-			ps.passengers = append(ps.passengers[:i], ps.passengers[i+1:]...)
-			return
-		}
-	}
+	delete(ps.passengers, passenger.ID)
 }
 
 func (ps *passengerStop) loadPassengersToTram(tramID uint) []*Passenger {
 	ps.mu.Lock()
 	defer ps.mu.Unlock()
 
-	counter := 0
 	boardingPassengers := make([]*Passenger, 0, consts.MAX_PASSENGERS_CHANGE_RATE)
-	restOfPassengers := make([]*Passenger, 0)
-
 	for _, p := range ps.passengers {
-		if p.TravelPlan.isConnectionInPlan(ps.stopID, tramID) && counter < consts.MAX_PASSENGERS_CHANGE_RATE {
+		if len(boardingPassengers) >= consts.MAX_PASSENGERS_CHANGE_RATE {
+			break
+		}
+		if p.TravelPlan.isConnectionInPlan(ps.stopID, tramID) {
 			boardingPassengers = append(boardingPassengers, p)
-			counter++
-		} else {
-			restOfPassengers = append(restOfPassengers, p)
 		}
 	}
 
-	ps.passengers = restOfPassengers
+	for _, p := range boardingPassengers {
+		delete(ps.passengers, p.ID)
+	}
 
 	return boardingPassengers
 }

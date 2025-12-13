@@ -35,6 +35,7 @@ func (g *GraphTramStop) GetName() string {
 	return g.Details.Name
 }
 
+// TODO: Update this code after group name implementation on the backend
 func (g *GraphTramStop) GetGroupName() string {
 	runeName := []rune(g.Details.Name)
 	n := len(runeName)
