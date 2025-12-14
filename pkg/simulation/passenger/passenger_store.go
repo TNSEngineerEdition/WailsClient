@@ -123,11 +123,11 @@ func (ps *PassengersStore) UnloadPassengers(passengers []*Passenger, stopID uint
 		}
 
 		// transfer
-		changeStopID := p.TravelPlan.GetChangeStop(stopID)
-		changeTime := time + consts.TRAM_CHANGE_TIME
-		ps.passengersToSpawn[changeTime] = append(ps.passengersToSpawn[time], passengerSpawn{
+		transferStopID := p.TravelPlan.GetTransferStop(stopID)
+		transferTime := time + consts.TRANSFER_TIME
+		ps.passengersToSpawn[transferTime] = append(ps.passengersToSpawn[time], passengerSpawn{
 			passenger: p,
-			stopID:    changeStopID,
+			stopID:    transferStopID,
 		})
 	}
 }

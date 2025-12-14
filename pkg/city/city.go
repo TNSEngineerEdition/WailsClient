@@ -135,7 +135,7 @@ func (c *City) GetStopsByName() map[string]map[uint64]*graph.GraphTramStop {
 	return c.stopsByName
 }
 
-func (c *City) IsInterchangeStop(stopID uint64) bool {
+func (c *City) IsTransferStop(stopID uint64) bool {
 	stops := c.GetStopsInGroup(stopID)
 	return len(stops) > 2
 }

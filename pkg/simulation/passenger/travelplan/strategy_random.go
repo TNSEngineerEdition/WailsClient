@@ -13,12 +13,12 @@ import (
 Random strategy selects one random arrival and then picks one stop on the selected arrival's route.
 This becomes a travel plan.
 
-Optionally, for some passengers the travel plan includes one tram change on an interchange stop
+Optionally, for some passengers the travel plan includes one tram change on a transfer stop
 
 */
 
 func (tp *TravelPlan) GenerateRandomTravelPlan() {
-	isPassengerChangingStops := rand.Float32() < consts.TRAM_CHANGE_PROBABILITY
+	isPassengerChangingStops := rand.Float32() < consts.TRANSFER_PROBABILITY
 
 	// direct trip
 	if !isPassengerChangingStops {
@@ -26,32 +26,32 @@ func (tp *TravelPlan) GenerateRandomTravelPlan() {
 		return
 	}
 
-	// trip with tram change
+	// trip with transfer
 	stopID, time := tp.findConnectionToStop(tp.startStopID, tp.spawnTime, true)
-	if !tp.c.IsInterchangeStop(stopID) {
+	if !tp.c.IsTransferStop(stopID) {
 		tp.endStopID = stopID
 		return
 	}
 
-	// select random stop to change to
+	// select random stop to transfer to
 	stops := tp.c.GetStopsInGroup(stopID)
 	n := len(stops)
 	a := rand.Intn(n)
 	i := 0
-	var changeStopID uint64
+	var transferStopID uint64
 
 	for handleStopID := range stops {
 		if i == a {
-			changeStopID = handleStopID
+			transferStopID = handleStopID
 			break
 		}
 		i++
 	}
-	tp.addStopChange(stopID, changeStopID)
-	tp.endStopID, _ = tp.findConnectionToStop(changeStopID, time+consts.TRAM_CHANGE_TIME, false)
+	tp.addTransfer(stopID, transferStopID)
+	tp.endStopID, _ = tp.findConnectionToStop(transferStopID, time+consts.TRANSFER_TIME, false)
 }
 
-func (tp *TravelPlan) findConnectionToStop(fromStopID uint64, time uint, goToInterchangeStop bool) (uint64, uint) {
+func (tp *TravelPlan) findConnectionToStop(fromStopID uint64, time uint, goToTransferStop bool) (uint64, uint) {
 	arrival, stopsLeft := tp.getRandomArrivalFromStop(fromStopID, time)
 	if arrival == nil {
 		return fromStopID, time
@@ -60,9 +60,9 @@ func (tp *TravelPlan) findConnectionToStop(fromStopID uint64, time uint, goToInt
 	trips := tp.c.GetTripsByID()
 	trip := trips[arrival.TripID]
 
-	// passenger wants to travel to an interchange stop
-	if goToInterchangeStop {
-		if toStopID, travelTime, found := tp.findInterchangeStop(trip, arrival); found {
+	// passenger wants to travel to a transfer stop
+	if goToTransferStop {
+		if toStopID, travelTime, found := tp.findTransferStop(trip, arrival); found {
 			tp.addConnection(
 				fromStopID,
 				toStopID,
@@ -86,8 +86,8 @@ func (tp *TravelPlan) findConnectionToStop(fromStopID uint64, time uint, goToInt
 	return toStopID, arrival.Time + travelTime
 }
 
-func (tp *TravelPlan) findInterchangeStop(trip *trip.TramTrip, arrival *city.PlannedArrival) (uint64, uint, bool) {
-	interchangeStops := make([]struct {
+func (tp *TravelPlan) findTransferStop(trip *trip.TramTrip, arrival *city.PlannedArrival) (uint64, uint, bool) {
+	transferStops := make([]struct {
 		stopID      uint64
 		arrivalTime uint
 	}, 0)
@@ -95,8 +95,8 @@ func (tp *TravelPlan) findInterchangeStop(trip *trip.TramTrip, arrival *city.Pla
 	currentStopIndex := arrival.StopIndex + 1
 	for currentStopIndex < len(trip.Stops) {
 		currStopID := trip.Stops[currentStopIndex].ID
-		if tp.c.IsInterchangeStop(currStopID) {
-			interchangeStops = append(interchangeStops, struct {
+		if tp.c.IsTransferStop(currStopID) {
+			transferStops = append(transferStops, struct {
 				stopID      uint64
 				arrivalTime uint
 			}{
@@ -107,11 +107,11 @@ func (tp *TravelPlan) findInterchangeStop(trip *trip.TramTrip, arrival *city.Pla
 		currentStopIndex++
 	}
 
-	if len(interchangeStops) == 0 {
+	if len(transferStops) == 0 {
 		return 0, 0, false
 	}
 
-	destination := interchangeStops[rand.Intn(len(interchangeStops))]
+	destination := transferStops[rand.Intn(len(transferStops))]
 	return destination.stopID, destination.arrivalTime - arrival.Time, true
 }
 

@@ -7,9 +7,9 @@ import (
 )
 
 type TravelStop struct {
-	id           uint64
-	changeStopTo uint64
-	connections  map[uint]*TravelConnection
+	id             uint64
+	transferToStop uint64
+	connections    map[uint]*TravelConnection
 }
 
 type TravelConnection struct {
@@ -51,12 +51,12 @@ func GetTravelPlan(strategy PassengerStrategy, startStopID uint64, spawnTime uin
 	return tp, tp.endStopID
 }
 
-func (tp *TravelPlan) GetChangeStop(stopID uint64) uint64 {
+func (tp *TravelPlan) GetTransferStop(stopID uint64) uint64 {
 	stop, ok := tp.stops[stopID]
 	if !ok {
 		panic(fmt.Sprintf("%d - there is no such stop in the travel plan", stopID))
 	}
-	return stop.changeStopTo
+	return stop.transferToStop
 }
 
 func (tp *TravelPlan) GetConnectionEnd(tramID uint) uint64 {
@@ -112,7 +112,7 @@ func (tp *TravelPlan) addConnection(from, to uint64, tripID, arrivalTime, travel
 	tp.connections[tripID] = &conn
 }
 
-func (tp *TravelPlan) addStopChange(from, to uint64) {
+func (tp *TravelPlan) addTransfer(from, to uint64) {
 	if _, ok := tp.stops[from]; !ok {
 		tp.addStop(from)
 	}
@@ -121,5 +121,5 @@ func (tp *TravelPlan) addStopChange(from, to uint64) {
 	}
 
 	fromNode := tp.stops[from]
-	fromNode.changeStopTo = to
+	fromNode.transferToStop = to
 }
