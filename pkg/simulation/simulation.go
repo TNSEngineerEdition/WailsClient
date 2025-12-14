@@ -192,7 +192,7 @@ func (s *Simulation) GetArrivalsForStop(stopID uint64, count int) []Arrival {
 	arrivals := make([]Arrival, 0)
 
 	if plannedArrivals == nil {
-		return nil
+		return arrivals
 	}
 
 	// Skip trams which have already departed for future iterations

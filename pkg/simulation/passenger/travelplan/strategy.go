@@ -1,10 +1,10 @@
 package travelplan
 
-type PassengerStrategy uint8
+type PassengerStrategy string
 
 const (
-	RANDOM PassengerStrategy = iota
-	ASAP
-	COMFORT
-	SURE
+	RANDOM  PassengerStrategy = "RANDOM"
+	ASAP    PassengerStrategy = "ASAP"
+	COMFORT PassengerStrategy = "COMFORT"
+	SURE    PassengerStrategy = "SURE"
 )
