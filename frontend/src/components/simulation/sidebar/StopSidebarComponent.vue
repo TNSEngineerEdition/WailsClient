@@ -149,7 +149,7 @@ watch(
 
     <v-tabs v-model="tab" grow>
       <v-tab value="arr">Arrivals</v-tab>
-      <v-tab value="occ">Occupancy graph</v-tab>
+      <!-- <v-tab value="occ">Occupancy graph</v-tab> -->
     </v-tabs>
 
     <v-card-text>
@@ -177,9 +177,9 @@ watch(
           </v-data-table>
         </v-tabs-window-item>
 
-        <v-tabs-window-item value="occ">
+        <!-- <v-tabs-window-item value="occ">
           Occupancy graph TODO
-        </v-tabs-window-item>
+        </v-tabs-window-item> -->
       </v-tabs-window>
     </v-card-text>
   </SidebarComponent>

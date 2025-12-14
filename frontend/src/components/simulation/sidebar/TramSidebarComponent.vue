@@ -168,8 +168,8 @@ watch(
     </div>
     <v-tabs v-model="tab" grow>
       <v-tab value="stops">Stops table</v-tab>
-      <v-tab value="occ">Occupancy graph</v-tab>
-      <v-tab value="delay">Delay graph</v-tab>
+      <!-- <v-tab value="occ">Occupancy graph</v-tab>
+      <v-tab value="delay">Delay graph</v-tab> -->
     </v-tabs>
 
     <v-card-text>
@@ -214,13 +214,13 @@ watch(
           </div>
         </v-tabs-window-item>
 
-        <v-tabs-window-item value="occ">
+        <!-- <v-tabs-window-item value="occ">
           Occupancy graph TODO
         </v-tabs-window-item>
 
         <v-tabs-window-item value="delay">
           Delay graph TODO
-        </v-tabs-window-item>
+        </v-tabs-window-item> -->
       </v-tabs-window>
     </v-card-text>
   </SidebarComponent>
