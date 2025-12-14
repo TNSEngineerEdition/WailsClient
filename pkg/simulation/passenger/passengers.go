@@ -1,8 +1,11 @@
 package passenger
 
+import "github.com/TNSEngineerEdition/WailsClient/pkg/simulation/passenger/travelplan"
+
 type Passenger struct {
-	strategy               PassengerStrategy
-	spawnTime              uint
-	StartStopID, EndStopID uint64
 	ID                     uint64
+	strategy               travelplan.PassengerStrategy
+	spawnTime              uint
+	startStopID, endStopID uint64
+	TravelPlan             travelplan.TravelPlan
 }
