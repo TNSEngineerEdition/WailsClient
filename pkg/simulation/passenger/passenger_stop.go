@@ -2,10 +2,13 @@ package passenger
 
 import (
 	"sync"
+
+	"github.com/TNSEngineerEdition/WailsClient/pkg/consts"
 )
 
 type passengerStop struct {
-	passengers []*Passenger
+	stopID     uint64
+	passengers map[uint64]*Passenger
 	mu         sync.Mutex
 }
 
@@ -15,26 +18,35 @@ func (ps *passengerStop) GetPassengerCount() uint {
 	return uint(len(ps.passengers))
 }
 
-func (ps *passengerStop) AddPassengerToStop(passenger *Passenger) {
+func (ps *passengerStop) addPassengerToStop(passenger *Passenger) {
 	ps.mu.Lock()
 	defer ps.mu.Unlock()
-
-	ps.passengers = append(ps.passengers, passenger)
+	ps.passengers[passenger.ID] = passenger
 }
 
-func (ps *passengerStop) TakeAllFromStop(alreadyTakenSet map[uint64]struct{}) []*Passenger {
+func (ps *passengerStop) despawnPassenger(passenger *Passenger) {
+	ps.mu.Lock()
+	defer ps.mu.Unlock()
+	delete(ps.passengers, passenger.ID)
+}
+
+func (ps *passengerStop) loadPassengersToTram(tramID uint) []*Passenger {
 	ps.mu.Lock()
 	defer ps.mu.Unlock()
 
-	boardingPassengers := make([]*Passenger, 0, len(ps.passengers))
-	stayingPassengers := make([]*Passenger, 0, len(ps.passengers))
-	for _, passenger := range ps.passengers {
-		if _, taken := alreadyTakenSet[passenger.ID]; taken {
-			stayingPassengers = append(stayingPassengers, passenger)
-		} else {
-			boardingPassengers = append(boardingPassengers, passenger)
+	boardingPassengers := make([]*Passenger, 0, consts.MAX_PASSENGERS_CHANGE_RATE)
+	for _, p := range ps.passengers {
+		if p.TravelPlan.IsConnectionInPlan(ps.stopID, tramID) {
+			boardingPassengers = append(boardingPassengers, p)
+		}
+		if len(boardingPassengers) >= consts.MAX_PASSENGERS_CHANGE_RATE {
+			break
 		}
 	}
-	ps.passengers = stayingPassengers
+
+	for _, p := range boardingPassengers {
+		delete(ps.passengers, p.ID)
+	}
+
 	return boardingPassengers
 }
