@@ -15,15 +15,16 @@ import (
 )
 
 type City struct {
-	CityID          string
-	tramRoutes      []trip.TramRoute
-	nodesByID       map[uint64]graph.GraphNode
-	stopsByID       map[uint64]*graph.GraphTramStop
-	stopsByName     map[string]map[uint64]*graph.GraphTramStop
-	tripsByID       map[uint]*trip.TramTrip
-	routesByStopID  map[uint64][]RouteInfo
-	plannedArrivals map[uint64][]PlannedArrival
-	bounds          LatLonBounds
+	CityID           string
+	tramRoutes       []trip.TramRoute
+	nodesByID        map[uint64]graph.GraphNode
+	stopsByID        map[uint64]*graph.GraphTramStop
+	stopsByName      map[string]map[uint64]*graph.GraphTramStop
+	tripsByID        map[uint]*trip.TramTrip
+	routesByStopID   map[uint64][]RouteInfo
+	plannedArrivals  map[uint64][]PlannedArrival
+	bounds           LatLonBounds
+	responseCityData *api.ResponseCityData
 }
 
 type FetchCityParams struct {
@@ -63,6 +64,7 @@ func (c *City) FetchCity(
 	}
 
 	c.CityID = cityID
+	c.responseCityData = responseCityData
 
 	c.tramRoutes = trip.TramTripsFromCityData(responseCityData)
 

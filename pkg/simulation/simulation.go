@@ -272,6 +272,13 @@ func (s *Simulation) ExportToFile() string {
 	zipWriter := zip.NewWriter(file)
 	defer zipWriter.Close()
 
+	// city data
+	if cityDataZipFileWriter, err := zipWriter.Create("city_data.csv"); err != nil {
+		return err.Error()
+	} else if err := s.city.CityDataToCSVBuffer(cityDataZipFileWriter); err != nil {
+		return err.Error()
+	}
+
 	// trams
 	if tramZipFileWriter, err := zipWriter.Create("trams.csv"); err != nil {
 		return err.Error()
