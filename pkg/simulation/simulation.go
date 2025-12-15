@@ -289,14 +289,14 @@ func (s *Simulation) ExportToFile() string {
 	// passengers
 	if passengerZipFileWriter, err := zipWriter.Create("passengers.csv"); err != nil {
 		return err.Error()
-	} else if err := passenger.PassengersToCSVBuffer(s.passengersStore.Passengers, passengerZipFileWriter); err != nil {
+	} else if err := s.passengersStore.PassengersToCSVBuffer(passengerZipFileWriter); err != nil {
 		return err.Error()
 	}
 
 	// passenger trips
 	if passengerTripsZipFileWriter, err := zipWriter.Create("passenger_trips.csv"); err != nil {
 		return err.Error()
-	} else if err := passenger.PassengerTripsToCSVBuffer(s.passengersStore.Passengers, passengerTripsZipFileWriter); err != nil {
+	} else if err := s.passengersStore.PassengerTripsToCSVBuffer(passengerTripsZipFileWriter); err != nil {
 		return err.Error()
 	}
 

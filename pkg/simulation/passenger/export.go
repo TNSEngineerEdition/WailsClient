@@ -5,10 +5,10 @@ import (
 	"io"
 )
 
-func PassengersToCSVBuffer(passengers []*Passenger, writer io.Writer) error {
+func (ps *PassengersStore) PassengersToCSVBuffer(writer io.Writer) error {
 	writer.Write([]byte("passenger_id,time,strategy\n"))
 
-	for _, p := range passengers {
+	for _, p := range ps.passengers {
 		_, err := fmt.Fprintf(
 			writer,
 			"%d,%d,%s\n",
@@ -25,10 +25,10 @@ func PassengersToCSVBuffer(passengers []*Passenger, writer io.Writer) error {
 	return nil
 }
 
-func PassengerTripsToCSVBuffer(passengers []*Passenger, writer io.Writer) error {
+func (ps *PassengersStore) PassengerTripsToCSVBuffer(writer io.Writer) error {
 	writer.Write([]byte("passenger_id,trip_sequence,tram_id,start_stop_id,get_on_time,end_stop_id,get_off_time\n"))
 
-	for _, p := range passengers {
+	for _, p := range ps.passengers {
 		for _, t := range p.TakenTrips {
 			_, err := fmt.Fprintf(
 				writer,

@@ -15,7 +15,7 @@ type passengerSpawn struct {
 }
 
 type PassengersStore struct {
-	Passengers        []*Passenger
+	passengers        []*Passenger
 	passengerStops    map[uint64]*passengerStop
 	passengersToSpawn map[uint][]passengerSpawn
 	mu                sync.Mutex
@@ -25,7 +25,7 @@ func NewPassengersStore(c *city.City) *PassengersStore {
 	stopsByID := c.GetStopsByID()
 
 	store := &PassengersStore{
-		Passengers:        make([]*Passenger, 0, len(c.GetNodesByID())*50),
+		passengers:        make([]*Passenger, 0, len(c.GetNodesByID())*50),
 		passengerStops:    make(map[uint64]*passengerStop, len(stopsByID)),
 		passengersToSpawn: make(map[uint][]passengerSpawn),
 	}
@@ -79,7 +79,7 @@ func (ps *PassengersStore) generatePassengers(c *city.City) {
 				stopID:    passenger.startStopID,
 			})
 
-			ps.Passengers = append(ps.Passengers, passenger)
+			ps.passengers = append(ps.passengers, passenger)
 			counter++
 		}
 	}
