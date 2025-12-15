@@ -65,7 +65,7 @@ func (t *Tram) onTripNotStarted(
 }
 
 func (t *Tram) onPassengersLoading(time uint) {
-	isLoadingFinished := t.loadPassengers()
+	isLoadingFinished := t.loadPassengers(time)
 
 	if !isLoadingFinished || time < t.departureTime {
 		return

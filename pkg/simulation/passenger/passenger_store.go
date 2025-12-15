@@ -112,9 +112,9 @@ func (ps *PassengersStore) DespawnPassengersAtTime(time uint) {
 	}
 }
 
-func (ps *PassengersStore) LoadPassengers(stopID uint64, tramID uint) []*Passenger {
+func (ps *PassengersStore) LoadPassengers(stopID uint64, tramID, time uint) []*Passenger {
 	passengerStop := ps.passengerStops[stopID]
-	return passengerStop.loadPassengersToTram(tramID)
+	return passengerStop.loadPassengersToTram(tramID, time)
 }
 
 func (ps *PassengersStore) UnloadPassengers(passengers []*Passenger, stopID uint64, time uint) {
@@ -122,6 +122,8 @@ func (ps *PassengersStore) UnloadPassengers(passengers []*Passenger, stopID uint
 	defer ps.mu.Unlock()
 
 	for _, p := range passengers {
+		p.saveGetOffTime(time)
+
 		if p.TravelPlan.IsEndStopReached(stopID) {
 			continue
 		}

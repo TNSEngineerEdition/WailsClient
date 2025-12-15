@@ -286,5 +286,12 @@ func (s *Simulation) ExportToFile() string {
 		return err.Error()
 	}
 
+	// passenger trips
+	if passengerTripsZipFileWriter, err := zipWriter.Create("passenger_trips.csv"); err != nil {
+		return err.Error()
+	} else if err := passenger.PassengerTripsToCSVBuffer(s.passengersStore.Passengers, passengerTripsZipFileWriter); err != nil {
+		return err.Error()
+	}
+
 	return ""
 }
