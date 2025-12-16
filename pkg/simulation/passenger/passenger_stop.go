@@ -30,7 +30,7 @@ func (ps *passengerStop) despawnPassenger(passenger *Passenger) {
 	delete(ps.passengers, passenger.ID)
 }
 
-func (ps *passengerStop) loadPassengersToTram(tramID uint) []*Passenger {
+func (ps *passengerStop) loadPassengersToTram(tramID, time uint) []*Passenger {
 	ps.mu.Lock()
 	defer ps.mu.Unlock()
 
@@ -38,6 +38,7 @@ func (ps *passengerStop) loadPassengersToTram(tramID uint) []*Passenger {
 	for _, p := range ps.passengers {
 		if p.TravelPlan.IsConnectionInPlan(ps.stopID, tramID) {
 			boardingPassengers = append(boardingPassengers, p)
+			p.saveNewTrip(tramID, time, ps.stopID, p.TravelPlan.GetConnectionEnd(tramID))
 		}
 		if len(boardingPassengers) >= consts.MAX_PASSENGERS_CHANGE_RATE {
 			break

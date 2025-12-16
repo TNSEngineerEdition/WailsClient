@@ -15,6 +15,7 @@ type passengerSpawn struct {
 }
 
 type PassengersStore struct {
+	passengers        []*Passenger
 	passengerStops    map[uint64]*passengerStop
 	passengersToSpawn map[uint][]passengerSpawn
 	mu                sync.Mutex
@@ -24,6 +25,7 @@ func NewPassengersStore(c *city.City) *PassengersStore {
 	stopsByID := c.GetStopsByID()
 
 	store := &PassengersStore{
+		passengers:        make([]*Passenger, 0, len(c.GetNodesByID())*50),
 		passengerStops:    make(map[uint64]*passengerStop, len(stopsByID)),
 		passengersToSpawn: make(map[uint][]passengerSpawn),
 	}
@@ -76,6 +78,8 @@ func (ps *PassengersStore) generatePassengers(c *city.City) {
 				passenger: passenger,
 				stopID:    passenger.startStopID,
 			})
+
+			ps.passengers = append(ps.passengers, passenger)
 			counter++
 		}
 	}
@@ -108,9 +112,9 @@ func (ps *PassengersStore) DespawnPassengersAtTime(time uint) {
 	}
 }
 
-func (ps *PassengersStore) LoadPassengers(stopID uint64, tramID uint) []*Passenger {
+func (ps *PassengersStore) LoadPassengers(stopID uint64, tramID, time uint) []*Passenger {
 	passengerStop := ps.passengerStops[stopID]
-	return passengerStop.loadPassengersToTram(tramID)
+	return passengerStop.loadPassengersToTram(tramID, time)
 }
 
 func (ps *PassengersStore) UnloadPassengers(passengers []*Passenger, stopID uint64, time uint) {
@@ -118,6 +122,8 @@ func (ps *PassengersStore) UnloadPassengers(passengers []*Passenger, stopID uint
 	defer ps.mu.Unlock()
 
 	for _, p := range passengers {
+		p.saveGetOffTime(time)
+
 		if p.TravelPlan.IsEndStopReached(stopID) {
 			continue
 		}

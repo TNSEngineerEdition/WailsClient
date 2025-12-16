@@ -272,9 +272,31 @@ func (s *Simulation) ExportToFile() string {
 	zipWriter := zip.NewWriter(file)
 	defer zipWriter.Close()
 
+	// city data
+	if cityDataZipFileWriter, err := zipWriter.Create("city_data.json"); err != nil {
+		return err.Error()
+	} else if err := s.city.CityDataToJSONBuffer(cityDataZipFileWriter); err != nil {
+		return err.Error()
+	}
+
+	// trams
 	if tramZipFileWriter, err := zipWriter.Create("trams.csv"); err != nil {
 		return err.Error()
 	} else if err := tram.TramsToCSVBuffer(s.trams, tramZipFileWriter); err != nil {
+		return err.Error()
+	}
+
+	// passengers
+	if passengerZipFileWriter, err := zipWriter.Create("passengers.csv"); err != nil {
+		return err.Error()
+	} else if err := s.passengersStore.PassengersToCSVBuffer(passengerZipFileWriter); err != nil {
+		return err.Error()
+	}
+
+	// passenger trips
+	if passengerTripsZipFileWriter, err := zipWriter.Create("passenger_trips.csv"); err != nil {
+		return err.Error()
+	} else if err := s.passengersStore.PassengerTripsToCSVBuffer(passengerTripsZipFileWriter); err != nil {
 		return err.Error()
 	}
 

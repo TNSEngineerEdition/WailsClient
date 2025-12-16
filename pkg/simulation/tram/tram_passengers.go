@@ -5,9 +5,9 @@ import (
 	"github.com/TNSEngineerEdition/WailsClient/pkg/simulation/passenger"
 )
 
-func (t *Tram) loadPassengers() bool {
+func (t *Tram) loadPassengers(time uint) bool {
 	stopID := t.TripDetails.Trip.Stops[t.TripDetails.Index].ID
-	boardedPassengers := t.passengersStore.LoadPassengers(stopID, t.ID)
+	boardedPassengers := t.passengersStore.LoadPassengers(stopID, t.ID, time)
 
 	for _, p := range boardedPassengers {
 		t.passengersInTram[p.ID] = p
