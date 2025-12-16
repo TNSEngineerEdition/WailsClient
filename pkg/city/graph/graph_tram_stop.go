@@ -1,6 +1,11 @@
 package graph
 
-import "github.com/TNSEngineerEdition/WailsClient/pkg/api"
+import (
+	"strings"
+	"unicode"
+
+	"github.com/TNSEngineerEdition/WailsClient/pkg/api"
+)
 
 type GraphTramStop struct {
 	NodeBlock
@@ -29,6 +34,22 @@ func (g *GraphTramStop) GetNeighbors() map[uint64]api.ResponseGraphEdge {
 
 func (g *GraphTramStop) GetName() string {
 	return g.Details.Name
+}
+
+// TODO: Update this code after group name implementation on the backend
+func (g *GraphTramStop) GetGroupName() string {
+	r := []rune(strings.TrimSpace(g.Details.Name))
+	n := len(r)
+	if n < 3 {
+		return ""
+	}
+
+	// stop name pattern: "[groupName] [twoDigitStopNumber]"
+	if unicode.IsDigit(r[n-1]) && unicode.IsDigit(r[n-2]) && unicode.IsSpace(r[n-3]) {
+		return strings.TrimSpace(string(r[:n-3]))
+	}
+
+	return string(r)
 }
 
 func (g *GraphTramStop) UpdateMaxSpeed(neighborID uint64, maxSpeed float32) {

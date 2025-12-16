@@ -65,7 +65,6 @@ func (s *Simulation) resetTrams() {
 }
 
 func (s *Simulation) ResetSimulation() {
-	// s.passengersStore = passenger.NewPassengersStore(s.city)
 	s.passengersStore.ResetPassengers()
 	s.resetTrams()
 	s.city.Reset()
@@ -150,7 +149,8 @@ func (s *Simulation) GetTramIDs() (result []TramIdentifier) {
 func (s *Simulation) AdvanceTrams(time uint) (result []tram.TramPositionChange) {
 	s.time = time
 
-	s.passengersStore.SpawnAtTime(time)
+	s.passengersStore.DespawnPassengersAtTime(time)
+	s.passengersStore.SpawnPassengersAtTime(time)
 
 	s.tramWorkersData.wg.Add(len(s.trams))
 	for _, tram := range s.trams {
@@ -199,6 +199,10 @@ type Arrival struct {
 func (s *Simulation) GetArrivalsForStop(stopID uint64, count int) []Arrival {
 	plannedArrivals := s.city.GetPlannedArrivals(stopID)
 	arrivals := make([]Arrival, 0)
+
+	if plannedArrivals == nil {
+		return arrivals
+	}
 
 	// Skip trams which have already departed for future iterations
 	for i, arrival := range *plannedArrivals {

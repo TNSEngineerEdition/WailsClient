@@ -14,7 +14,6 @@ import (
 
 const MAX_ACCELERATION = 1.0
 
-// TODO: remove alreadyUnloadedIDS when passenger strategies are implemented, probably it will not be needed
 type Tram struct {
 	ID                  uint
 	pathIndex           int
@@ -31,7 +30,6 @@ type Tram struct {
 	prevState           TramState
 	passengersInTram    map[uint64]*passenger.Passenger
 	passengersStore     *passenger.PassengersStore
-	alreadyUnloadedIDS  []uint64
 }
 
 func NewTram(
@@ -55,12 +53,28 @@ func NewTram(
 	}
 }
 
+func (t *Tram) Advance(time uint, stopsByID map[uint64]*graph.GraphTramStop) (result TramPositionChange, update bool) {
+	switch t.state {
+	case StateTripNotStarted:
+		result, update = t.onTripNotStarted(time, stopsByID)
+	case StatePassengersLoading:
+		t.onPassengersLoading(time)
+	case StatePassengersUnloading:
+		t.onPassengersUnloading(time)
+	case StateTravelling, StateStopping:
+		result, update = t.onTravelling(time)
+	case StateTripFinished:
+		result, update = t.onTripFinished()
+	}
+	return
+}
+
 func (t *Tram) IsAtStop() bool {
 	if t.state == StateStopped {
-		return t.prevState == StatePassengerLoading || t.prevState == StatePassengerUnloading
+		return t.prevState == StatePassengersLoading || t.prevState == StatePassengersUnloading
 	}
 
-	return t.state == StatePassengerLoading || t.state == StatePassengerUnloading
+	return t.state == StatePassengersLoading || t.state == StatePassengersUnloading
 }
 
 func (t *Tram) getTravelPath() *controlcenter.Path {
@@ -97,13 +111,12 @@ func (t *Tram) findNewLocation(path []graph.GraphNode, distanceToDrive float32) 
 }
 
 func (t *Tram) findIntermediateLocation(path []graph.GraphNode, remainingPart float32) {
-	currentLat, currentLon := path[t.pathIndex].GetCoordinates()
 	nextLat, nextLon := path[t.pathIndex+1].GetCoordinates()
 
-	vectorLat := nextLat - currentLat
-	vectorLon := nextLon - currentLon
-	t.lat = currentLat + vectorLat*remainingPart
-	t.lon = currentLon + vectorLon*remainingPart
+	vectorLat := nextLat - t.lat
+	vectorLon := nextLon - t.lon
+	t.lat += vectorLat * remainingPart
+	t.lon += vectorLon * remainingPart
 }
 
 func (t *Tram) setAzimuthAndDistanceToNextNode(path []graph.GraphNode) {
@@ -216,103 +229,6 @@ type TramPositionChange struct {
 	State   TramState `json:"state"`
 }
 
-func (t *Tram) onTripNotStarted(
-	time uint,
-	stopsByID map[uint64]*graph.GraphTramStop,
-) (result TramPositionChange, update bool) {
-	if time != t.departureTime {
-		return
-	}
-
-	t.state = StatePassengerLoading
-	t.TripDetails.saveArrival(time)
-	t.departureTime = t.TripDetails.Trip.Stops[0].Time
-
-	// Set azimuth to any neighbor's azimuth
-	for _, neighbor := range stopsByID[t.TripDetails.Trip.Stops[0].ID].GetNeighbors() {
-		t.azimuth = neighbor.Azimuth
-		break
-	}
-
-	lat, lon := stopsByID[t.TripDetails.Trip.Stops[0].ID].GetCoordinates()
-
-	result = TramPositionChange{
-		TramID:  t.ID,
-		Lat:     lat,
-		Lon:     lon,
-		Azimuth: t.azimuth,
-		State:   t.state,
-	}
-
-	update = true
-
-	return
-}
-
-func (t *Tram) boardAllFromStop(stopID uint64) {
-	boarded := t.passengersStore.BoardAllFromStop(stopID, t.alreadyUnloadedIDS)
-	for _, p := range boarded {
-		t.passengersInTram[p.ID] = p
-	}
-}
-
-func (t *Tram) unloadAllFromTram(stopID uint64) {
-	passengersToUnload := make([]*passenger.Passenger, 0, len(t.passengersInTram))
-	for id, p := range t.passengersInTram {
-		passengersToUnload = append(passengersToUnload, p)
-		t.alreadyUnloadedIDS = append(t.alreadyUnloadedIDS, id)
-		delete(t.passengersInTram, id)
-	}
-	t.passengersStore.UnloadAllToStop(stopID, passengersToUnload)
-}
-
-func (t *Tram) onPassengerLoading(time uint) {
-	if time < t.departureTime {
-		stopID := t.TripDetails.Trip.Stops[t.TripDetails.Index].ID
-		t.boardAllFromStop(stopID)
-		return
-	}
-
-	if len(t.TripDetails.Trip.Stops) <= 1 {
-		// Handle trips with a single stop
-		t.state = StatePassengerUnloading
-	} else {
-		t.TripDetails.saveDeparture(time)
-		t.pathIndex = 0
-		t.state = StateTravelling
-		t.alreadyUnloadedIDS = nil
-	}
-}
-
-func (t *Tram) onPassengerUnloading(time uint) {
-	stopID := t.TripDetails.Trip.Stops[t.TripDetails.Index].ID
-	t.unloadAllFromTram(stopID)
-
-	if t.TripDetails.Index == len(t.TripDetails.Trip.Stops)-1 {
-		t.TripDetails.saveDeparture(time)
-		t.state = StateTripFinished
-	} else {
-		t.state = StatePassengerLoading
-	}
-}
-
-func (t *Tram) onTripFinished() (result TramPositionChange, update bool) {
-	if t.isFinished {
-		return
-	}
-
-	t.isFinished = true
-	t.unblockNodesBehind()
-
-	result = TramPositionChange{
-		TramID: t.ID,
-		State:  t.state,
-	}
-	update = true
-
-	return
-}
-
 // Guarantees smooth arrival and deceleration to another tram, stop or a section
 // with a lower speed limit by solving a quadratic equation whose result is the new speed.
 // Returns new speed.
@@ -362,6 +278,7 @@ func (t *Tram) updateSpeedAndReserveNodes(path *controlcenter.Path) (availableDi
 	var reservedDistanceAhead float32
 	var distToStop, distToMaxSpeedChange float32
 	var upcomingMaxSpeed float32
+	var optimisticallyBlockedNodes []graph.GraphNode
 
 	// reserve nodes ahead until we reach a stopping point or have enough reserved distance
 	for i := t.pathIndex; i < len(path.Nodes)-1 && reservedDistanceIfAccel < neededReserveIfAccel; i++ {
@@ -375,7 +292,11 @@ func (t *Tram) updateSpeedAndReserveNodes(path *controlcenter.Path) (availableDi
 		}
 
 		if !u.TryBlocking(t.ID) {
-			distToStop = reservedDistanceAhead
+			distToStop = 1e-3
+			for _, blockedNode := range optimisticallyBlockedNodes {
+				blockedNode.Unblock(t.ID)
+			}
+
 			break
 		}
 
@@ -408,6 +329,10 @@ func (t *Tram) updateSpeedAndReserveNodes(path *controlcenter.Path) (availableDi
 			neededReserveAtCurrentSpeed,
 			distToNextNode,
 		)
+		//in case we need to stop immediately after detecting blocked node we have to free optimistically blocked nodes
+		if reservedDistanceAhead > neededReserveAtCurrentSpeed-2*t.length {
+			optimisticallyBlockedNodes = append(optimisticallyBlockedNodes, u)
+		}
 	}
 
 	if t.state == StateStopping && (distToStop == 0 || 1e-3 < distToStop) {
@@ -435,65 +360,6 @@ func (t *Tram) updateSpeedAndReserveNodes(path *controlcenter.Path) (availableDi
 	t.speed = nextSpeed
 
 	return distance
-}
-
-func (t *Tram) onTravelling(time uint) (result TramPositionChange, update bool) {
-	path := t.getTravelPath()
-
-	if t.distToNextInterNode == 0 {
-		t.setAzimuthAndDistanceToNextNode(path.Nodes)
-	}
-
-	distanceToDrive := t.updateSpeedAndReserveNodes(path)
-
-	t.findNewLocation(path.Nodes, distanceToDrive)
-	t.blockNodesBehind()
-
-	if t.pathIndex == len(path.Nodes)-1 {
-		t.TripDetails.saveArrival(time)
-		t.departureTime = max(
-			t.TripDetails.Trip.Stops[t.TripDetails.Index].Time,
-			time+uint(rand.IntN(11))+15,
-		)
-		if t.state == StateStopping {
-			t.prevState = StatePassengerUnloading
-			t.state = StateStopped
-			t.unblockNodesAhead()
-		} else {
-			t.state = StatePassengerUnloading
-		}
-	} else if t.state == StateStopping && t.speed <= 0.01 {
-		t.prevState = StateTravelling
-		t.state = StateStopped
-		t.unblockNodesAhead()
-	}
-
-	result = TramPositionChange{
-		TramID:  t.ID,
-		Lat:     t.lat,
-		Lon:     t.lon,
-		Azimuth: t.azimuth,
-		State:   t.state,
-	}
-	update = true
-
-	return
-}
-
-func (t *Tram) Advance(time uint, stopsByID map[uint64]*graph.GraphTramStop) (result TramPositionChange, update bool) {
-	switch t.state {
-	case StateTripNotStarted:
-		result, update = t.onTripNotStarted(time, stopsByID)
-	case StatePassengerLoading:
-		t.onPassengerLoading(time)
-	case StatePassengerUnloading:
-		t.onPassengerUnloading(time)
-	case StateTravelling, StateStopping:
-		result, update = t.onTravelling(time)
-	case StateTripFinished:
-		result, update = t.onTripFinished()
-	}
-	return
 }
 
 func (t *Tram) getSpeed() uint8 {
@@ -553,7 +419,7 @@ func (t *Tram) StopTram() {
 	case StateTravelling, StateStopping:
 		t.prevState = t.state
 		t.state = StateStopping
-	case StatePassengerLoading, StatePassengerUnloading:
+	case StatePassengersLoading, StatePassengersUnloading:
 		t.prevState = t.state
 		t.state = StateStopped
 		t.unblockNodesAhead()
@@ -562,13 +428,13 @@ func (t *Tram) StopTram() {
 
 func (t *Tram) ResumeTram(currentTime uint) {
 	switch t.prevState {
-	case StatePassengerLoading:
-		t.state = StatePassengerLoading
+	case StatePassengersLoading:
+		t.state = StatePassengersLoading
 		if t.departureTime < currentTime {
 			t.departureTime = currentTime + 1
 		}
-	case StatePassengerUnloading:
-		t.state = StatePassengerUnloading
+	case StatePassengersUnloading:
+		t.state = StatePassengersUnloading
 	default:
 		t.state = StateTravelling
 	}

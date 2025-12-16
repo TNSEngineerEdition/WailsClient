@@ -5,26 +5,38 @@ import (
 	"encoding/csv"
 	"fmt"
 	"math/rand/v2"
+	"strings"
+	"sync"
+	"time"
 
 	"github.com/TNSEngineerEdition/WailsClient/pkg/city"
+	"github.com/TNSEngineerEdition/WailsClient/pkg/consts"
+	"github.com/TNSEngineerEdition/WailsClient/pkg/simulation/passenger/travelplan"
 )
 
+type passengerSpawn struct {
+	passenger *Passenger
+	stopID    uint64
+}
+
 type PassengersStore struct {
-	PassengersAtStops map[uint64]*passengerStop
-	PassengersToSpawn map[uint][]*Passenger
+	passengerStops    map[uint64]*passengerStop
+	passengersToSpawn map[uint][]passengerSpawn
+	mu                sync.Mutex
 }
 
 func NewPassengersStore(c *city.City) *PassengersStore {
 	stopsByID := c.GetStopsByID()
 
 	store := &PassengersStore{
-		PassengersAtStops: make(map[uint64]*passengerStop, len(stopsByID)),
-		PassengersToSpawn: make(map[uint][]*Passenger),
+		passengerStops:    make(map[uint64]*passengerStop, len(stopsByID)),
+		passengersToSpawn: make(map[uint][]passengerSpawn),
 	}
 
 	for id := range stopsByID {
-		store.PassengersAtStops[id] = &passengerStop{
-			passengers: make([]*Passenger, 0),
+		store.passengerStops[id] = &passengerStop{
+			stopID:     id,
+			passengers: make(map[uint64]*Passenger),
 		}
 	}
 
@@ -32,35 +44,41 @@ func NewPassengersStore(c *city.City) *PassengersStore {
 }
 
 func (ps *PassengersStore) GetPassengerCountAtStop(stopID uint64) uint {
-	return ps.PassengersAtStops[stopID].GetPassengerCount()
+	return ps.passengerStops[stopID].GetPassengerCount()
 }
 
 func (ps *PassengersStore) GeneratePassengers(c *city.City) {
 	timeBounds := c.GetTimeBounds()
-	tramStops := c.GetStops()
+	stopsByID := c.GetStopsByID()
+
 	var counter uint64
 
-	for i := range tramStops {
-		startStop := tramStops[i]
-		for range 10 {
-			var j int
-			for {
-				j = rand.IntN(len(tramStops))
-				if j != i {
-					break
-				}
-			}
-			endStop := tramStops[j]
-			spawn := timeBounds.StartTime + uint(rand.IntN(int(timeBounds.EndTime-timeBounds.StartTime+1)))
-			passenger := &Passenger{
-				strategy:    PassengerStrategy(rand.IntN(3)),
-				spawnTime:   spawn,
-				StartStopID: startStop.ID,
-				EndStopID:   endStop.ID,
-				ID:          counter,
+	for startStopID := range stopsByID {
+		for range 50 {
+			// TODO: time's upper bound is set to 18360 (6:00:00) for presentation purposes
+			//spawnTime := timeBounds.StartTime + uint(rand.IntN(int(timeBounds.EndTime-timeBounds.StartTime+1)))
+			spawnTime := timeBounds.StartTime + uint(rand.IntN(int(18360-timeBounds.StartTime+1)))
+			strategy := travelplan.RANDOM
+
+			tp, endStopID := travelplan.GetTravelPlan(strategy, startStopID, spawnTime, c)
+
+			if startStopID == endStopID {
+				continue // no trips found
 			}
 
-			ps.PassengersToSpawn[spawn] = append(ps.PassengersToSpawn[spawn], passenger)
+			passenger := &Passenger{
+				ID:          counter,
+				strategy:    strategy,
+				spawnTime:   spawnTime,
+				startStopID: startStopID,
+				endStopID:   endStopID,
+				TravelPlan:  tp,
+			}
+
+			ps.passengersToSpawn[spawnTime] = append(ps.passengersToSpawn[spawnTime], passengerSpawn{
+				passenger: passenger,
+				stopID:    passenger.startStopID,
+			})
 			counter++
 		}
 	}
@@ -84,6 +102,30 @@ func (ps *PassengersStore) GeneratePassengersDueModel(c *city.City, passengerMod
 		return fmt.Errorf("invalid header, expected at least 4 columns, got %d", len(header))
 	}
 
+	stopsByName := c.GetStopsByName()
+	resolveStopsID := func(stopName string) ([]uint64, error) {
+		if stopName == "" {
+			return nil, fmt.Errorf("empty stop group name")
+		}
+
+		if group, ok := stopsByName[stopName]; !ok || len(group) == 0 {
+			return nil, fmt.Errorf("stop group %q not found", stopName)
+		} else {
+			ids := make([]uint64, 0, len(group))
+			for id := range group {
+				ids = append(ids, id)
+			}
+			return ids, nil
+		}
+	}
+
+	ps.mu.Lock()
+	defer ps.mu.Unlock()
+
+	ps.passengersToSpawn = make(map[uint][]passengerSpawn)
+
+	var counter uint64
+
 	for i, row := range records[1:] {
 		lineNo := i + 2
 
@@ -91,64 +133,124 @@ func (ps *PassengersStore) GeneratePassengersDueModel(c *city.City, passengerMod
 			return fmt.Errorf("line %d: expected 4 columns, got %d", lineNo, len(row))
 		}
 
-		// startName := strings.TrimSpace(row[0])
-		// endName := strings.TrimSpace(row[1])
-		// spawnTimeStr := strings.TrimSpace(row[2])
-		// strategyStr := strings.TrimSpace(row[3])
+		startName := strings.TrimSpace(row[0])
+		endName := strings.TrimSpace(row[1])
+		spawnTimeStr := strings.TrimSpace(row[2])
+		strategyStr := strings.TrimSpace(row[3])
 
-		// t, err := time.Parse("15:04:05", spawnTimeStr)
-		// if err != nil {
-		//     return fmt.Errorf("line %d: invalid spawn_time %q: %w", lineNo, spawnTimeStr, err)
-		// }
+		startStopsID, err := resolveStopsID(startName)
+		if err != nil {
+			return fmt.Errorf("line %d: %w", lineNo, err)
+		}
 
-		// spawnSeconds := t.Hour()*3600 + t.Minute()*60 + t.Second()
+		endStopsID, err := resolveStopsID(endName)
+		if err != nil {
+			return fmt.Errorf("line %d: %w", lineNo, err)
+		}
 
-		// spawn := PassengerSpawn{
-		//     StartStopName: startName,
-		//     EndStopName:   endName,
-		//     SpawnSeconds:  spawnSeconds,
-		//     Strategy:      SpawnStrategy(strategyStr),
-		// }
+		var spawnSeconds uint
+		if t, err := time.Parse("15:04:05", spawnTimeStr); err == nil {
+			spawnSeconds = uint(t.Hour()*3600 + t.Minute()*60 + t.Second())
+		} else {
+			return fmt.Errorf("line %d: invalid spawn_time %q (expected HH:MM:SS)", lineNo, spawnTimeStr)
+		}
 
-		// spawns = append(spawns, spawn)
+		strategy := travelplan.PassengerStrategy(strings.ToUpper(strategyStr))
+		switch strategy {
+		case travelplan.RANDOM:
+		case travelplan.ASAP, travelplan.COMFORT, travelplan.SURE:
+			strategy = travelplan.RANDOM
+		default:
+			return fmt.Errorf("line %d: unknown strategy %q", lineNo, strategyStr)
+		}
+
+		var (
+			tp          travelplan.TravelPlan
+			startStopID uint64
+			endStopID   uint64
+		)
+
+		// TODO: change when other strategies will be added
+		startStopID = startStopsID[rand.IntN(len(startStopsID))]
+		endStopID = endStopsID[rand.IntN(len(endStopsID))]
+
+		passenger := &Passenger{
+			ID:          counter,
+			strategy:    strategy,
+			spawnTime:   spawnSeconds,
+			startStopID: startStopID,
+			endStopID:   endStopID,
+			TravelPlan:  tp,
+		}
+
+		ps.passengersToSpawn[spawnSeconds] = append(ps.passengersToSpawn[spawnSeconds], passengerSpawn{
+			passenger: passenger,
+			stopID:    passenger.startStopID,
+		})
+		counter++
 	}
 
-	fmt.Printf("git")
 	return nil
 }
 
 func (ps *PassengersStore) ResetPassengers() {
-	for _, stop := range ps.PassengersAtStops {
-		stop.passengers = stop.passengers[:0]
+	ps.mu.Lock()
+	defer ps.mu.Unlock()
+
+	for _, stop := range ps.passengerStops {
+		stop.mu.Lock()
+		stop.passengers = make(map[uint64]*Passenger)
+		stop.mu.Unlock()
 	}
 }
 
-func (ps *PassengersStore) SpawnAtTime(time uint) {
-	passengersToSpawn := ps.PassengersToSpawn[time]
+func (ps *PassengersStore) SpawnPassengersAtTime(time uint) {
+	ps.mu.Lock()
+	defer ps.mu.Unlock()
 
-	for _, p := range passengersToSpawn {
-		stop := ps.PassengersAtStops[p.StartStopID]
-		stop.AddPassengerToStop(p)
+	spawnList := ps.passengersToSpawn[time]
+	for _, entry := range spawnList {
+		stop := ps.passengerStops[entry.stopID]
+		stop.addPassengerToStop(entry.passenger)
 	}
 }
 
-func (ps *PassengersStore) UnloadAllToStop(stopID uint64, passengers []*Passenger) {
-	stop := ps.PassengersAtStops[stopID]
+func (ps *PassengersStore) DespawnPassengersAtTime(time uint) {
+	ps.mu.Lock()
+	defer ps.mu.Unlock()
+
+	despawnTime := time - consts.MAX_WAITING_TIME - consts.DESPAWN_TIME_OFFSET
+	spawnList, ok := ps.passengersToSpawn[despawnTime]
+	if !ok {
+		return
+	}
+
+	for _, entry := range spawnList {
+		stop := ps.passengerStops[entry.stopID]
+		stop.despawnPassenger(entry.passenger)
+	}
+}
+
+func (ps *PassengersStore) LoadPassengers(stopID uint64, tramID uint) []*Passenger {
+	passengerStop := ps.passengerStops[stopID]
+	return passengerStop.loadPassengersToTram(tramID)
+}
+
+func (ps *PassengersStore) UnloadPassengers(passengers []*Passenger, stopID uint64, time uint) {
+	ps.mu.Lock()
+	defer ps.mu.Unlock()
+
 	for _, p := range passengers {
-		stop.AddPassengerToStop(p)
-	}
-}
+		if p.TravelPlan.IsEndStopReached(stopID) {
+			continue
+		}
 
-func (ps *PassengersStore) BoardAllFromStop(stopID uint64, alreadyBoardedIDS []uint64) []*Passenger {
-	// alreadyTakenSet is for temporary usage -> currently trams board passengers and
-	// drop them at the next stop; they must not board the same passenger again
-	// during the same stop visit
-	//TODO: remove when passenger strategy is implemented
-	alreadyTakenSet := make(map[uint64]struct{}, len(alreadyBoardedIDS))
-	for _, id := range alreadyBoardedIDS {
-		alreadyTakenSet[id] = struct{}{}
+		// transfer
+		transferStopID := p.TravelPlan.GetTransferStop(stopID)
+		transferTime := time + consts.TRANSFER_TIME
+		ps.passengersToSpawn[transferTime] = append(ps.passengersToSpawn[time], passengerSpawn{
+			passenger: p,
+			stopID:    transferStopID,
+		})
 	}
-
-	stop := ps.PassengersAtStops[stopID]
-	return stop.TakeAllFromStop(alreadyTakenSet)
 }
