@@ -5,7 +5,7 @@ import (
 	"io"
 )
 
-func (c *City) CityDataToCSVBuffer(writer io.Writer) error {
+func (c *City) CityDataToJSONBuffer(writer io.Writer) error {
 	jsonCityData, err := json.Marshal(c.responseCityData)
 	if err != nil {
 		return err

@@ -273,9 +273,9 @@ func (s *Simulation) ExportToFile() string {
 	defer zipWriter.Close()
 
 	// city data
-	if cityDataZipFileWriter, err := zipWriter.Create("city_data.csv"); err != nil {
+	if cityDataZipFileWriter, err := zipWriter.Create("city_data.json"); err != nil {
 		return err.Error()
-	} else if err := s.city.CityDataToCSVBuffer(cityDataZipFileWriter); err != nil {
+	} else if err := s.city.CityDataToJSONBuffer(cityDataZipFileWriter); err != nil {
 		return err.Error()
 	}
 
