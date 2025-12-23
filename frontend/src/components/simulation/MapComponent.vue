@@ -14,10 +14,10 @@ const mapHTMLElement = useTemplateRef("map")
 
 const time = defineModel<number>("time", { required: true })
 const loading = defineModel<boolean>("loading", { required: true })
+const isRunning = defineModel<boolean>("is-running", { required: true })
 
 const props = defineProps<{
   speed: number
-  isRunning: boolean
   resetCounter: number
 }>()
 
@@ -116,7 +116,7 @@ onMounted(async () => {
     time.value <= endTime.value ||
     leafletMap.value!.getEntityCount() > 0
   ) {
-    while (!props.isRunning) {
+    while (!isRunning.value) {
       await Time.sleep(1)
     }
 
@@ -141,6 +141,8 @@ onMounted(async () => {
 
     await Time.sleep(1000 / props.speed)
   }
+
+  isRunning.value = false
 })
 </script>
 
