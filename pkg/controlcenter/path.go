@@ -1,7 +1,6 @@
 package controlcenter
 
 import (
-	"container/heap"
 	"fmt"
 	"slices"
 
@@ -21,17 +20,15 @@ func (p *Path) GetProgressForIndex(index int) float32 {
 }
 
 func getShortestPath(nodesByID *map[uint64]graph.GraphNode, stops stopPair) (result Path) {
-	nodesToProcess := &structs.PriorityQueue[uint64]{}
-	heap.Init(nodesToProcess)
-	heap.Push(nodesToProcess, &structs.PQRecord[uint64]{Value: stops.source})
+	nodesToProcess := structs.NewPriorityQueue[uint64](func(left, right float32) bool { return left < right })
+	nodesToProcess.Push(stops.source, 0)
 
 	predecessors := make(map[uint64]uint64)
 	tentativeDistFromSource := make(map[uint64]float32)
-	visitedNodes := make(map[uint64]bool)
+	visitedNodes := structs.NewSet[uint64]()
 
 	for nodesToProcess.Len() > 0 {
-		nodeRecord := heap.Pop(nodesToProcess).(*structs.PQRecord[uint64])
-		currentID := nodeRecord.Value
+		currentID := nodesToProcess.Pop()
 
 		if currentID == stops.destination {
 			result.Nodes = reconstructPath(predecessors, nodesByID, currentID)
@@ -40,11 +37,11 @@ func getShortestPath(nodesByID *map[uint64]graph.GraphNode, stops stopPair) (res
 			return
 		}
 
-		if visitedNodes[currentID] {
+		if visitedNodes.Includes(currentID) {
 			continue
 		}
 
-		visitedNodes[currentID] = true
+		visitedNodes.Add(currentID)
 
 		for _, neighbor := range (*nodesByID)[currentID].GetNeighbors() {
 			tentativeDistance := tentativeDistFromSource[currentID] + neighbor.Distance
@@ -60,12 +57,7 @@ func getShortestPath(nodesByID *map[uint64]graph.GraphNode, stops stopPair) (res
 			heuristicDistance := getDistanceInMeters(
 				(*nodesByID)[neighbor.ID], (*nodesByID)[stops.destination],
 			)
-			heap.Push(
-				nodesToProcess, &structs.PQRecord[uint64]{
-					Value:    neighbor.ID,
-					Priority: heuristicDistance + tentativeDistance,
-				},
-			)
+			nodesToProcess.Push(neighbor.ID, heuristicDistance+tentativeDistance)
 		}
 	}
 
