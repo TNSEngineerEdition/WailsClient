@@ -11,5 +11,6 @@
         "vuetify",
         "wailsapp"
     ],
-    "cSpell.language": "en,en-GB"
+    "cSpell.language": "en,en-GB",
+    "go.diagnostic.vulncheck": "Imports"
 }

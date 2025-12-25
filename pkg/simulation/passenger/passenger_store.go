@@ -127,8 +127,8 @@ func readPassengerCSV(passengerModel []byte) ([][]string, error) {
 	return records, nil
 }
 
-func buildPassengersToSpawn(c *city.City, records [][]string) (map[uint][]passengerSpawn, error) {
-	stopsByName := c.GetStopsByName()
+func buildPassengersToSpawn(currentCity *city.City, records [][]string) (map[uint][]passengerSpawn, error) {
+	stopsByName := currentCity.GetStopsByName()
 	result := make(map[uint][]passengerSpawn)
 
 	for i, row := range records[1:] {
@@ -144,12 +144,12 @@ func buildPassengersToSpawn(c *city.City, records [][]string) (map[uint][]passen
 		spawnTimeStr := strings.TrimSpace(row[2])
 		strategyStr := strings.TrimSpace(row[3])
 
-		startStopsID, err := resolveStopsID(stopsByName, startName)
+		startStopIDs, err := resolveStopsID(stopsByName, startName)
 		if err != nil {
 			return nil, fmt.Errorf("line %d: %w", lineNo, err)
 		}
 
-		endStopsID, err := resolveStopsID(stopsByName, endName)
+		endStopIDs, err := resolveStopsID(stopsByName, endName)
 		if err != nil {
 			return nil, fmt.Errorf("line %d: %w", lineNo, err)
 		}
@@ -161,7 +161,7 @@ func buildPassengersToSpawn(c *city.City, records [][]string) (map[uint][]passen
 			return nil, fmt.Errorf("line %d: invalid spawn_time %q (expected HH:MM:SS)", lineNo, spawnTimeStr)
 		}
 
-		strategy := travelplan.PassengerStrategy(strings.ToUpper(strategyStr))
+		strategy := travelplan.TravelPlanStrategy(strings.ToUpper(strategyStr))
 
 		// TODO: change when travelplans for strategies will be implemented
 		switch strategy {
@@ -174,7 +174,7 @@ func buildPassengersToSpawn(c *city.City, records [][]string) (map[uint][]passen
 
 		travelPlan, ok := travelplan.GetTravelPlan(currentCity, strategy, startStopIDs, endStopIDs, spawnSeconds)
 		if !ok {
-			log.Default().Printf("Travel plan couldn't be created for passenger %d", counter)
+			log.Default().Printf("Travel plan couldn't be created for passenger %d", i)
 			continue
 		}
 
@@ -182,7 +182,7 @@ func buildPassengersToSpawn(c *city.City, records [][]string) (map[uint][]passen
 			ID:         uint64(i),
 			strategy:   strategy,
 			spawnTime:  spawnSeconds,
-			TravelPlan: tp,
+			TravelPlan: travelPlan,
 		}
 
 		result[spawnSeconds] = append(result[spawnSeconds], passengerSpawn{
