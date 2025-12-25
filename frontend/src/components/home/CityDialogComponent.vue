@@ -2,7 +2,7 @@
 import router from "@plugins/router"
 import { api, simulation } from "@wails/go/models"
 import {
-  InitializeCityData,
+  InitializeCity,
   InitializeSimulation,
 } from "@wails/go/simulation/Simulation"
 import { computed, ref } from "vue"
@@ -47,7 +47,7 @@ async function handleButtonClick(isCustomizeMap: boolean) {
     customSchedule: Array.from((await customSchedule.value?.bytes()) ?? []),
   })
 
-  const dataErrorMessage = await InitializeCityData(parameters)
+  const dataErrorMessage = await InitializeCity(parameters)
   if (dataErrorMessage) {
     loading.value = false
     showError.value = true
