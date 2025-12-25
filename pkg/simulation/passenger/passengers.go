@@ -1,6 +1,6 @@
 package passenger
 
-import "github.com/TNSEngineerEdition/WailsClient/pkg/simulation/passenger/travelplan"
+import "github.com/TNSEngineerEdition/WailsClient/pkg/travelplan"
 
 type takenTrip struct {
 	tramID                 uint
@@ -10,12 +10,11 @@ type takenTrip struct {
 }
 
 type Passenger struct {
-	ID                     uint64
-	strategy               travelplan.PassengerStrategy
-	spawnTime              uint
-	startStopID, endStopID uint64
-	TravelPlan             travelplan.TravelPlan
-	TakenTrips             []takenTrip
+	ID         uint64
+	strategy   travelplan.TravelPlanStrategy
+	spawnTime  uint
+	TravelPlan travelplan.TravelPlan
+	TakenTrips []takenTrip
 }
 
 func (p *Passenger) saveNewTrip(tramID, time uint, startStopID, endStopID uint64) {

@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/csv"
 	"fmt"
+	"log"
 	"math/rand/v2"
 	"strings"
 	"sync"
@@ -12,7 +13,7 @@ import (
 	"github.com/TNSEngineerEdition/WailsClient/pkg/city"
 	"github.com/TNSEngineerEdition/WailsClient/pkg/city/graph"
 	"github.com/TNSEngineerEdition/WailsClient/pkg/consts"
-	"github.com/TNSEngineerEdition/WailsClient/pkg/simulation/passenger/travelplan"
+	"github.com/TNSEngineerEdition/WailsClient/pkg/travelplan"
 )
 
 type passengerSpawn struct {
@@ -50,37 +51,35 @@ func (ps *PassengersStore) GetPassengerCountAtStop(stopID uint64) uint {
 	return ps.passengerStops[stopID].GetPassengerCount()
 }
 
-func (ps *PassengersStore) GenerateRandomPassengers(c *city.City) {
-	timeBounds := c.GetTimeBounds()
-	stopsByID := c.GetStopsByID()
+func (ps *PassengersStore) GenerateRandomPassengers(currentCity *city.City) {
+	ps.passengersToSpawn = make(map[uint][]passengerSpawn)
+
+	timeBounds := currentCity.GetTimeBounds()
+	stopsByID := currentCity.GetStopsByID()
 
 	var counter uint64
 
 	for startStopID := range stopsByID {
-		for range 50 {
-			// TODO: time's upper bound is set to 18360 (6:00:00) for presentation purposes
-			//spawnTime := timeBounds.StartTime + uint(rand.IntN(int(timeBounds.EndTime-timeBounds.StartTime+1)))
-			spawnTime := timeBounds.StartTime + uint(rand.IntN(int(18360-timeBounds.StartTime+1)))
-			strategy := travelplan.RANDOM
+		for range 500 {
+			timeAfterStart := rand.IntN(int(timeBounds.EndTime - timeBounds.StartTime + 1))
+			spawnTime := timeBounds.StartTime + uint(timeAfterStart)
 
-			tp, endStopID := travelplan.GetTravelPlan(strategy, startStopID, spawnTime, c)
-
-			if startStopID == endStopID {
-				continue // no trips found
+			travelPlan, ok := travelplan.GetTravelPlan(currentCity, travelplan.RANDOM, []uint64{startStopID}, nil, spawnTime)
+			if !ok {
+				log.Default().Printf("Travel plan couldn't be created for passenger %d", counter)
+				continue
 			}
 
 			passenger := &Passenger{
-				ID:          counter,
-				strategy:    strategy,
-				spawnTime:   spawnTime,
-				startStopID: startStopID,
-				endStopID:   endStopID,
-				TravelPlan:  tp,
+				ID:         counter,
+				strategy:   travelplan.RANDOM,
+				spawnTime:  spawnTime,
+				TravelPlan: travelPlan,
 			}
 
 			ps.passengersToSpawn[spawnTime] = append(ps.passengersToSpawn[spawnTime], passengerSpawn{
 				passenger: passenger,
-				stopID:    passenger.startStopID,
+				stopID:    travelPlan.GetStartStopID(),
 			})
 
 			ps.passengers = append(ps.passengers, passenger)
@@ -173,28 +172,22 @@ func buildPassengersToSpawn(c *city.City, records [][]string) (map[uint][]passen
 			return nil, fmt.Errorf("line %d: unknown strategy %q", lineNo, strategyStr)
 		}
 
-		var (
-			tp          travelplan.TravelPlan
-			startStopID uint64
-			endStopID   uint64
-		)
-
-		// TODO: change when other strategies will be added
-		startStopID = startStopsID[rand.IntN(len(startStopsID))]
-		endStopID = endStopsID[rand.IntN(len(endStopsID))]
+		travelPlan, ok := travelplan.GetTravelPlan(currentCity, strategy, startStopIDs, endStopIDs, spawnSeconds)
+		if !ok {
+			log.Default().Printf("Travel plan couldn't be created for passenger %d", counter)
+			continue
+		}
 
 		passenger := &Passenger{
-			ID:          uint64(i),
-			strategy:    strategy,
-			spawnTime:   spawnSeconds,
-			startStopID: startStopID,
-			endStopID:   endStopID,
-			TravelPlan:  tp,
+			ID:         uint64(i),
+			strategy:   strategy,
+			spawnTime:  spawnSeconds,
+			TravelPlan: tp,
 		}
 
 		result[spawnSeconds] = append(result[spawnSeconds], passengerSpawn{
 			passenger: passenger,
-			stopID:    passenger.startStopID,
+			stopID:    travelPlan.GetStartStopID(),
 		})
 	}
 
@@ -274,7 +267,7 @@ func (ps *PassengersStore) UnloadPassengers(passengers []*Passenger, stopID uint
 		}
 
 		// transfer
-		transferStopID := p.TravelPlan.GetTransferStop(stopID)
+		transferStopID := p.TravelPlan.GetConnectionTransferDestination(stopID)
 		transferTime := time + consts.TRANSFER_TIME
 		ps.passengersToSpawn[transferTime] = append(ps.passengersToSpawn[time], passengerSpawn{
 			passenger: p,

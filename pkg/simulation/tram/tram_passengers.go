@@ -22,7 +22,7 @@ func (t *Tram) unloadPassengers(time uint) bool {
 	disembarkingPassengers := make([]*passenger.Passenger, 0, consts.MAX_PASSENGERS_CHANGE_RATE)
 
 	for _, p := range t.passengersInTram {
-		if p.TravelPlan.GetConnectionEnd(t.ID) == stopID {
+		if p.TravelPlan.GetConnectionDestination(t.ID) == stopID {
 			disembarkingPassengers = append(disembarkingPassengers, p)
 		}
 		if len(disembarkingPassengers) == consts.MAX_PASSENGERS_CHANGE_RATE {
