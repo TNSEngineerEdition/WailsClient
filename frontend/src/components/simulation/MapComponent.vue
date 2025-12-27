@@ -1,8 +1,12 @@
 <script lang="ts" setup>
-import { onMounted, ref, useTemplateRef, watch } from "vue"
+import { nextTick, onMounted, ref, useTemplateRef, watch } from "vue"
 import { GetTimeBounds } from "@wails/go/city/City"
 import { city, api, tram } from "@wails/go/models"
-import { GetTramIDs, AdvanceTrams } from "@wails/go/simulation/Simulation"
+import {
+  GetTramIDs,
+  AdvanceTrams,
+  ResetSimulation,
+} from "@wails/go/simulation/Simulation"
 import { LeafletMap } from "@classes/LeafletMap"
 import { TramMarker } from "@classes/TramMarker"
 import { Time } from "@classes/Time"
@@ -14,10 +18,10 @@ const mapHTMLElement = useTemplateRef("map")
 
 const time = defineModel<number>("time", { required: true })
 const loading = defineModel<boolean>("loading", { required: true })
+const isRunning = defineModel<boolean>("is-running", { required: true })
 
 const props = defineProps<{
   speed: number
-  isRunning: boolean
   resetCounter: number
 }>()
 
@@ -32,6 +36,13 @@ const routeSidebar = ref(false)
 const selectedTramID = ref<number>()
 const selectedStop = ref<api.ResponseGraphTramStop>()
 const selectedRoute = ref<city.RouteInfo>()
+
+async function setTime() {
+  await GetTimeBounds().then(timeBounds => {
+    time.value = timeBounds.startTime
+    endTime.value = timeBounds.endTime
+  })
+}
 
 async function reset() {
   tramSidebar.value = false
@@ -50,10 +61,7 @@ async function reset() {
     }),
   )
 
-  await GetTimeBounds().then(timeBounds => {
-    time.value = timeBounds.startTime
-    endTime.value = timeBounds.endTime
-  })
+  setTime()
 
   loading.value = false
 }
@@ -112,34 +120,47 @@ onMounted(async () => {
 
   await reset()
 
-  while (
-    time.value <= endTime.value ||
-    leafletMap.value!.getEntityCount() > 0
-  ) {
-    while (!props.isRunning) {
-      await Time.sleep(1)
-    }
+  while (true) {
+    await ResetSimulation()
+    await setTime()
 
-    for (const tramPositionChange of await AdvanceTrams(time.value)) {
-      if (tramPositionChange.lat == 0 && tramPositionChange.lon == 0) {
-        tramMarkerByID.value[tramPositionChange.id].removeFromMap()
-        continue
+    while (
+      time.value <= endTime.value ||
+      leafletMap.value!.getEntityCount() > 0
+    ) {
+      while (!isRunning.value) {
+        await Time.sleep(1)
       }
 
-      const isStopped =
-        tramPositionChange.state === tram.TramState.STOPPED ||
-        tramPositionChange.state === tram.TramState.STOPPING
-      tramMarkerByID.value[tramPositionChange.id].updateCoordinates(
-        tramPositionChange.lat,
-        tramPositionChange.lon,
-        tramPositionChange.azimuth,
-        isStopped,
-      )
+      for (const tramPositionChange of await AdvanceTrams(time.value)) {
+        if (tramPositionChange.lat == 0 && tramPositionChange.lon == 0) {
+          tramMarkerByID.value[tramPositionChange.id].removeFromMap()
+          continue
+        }
+
+        const isStopped =
+          tramPositionChange.state === tram.TramState.STOPPED ||
+          tramPositionChange.state === tram.TramState.STOPPING
+
+        tramMarkerByID.value[tramPositionChange.id].updateCoordinates(
+          tramPositionChange.lat,
+          tramPositionChange.lon,
+          tramPositionChange.azimuth,
+          isStopped,
+        )
+      }
+
+      time.value += 1
+
+      await Time.sleep(1000 / props.speed)
     }
 
-    time.value += 1
+    isRunning.value = false
+    await nextTick() // Wait until assignment is finished
 
-    await Time.sleep(1000 / props.speed)
+    while (!isRunning.value) {
+      await Time.sleep(1)
+    }
   }
 })
 </script>

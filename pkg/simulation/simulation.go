@@ -77,7 +77,7 @@ type SimulationParameters struct {
 	CustomSchedule []byte       `json:"customSchedule,omitempty"`
 }
 
-func (s *Simulation) InitializeCityData(parameters SimulationParameters) string {
+func (s *Simulation) InitializeCity(parameters SimulationParameters) string {
 	err := s.city.FetchCity(
 		s.apiClient,
 		parameters.CityID,

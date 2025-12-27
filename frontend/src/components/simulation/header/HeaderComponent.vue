@@ -7,6 +7,7 @@ import HeaderRestartConfirmationDialogComponent from "@components/simulation/hea
 import useTimer from "@composables/useTimer"
 import { ExportToFile } from "@wails/go/simulation/Simulation"
 import { useRouter } from "vue-router"
+import { watch } from "vue"
 
 const props = defineProps<{
   time: number
@@ -57,6 +58,14 @@ async function menu() {
   await reset()
   router.push("/")
 }
+
+watch(isRunning, () => {
+  if (isRunning.value) {
+    timer.start()
+  } else {
+    timer.stop()
+  }
+})
 </script>
 
 <template>
