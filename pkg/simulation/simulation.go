@@ -96,7 +96,7 @@ func (s *Simulation) InitializeCityData(parameters SimulationParameters) string 
 	s.passengersStore = passenger.NewPassengersStore(s.city)
 
 	if len(parameters.PassengerModel) == 0 {
-		s.passengersStore.GeneratePassengers(s.city)
+		s.passengersStore.GenerateRandomPassengers(s.city)
 	} else if err1 := s.passengersStore.GeneratePassengersDueModel(s.city, parameters.PassengerModel); err1 != nil {
 		return err1.Error()
 	}

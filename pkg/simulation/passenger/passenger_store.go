@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/TNSEngineerEdition/WailsClient/pkg/city"
+	"github.com/TNSEngineerEdition/WailsClient/pkg/city/graph"
 	"github.com/TNSEngineerEdition/WailsClient/pkg/consts"
 	"github.com/TNSEngineerEdition/WailsClient/pkg/simulation/passenger/travelplan"
 )
@@ -47,7 +48,7 @@ func (ps *PassengersStore) GetPassengerCountAtStop(stopID uint64) uint {
 	return ps.passengerStops[stopID].GetPassengerCount()
 }
 
-func (ps *PassengersStore) GeneratePassengers(c *city.City) {
+func (ps *PassengersStore) GenerateRandomPassengers(c *city.City) {
 	timeBounds := c.GetTimeBounds()
 	stopsByID := c.GetStopsByID()
 
@@ -196,7 +197,7 @@ func buildPassengersToSpawn(c *city.City, records [][]string) (map[uint][]passen
 	return result, nil
 }
 
-func resolveStopsID[T any](stopsByName map[string]map[uint64]T, stopName string) ([]uint64, error) {
+func resolveStopsID(stopsByName map[string]map[uint64]*graph.GraphTramStop, stopName string) ([]uint64, error) {
 	if stopName == "" {
 		return nil, fmt.Errorf("empty stop group name")
 	}
