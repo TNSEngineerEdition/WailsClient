@@ -13,7 +13,6 @@ const props = defineProps<{
   currentTime: number
 }>()
 
-const tab = ref<"basic" | "occ" | "stops">("basic")
 const passengersOnRoute = ref(0)
 const tramsInService = computed(() => {
   if (!props.route?.name) return 0

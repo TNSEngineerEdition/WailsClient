@@ -16,7 +16,6 @@ const props = defineProps<{
 }>()
 
 const tramDetails = ref<tram.TramDetails>()
-const tab = ref<"stops" | "occ" | "delay">("stops")
 
 const headers = [
   { title: "Stop name", key: "stop", align: "center", sortable: false },

@@ -31,7 +31,6 @@ const props = defineProps<{
 const routes = ref<city.RouteInfo[]>([])
 const arrivalsInfo = ref<simulation.Arrival[]>([])
 const routeChipColumns = ref(5)
-const tab = ref<"arr" | "occ">("arr")
 const passengerCount = ref(0)
 
 const emit = defineEmits(["routeSelected"])
@@ -153,7 +152,7 @@ watch(
       </div>
     </div>
     <v-data-table
-      v-if="arrivalsInfo.length && tab === 'arr'"
+      v-if="arrivalsInfo.length"
       :headers="headers"
       :header-props="{
         style: 'font-weight: bold;',
@@ -170,6 +169,7 @@ watch(
         <span v-else>{{ item.time }} min</span>
       </template>
     </v-data-table>
+    <div v-else class="no-arrivals">No upcoming departures</div>
   </SidebarComponent>
 </template>
 
@@ -218,5 +218,12 @@ watch(
 .stops-table {
   width: 100%;
   background-color: transparent;
+}
+
+.no-arrivals {
+  text-align: center;
+  font-size: 15px;
+  font-weight: 500;
+  color: #9e9e9e;
 }
 </style>
