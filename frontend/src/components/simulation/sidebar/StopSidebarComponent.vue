@@ -146,42 +146,30 @@ watch(
         <span>{{ passengerCount }}</span>
       </div>
     </div>
+    <div class="section" style="margin-bottom: 0px">
+      <div class="label">
+        <v-icon icon="mdi-clock-time-four" class="mr-2"></v-icon>
+        Arrivals
+      </div>
+    </div>
+    <v-data-table
+      v-if="arrivalsInfo.length && tab === 'arr'"
+      :headers="headers"
+      :header-props="{
+        style: 'font-weight: bold;',
+      }"
+      :items="arrivalsInfo"
+      class="stops-table"
+      density="compact"
+      hide-default-footer
+      hover
+    >
+      <template v-slot:item.time="{ item }">
+        <span v-if="item.time === 0" class="blinking"> &gt;&gt;&gt; </span>
 
-    <v-tabs v-model="tab" grow>
-      <v-tab value="arr">Arrivals</v-tab>
-      <!-- <v-tab value="occ">Occupancy graph</v-tab> -->
-    </v-tabs>
-
-    <v-card-text>
-      <v-tabs-window v-model="tab">
-        <v-tabs-window-item value="arr">
-          <v-data-table
-            v-if="arrivalsInfo.length && tab === 'arr'"
-            :headers="headers"
-            :header-props="{
-              style: 'font-weight: bold;',
-            }"
-            :items="arrivalsInfo"
-            class="stops-table"
-            density="compact"
-            hide-default-footer
-            hover
-          >
-            <template v-slot:item.time="{ item }">
-              <span v-if="item.time === 0" class="blinking">
-                &gt;&gt;&gt;
-              </span>
-
-              <span v-else>{{ item.time }} min</span>
-            </template>
-          </v-data-table>
-        </v-tabs-window-item>
-
-        <!-- <v-tabs-window-item value="occ">
-          Occupancy graph TODO
-        </v-tabs-window-item> -->
-      </v-tabs-window>
-    </v-card-text>
+        <span v-else>{{ item.time }} min</span>
+      </template>
+    </v-data-table>
   </SidebarComponent>
 </template>
 

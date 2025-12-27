@@ -166,70 +166,56 @@ watch(
         @click="stopResumeTram"
       ></TramControlButtonComponent>
     </div>
-    <v-tabs v-model="tab" grow>
-      <v-tab value="stops">Stops table</v-tab>
-      <!-- <v-tab value="occ">Occupancy graph</v-tab>
-      <v-tab value="delay">Delay graph</v-tab> -->
-    </v-tabs>
+    <div class="section" style="margin-bottom: 0px">
+      <div class="label">
+        <v-icon icon="mdi-map-marker-path" class="mr-2"></v-icon>
+        Stops
+      </div>
+    </div>
+    <div class="scrollable">
+      <v-data-table-virtual
+        v-if="tramDetails?.stop_names.length"
+        :headers="headers"
+        :header-props="{
+          style: 'font-weight: bold;',
+        }"
+        :items="stopsTableData"
+        :row-props="getRowProps"
+        class="stops-table"
+        density="compact"
+        hide-default-footer
+        hover
+      >
+        <template v-slot:item.time="{ item }">
+          {{ new Time(item.time).toShortMinuteString() }}
+        </template>
 
-    <v-card-text>
-      <v-tabs-window v-model="tab">
-        <v-tabs-window-item value="stops">
-          <div class="scrollable">
-            <v-data-table-virtual
-              v-if="tramDetails?.stop_names.length"
-              :headers="headers"
-              :header-props="{
-                style: 'font-weight: bold;',
-              }"
-              :items="stopsTableData"
-              :row-props="getRowProps"
-              class="stops-table"
-              density="compact"
-              hide-default-footer
-              hover
-            >
-              <template v-slot:item.time="{ item }">
-                {{ new Time(item.time).toShortMinuteString() }}
-              </template>
+        <template v-slot:item.arrival="{ item }">
+          <span
+            v-if="item.arrival != null"
+            :class="getDelayTextColorClass(item.arrival)"
+          >
+            {{ new Time(item.arrival, true).toShortSecondString() }}
+          </span>
+        </template>
 
-              <template v-slot:item.arrival="{ item }">
-                <span
-                  v-if="item.arrival != null"
-                  :class="getDelayTextColorClass(item.arrival)"
-                >
-                  {{ new Time(item.arrival, true).toShortSecondString() }}
-                </span>
-              </template>
-
-              <template v-slot:item.departure="{ item }">
-                <span
-                  v-if="item.departure != null"
-                  :class="getDelayTextColorClass(item.departure)"
-                >
-                  {{ new Time(item.departure, true).toShortSecondString() }}
-                </span>
-              </template>
-            </v-data-table-virtual>
-          </div>
-        </v-tabs-window-item>
-
-        <!-- <v-tabs-window-item value="occ">
-          Occupancy graph TODO
-        </v-tabs-window-item>
-
-        <v-tabs-window-item value="delay">
-          Delay graph TODO
-        </v-tabs-window-item> -->
-      </v-tabs-window>
-    </v-card-text>
+        <template v-slot:item.departure="{ item }">
+          <span
+            v-if="item.departure != null"
+            :class="getDelayTextColorClass(item.departure)"
+          >
+            {{ new Time(item.departure, true).toShortSecondString() }}
+          </span>
+        </template>
+      </v-data-table-virtual>
+    </div>
   </SidebarComponent>
 </template>
 
 <style scoped lang="scss">
 .scrollable {
   overflow-y: auto;
-  max-height: 60vh;
+  max-height: 40vh;
 }
 
 .scrollable::-webkit-scrollbar {
