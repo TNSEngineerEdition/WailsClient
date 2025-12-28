@@ -108,22 +108,23 @@ type ResponseGraphNode struct {
 
 // ResponseGraphTramStop defines model for ResponseGraphTramStop.
 type ResponseGraphTramStop struct {
-	GTFSStopIDs []string                     `json:"gtfs_stop_ids"`
-	ID          uint64                       `json:"id"`
-	Lat         float32                      `json:"lat"`
-	Lon         float32                      `json:"lon"`
-	Name        string                       `json:"name"`
-	Neighbors   map[uint64]ResponseGraphEdge `json:"neighbors"`
-	NodeType    string                       `json:"node_type,omitempty"`
+	GTFSStopIDs   []string                     `json:"gtfs_stop_ids"`
+	ID            uint64                       `json:"id"`
+	Lat           float32                      `json:"lat"`
+	Lon           float32                      `json:"lon"`
+	Name          string                       `json:"name"`
+	Neighbors     map[uint64]ResponseGraphEdge `json:"neighbors"`
+	NodeType      string                       `json:"node_type,omitempty"`
+	StopGroupName *string                      `json:"stop_group_name"`
 }
 
 // ResponseTramRoute defines model for ResponseTramRoute.
 type ResponseTramRoute struct {
-	BackgroundColor string               `json:"background_color"`
-	Name            string               `json:"name"`
-	TextColor       string               `json:"text_color"`
-	Trips           *[]ResponseTramTrip  `json:"trips,omitempty"`
-	Variants        *map[string][]uint64 `json:"variants,omitempty"`
+	BackgroundColor string              `json:"background_color"`
+	Name            string              `json:"name"`
+	TextColor       string              `json:"text_color"`
+	Trips           *[]ResponseTramTrip `json:"trips,omitempty"`
+	Variants        *map[string][]int64 `json:"variants,omitempty"`
 }
 
 // ResponseTramTrip defines model for ResponseTramTrip.
