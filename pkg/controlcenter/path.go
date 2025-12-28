@@ -20,7 +20,7 @@ func (p *Path) GetProgressForIndex(index int) float32 {
 }
 
 func getShortestPath(nodesByID *map[uint64]graph.GraphNode, stops stopPair) (result Path) {
-	nodesToProcess := structs.NewPriorityQueue[uint64](func(left, right float32) bool { return left < right })
+	nodesToProcess := structs.NewPriorityQueueOrdered[uint64, float32]()
 	nodesToProcess.Push(stops.source, 0)
 
 	predecessors := make(map[uint64]uint64)

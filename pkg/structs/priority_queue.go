@@ -1,19 +1,28 @@
 package structs
 
+import "cmp"
+
 type priorityQueueItem[V any, P any] struct {
 	value    V
 	priority P
 }
 
 type PriorityQueue[V any, P any] struct {
-	items        []*priorityQueueItem[V, P]
-	lessFunction func(left, right P) bool
+	items   []*priorityQueueItem[V, P]
+	compare func(left, right P) int
 }
 
-func NewPriorityQueue[V any, P any](lessFunction func(left, right P) bool) PriorityQueue[V, P] {
+func NewPriorityQueue[V any, P any](compare func(left, right P) int) PriorityQueue[V, P] {
 	return PriorityQueue[V, P]{
-		items:        make([]*priorityQueueItem[V, P], 0),
-		lessFunction: lessFunction,
+		items:   make([]*priorityQueueItem[V, P], 0),
+		compare: compare,
+	}
+}
+
+func NewPriorityQueueOrdered[V any, P cmp.Ordered]() PriorityQueue[V, P] {
+	return PriorityQueue[V, P]{
+		items:   make([]*priorityQueueItem[V, P], 0),
+		compare: cmp.Compare[P],
 	}
 }
 
@@ -52,7 +61,7 @@ func getLeft(i int) int {
 }
 
 func (pq PriorityQueue[V, P]) less(i, j int) bool {
-	return pq.lessFunction(pq.items[i].priority, pq.items[j].priority)
+	return pq.compare(pq.items[i].priority, pq.items[j].priority) == -1
 }
 
 func (pq PriorityQueue[V, P]) swap(i, j int) {
