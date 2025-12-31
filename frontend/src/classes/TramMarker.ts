@@ -1,6 +1,6 @@
 import { Marker, DivIcon } from "leaflet"
 import { LeafletMap } from "@classes/LeafletMap"
-import { getClassForDelay, getDelayClasses } from "@utils/getClassForDelay"
+import { getDelayClass, getDelayClasses } from "@utils/getDelayClass"
 import { MarkerColoringMode } from "@utils/types"
 
 export class TramMarker extends Marker {
@@ -57,7 +57,7 @@ export class TramMarker extends Marker {
     }
 
     this.removeDelayClasses()
-    element.classList.add(getClassForDelay(delay))
+    element.classList.add(getDelayClass(delay))
   }
 
   public getRoute(): string {

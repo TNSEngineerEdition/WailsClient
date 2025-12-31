@@ -9,7 +9,6 @@ import { ExportToFile } from "@wails/go/simulation/Simulation"
 import { useRouter } from "vue-router"
 import { watch } from "vue"
 import { MarkerColoringMode } from "@utils/types"
-import { getDelayClasses } from "@utils/getClassForDelay"
 
 const props = defineProps<{
   time: number
