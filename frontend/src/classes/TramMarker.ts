@@ -1,7 +1,10 @@
 import { Marker, DivIcon } from "leaflet"
 import { LeafletMap } from "@classes/LeafletMap"
+import { getClassForDelay, getDelayClasses } from "@utils/getClassForDelay"
+import { MarkerColoringMode } from "@utils/types"
 
 export class TramMarker extends Marker {
+  static coloringMode: MarkerColoringMode = "Default"
   private isOnMap = false
 
   constructor(
@@ -34,6 +37,27 @@ export class TramMarker extends Marker {
     }
 
     circleArrow.style.transform = `rotate(${azimuth + 135}deg)`
+  }
+
+  private removeDelayClasses() {
+    const element =
+      this.getElement()?.querySelector<HTMLElement>(".tram-marker")
+    if (!element) {
+      return
+    }
+
+    element.classList.remove(...getDelayClasses())
+  }
+
+  private setDelayColor(delay: number) {
+    const element =
+      this.getElement()?.querySelector<HTMLElement>(".tram-marker")
+    if (!element) {
+      return
+    }
+
+    this.removeDelayClasses()
+    element.classList.add(getClassForDelay(delay))
   }
 
   public getRoute(): string {
@@ -74,6 +98,10 @@ export class TramMarker extends Marker {
     }
   }
 
+  public removeOptionalColoringClasses() {
+    this.removeDelayClasses()
+  }
+
   public setStopped(isStopped: boolean) {
     const element =
       this.getElement()?.querySelector<HTMLElement>(".tram-marker")
@@ -91,6 +119,7 @@ export class TramMarker extends Marker {
     lon: number,
     azimuth: number,
     isStopped?: boolean,
+    delay?: number,
   ) {
     if (!this.isOnMap) {
       this.leafletMap.addTram(this)
@@ -99,8 +128,19 @@ export class TramMarker extends Marker {
     this.setHighlighted(this.route === this.leafletMap.selectedRouteName)
     this.setLatLng([lat, lon])
     this.setAzimuth(azimuth)
+
     if (isStopped !== undefined) {
       this.setStopped(isStopped)
+    }
+
+    switch (TramMarker.coloringMode) {
+      case "Delays":
+        if (delay !== undefined) {
+          this.setDelayColor(delay)
+        }
+        break
+      default:
+        break
     }
   }
 

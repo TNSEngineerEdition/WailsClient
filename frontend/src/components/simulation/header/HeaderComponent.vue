@@ -8,6 +8,8 @@ import useTimer from "@composables/useTimer"
 import { ExportToFile } from "@wails/go/simulation/Simulation"
 import { useRouter } from "vue-router"
 import { watch } from "vue"
+import { MarkerColoringMode } from "@utils/types"
+import { getDelayClasses } from "@utils/getClassForDelay"
 
 const props = defineProps<{
   time: number
@@ -19,10 +21,26 @@ const router = useRouter()
 const isRunning = defineModel<boolean>("is-running", { required: true })
 const speed = defineModel<number>("speed", { required: true })
 const resetCounter = defineModel<number>("reset-counter", { required: true })
+const markerColoringMode = defineModel<MarkerColoringMode>(
+  "marker-coloring-mode",
+  { required: true },
+)
 
 const speedsCycle = useCycle([1, 10, 100, 1000], speed)
+const markerColoringCycle = useCycle<MarkerColoringMode>(
+  ["Default", "Delays"],
+  markerColoringMode,
+)
 
 const timer = useTimer()
+
+const markerColoringOptions: Array<{
+  label: string
+  value: MarkerColoringMode
+}> = [
+  { label: "Default", value: "Default" },
+  { label: "Delays", value: "Delays" },
+]
 
 function stop() {
   timer.stop()
@@ -59,6 +77,14 @@ async function menu() {
   router.push("/")
 }
 
+function getMarkerModeIcon(): string {
+  switch (markerColoringMode.value) {
+    case "Delays":
+      return "mdi-clock-time-seven-outline"
+  }
+  return "mdi-numeric-5-circle-outline"
+}
+
 watch(isRunning, () => {
   if (isRunning.value) {
     timer.start()
@@ -86,6 +112,14 @@ watch(isRunning, () => {
             icon="mdi-fast-forward"
             @click="speedsCycle.setNextValue"
           ></HeaderIconButtonComponent>
+
+          <HeaderIconButtonComponent
+            :disabled="loading"
+            :description="`Change tram markers coloring mode (${markerColoringMode})`"
+            :icon="getMarkerModeIcon()"
+            @click="markerColoringCycle.setNextValue"
+          >
+          </HeaderIconButtonComponent>
 
           <HeaderRestartConfirmationDialogComponent
             :disabled="loading"

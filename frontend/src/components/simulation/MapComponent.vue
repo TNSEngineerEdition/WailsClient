@@ -13,6 +13,7 @@ import { Time } from "@classes/Time"
 import TramSidebarComponent from "@components/simulation/sidebar/TramSidebarComponent.vue"
 import StopSidebarComponent from "@components/simulation/sidebar/StopSidebarComponent.vue"
 import RouteSidebarComponent from "@components/simulation/sidebar/RouteSidebarComponent.vue"
+import { MarkerColoringMode } from "@utils/types"
 
 const mapHTMLElement = useTemplateRef("map")
 
@@ -23,6 +24,7 @@ const isRunning = defineModel<boolean>("is-running", { required: true })
 const props = defineProps<{
   speed: number
   resetCounter: number
+  markerColoringMode: MarkerColoringMode
 }>()
 
 const endTime = ref(0)
@@ -108,6 +110,16 @@ watch(selectedRoute, route => {
   }
 })
 
+watch(
+  () => props.markerColoringMode,
+  mode => {
+    Object.values(tramMarkerByID.value).forEach(tramMarker =>
+      tramMarker.removeOptionalColoringClasses(),
+    )
+    TramMarker.coloringMode = mode
+  },
+)
+
 onMounted(async () => {
   if (mapHTMLElement.value === null) {
     throw new Error("Map element not found")
@@ -147,6 +159,7 @@ onMounted(async () => {
           tramPositionChange.lon,
           tramPositionChange.azimuth,
           isStopped,
+          tramPositionChange.delay,
         )
       }
 
@@ -259,14 +272,30 @@ onMounted(async () => {
   z-index: 3;
 }
 
-.tram-marker.highlighted .tm-circle-arrow,
-.tram-marker.highlighted .tm-circle {
-  background-color: orange;
-}
-
 .tram-marker.selected .tm-circle-arrow,
 .tram-marker.selected .tm-circle {
   background-color: #67ad2f;
+}
+
+// delays, keep them under "selected" class so the delay color is visible when tram is selected
+$delay-colors: (
+  0: #67ad2f,
+  1: #db5400,
+  2: #b80707,
+  3: #900000,
+  4: #4d0000,
+);
+
+@each $delay, $color in $delay-colors {
+  .tram-marker.delay-#{$delay} .tm-circle,
+  .tram-marker.delay-#{$delay} .tm-circle-arrow {
+    background-color: $color;
+  }
+}
+
+.tram-marker.highlighted .tm-circle-arrow,
+.tram-marker.highlighted .tm-circle {
+  background-color: orange;
 }
 
 @keyframes pulse-red {

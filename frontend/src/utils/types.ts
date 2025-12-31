@@ -31,3 +31,5 @@ export type CityRectangles = {
   bounds: city.CityRectangle["bounds"]
   nodes_by_id: Record<number, GraphNode>
 }
+
+export type MarkerColoringMode = "Default" | "Delays"
