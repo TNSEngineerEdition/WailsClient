@@ -133,14 +133,8 @@ export class TramMarker extends Marker {
       this.setStopped(isStopped)
     }
 
-    switch (TramMarker.coloringMode) {
-      case "Delays":
-        if (delay !== undefined) {
-          this.setDelayColor(delay)
-        }
-        break
-      default:
-        break
+    if (TramMarker.coloringMode == "Delays" && delay !== undefined) {
+      this.setDelayColor(delay)
     }
   }
 
