@@ -33,7 +33,7 @@ const arrivalsInfo = ref<simulation.Arrival[]>([])
 const routeChipColumns = ref(5)
 const passengerCount = ref(0)
 
-const emit = defineEmits(["routeSelected", "arrivalSelected"])
+const emit = defineEmits(["routeSelected", "arrivalSelected", "centerStop"])
 
 function onChipClick(route: city.RouteInfo) {
   emit("routeSelected", route)
@@ -41,6 +41,10 @@ function onChipClick(route: city.RouteInfo) {
 
 function onArrivalClick(_: MouseEvent, row: { item: simulation.Arrival }) {
   emit("arrivalSelected", row.item.id)
+}
+
+function onCenterClick() {
+  if (props.stop) emit("centerStop")
 }
 
 watch(
@@ -90,6 +94,15 @@ watch(
     :title="props.stop?.name ?? 'Unknown stop'"
     title-icon="mdi-tram-side"
   >
+    <template #title-actions>
+      <v-btn
+        icon="mdi-crosshairs-gps"
+        variant="text"
+        density="compact"
+        :disabled="!props.stop"
+        @click="onCenterClick"
+      />
+    </template>
     <div class="section">
       <div class="label">
         <v-icon icon="mdi-map-marker" class="mr-2"></v-icon>

@@ -1,10 +1,11 @@
 <script lang="ts" setup>
 import { onMounted, ref, useTemplateRef, watch } from "vue"
-import { GetTimeBounds } from "@wails/go/city/City"
+import { GetStops, GetTimeBounds } from "@wails/go/city/City"
 import { city, api, tram } from "@wails/go/models"
 import { GetTramIDs, AdvanceTrams } from "@wails/go/simulation/Simulation"
 import { LeafletMap } from "@classes/LeafletMap"
 import { TramMarker } from "@classes/TramMarker"
+import { StopMarker } from "@classes/StopMarker"
 import { Time } from "@classes/Time"
 import TramSidebarComponent from "@components/simulation/sidebar/TramSidebarComponent.vue"
 import StopSidebarComponent from "@components/simulation/sidebar/StopSidebarComponent.vue"
@@ -24,12 +25,14 @@ const props = defineProps<{
 const endTime = ref(0)
 const leafletMap = ref<LeafletMap>()
 const tramMarkerByID = ref<Record<number, TramMarker>>({})
+const stopMarkerByID = ref<Record<number, StopMarker>>({})
 
 const tramSidebar = ref(false)
 const stopSidebar = ref(false)
 const routeSidebar = ref(false)
 
 const selectedTramID = ref<number>()
+const followTram = ref(false)
 const selectedStop = ref<api.ResponseGraphTramStop>()
 const selectedRoute = ref<city.RouteInfo>()
 
@@ -76,6 +79,39 @@ function handleArrivalSelected(tramId: number) {
   selectedTramID.value = tramId
   tramSidebar.value = true
 }
+
+function handleStopSelected(stopId: number) {
+  if (leafletMap.value?.selectedStop) {
+    leafletMap.value.selectedStop.setSelected(false)
+  }
+  leafletMap.value!.selectedStop = stopMarkerByID.value[stopId]
+  leafletMap.value!.selectedStop.setSelected(true)
+  selectedStop.value = stopMarkerByID.value[stopId].getStop()
+  stopSidebar.value = true
+}
+
+function handleCenterStop() {
+  if (selectedStop.value && leafletMap.value) {
+    handleFollowTram(false)
+    leafletMap.value.centerOn(selectedStop.value.lat, selectedStop.value.lon)
+  }
+}
+
+function handleCenterTram() {
+  if (selectedTramID.value && leafletMap.value) {
+    const tramMarker = tramMarkerByID.value[selectedTramID.value]
+    leafletMap.value.centerOn(
+      tramMarker.getLatLng().lat,
+      tramMarker.getLatLng().lng,
+    )
+  }
+}
+
+function handleFollowTram(value: boolean) {
+  followTram.value = value
+  leafletMap.value?.setFollowTram(value)
+}
+
 watch(() => props.resetCounter, reset)
 
 watch(stopSidebar, isOpen => {
@@ -89,6 +125,8 @@ watch(tramSidebar, isOpen => {
   if (!isOpen) {
     leafletMap.value?.deselectTram()
     selectedTramID.value = undefined
+    followTram.value = false
+    leafletMap.value?.setFollowTram(false)
   }
 })
 
@@ -113,10 +151,16 @@ onMounted(async () => {
     throw new Error("Map element not found")
   }
 
-  leafletMap.value = await LeafletMap.init(mapHTMLElement.value, stop => {
-    selectedStop.value = stop
-    stopSidebar.value = true
-  })
+  const { leafletMap: map, result } = await LeafletMap.init(
+    mapHTMLElement.value,
+    stop => {
+      selectedStop.value = stop
+      stopSidebar.value = true
+    },
+  )
+
+  leafletMap.value = map
+  stopMarkerByID.value = result
 
   await reset()
 
@@ -144,6 +188,7 @@ onMounted(async () => {
         isStopped,
       )
     }
+    leafletMap.value?.followTick()
 
     time.value += 1
 
@@ -171,6 +216,10 @@ onMounted(async () => {
       :tram-id="selectedTramID"
       :tram-marker="selectedTramID ? tramMarkerByID[selectedTramID] : undefined"
       :current-time="time"
+      :follow-tram="followTram"
+      @stopSelected="handleStopSelected"
+      @centerTram="handleCenterTram"
+      @followTram="handleFollowTram"
     />
   </div>
   <div class="sidebar-stack right">
@@ -179,7 +228,8 @@ onMounted(async () => {
       :stop="selectedStop"
       :current-time="time"
       @routeSelected="handleRouteSelected"
-      @arrival-selected="handleArrivalSelected"
+      @arrivalSelected="handleArrivalSelected"
+      @centerStop="handleCenterStop"
     />
     <RouteSidebarComponent
       v-model="routeSidebar"

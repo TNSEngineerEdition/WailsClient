@@ -13,6 +13,7 @@ const props = defineProps<{
   tramId?: number
   tramMarker?: TramMarker
   currentTime: number
+  followTram: boolean
 }>()
 
 const tramDetails = ref<tram.TramDetails>()
@@ -41,6 +42,7 @@ const stopsTableData = computed(
           index <= tripIndex - 1
             ? (tramDetails.value?.departures[index] ?? 0) - time
             : null,
+        id: tramDetails.value?.stops[index]?.id,
       }
     }) ?? [],
 )
@@ -58,6 +60,8 @@ const isTramDisabled = computed(() => {
     tramDetails.value?.state === tram.TramState.TRIP_NOT_STARTED
   )
 })
+
+const emit = defineEmits(["stopSelected", "centerTram", "followTram"])
 
 function getRowProps(data: any) {
   if (data.index === tramDetails.value?.trip_index)
@@ -79,6 +83,14 @@ function getDelayTextColorClass(delay: number) {
   } else {
     return ""
   }
+}
+
+function onStopClick(_: MouseEvent, row: { item: any }) {
+  emit("stopSelected", row.item.id)
+}
+
+function onCenterTramClick() {
+  if (props.tramId) emit("centerTram")
 }
 
 async function stopResumeTram() {
@@ -130,6 +142,15 @@ watch(
     "
     title-icon="mdi-tram"
   >
+    <template #title-actions>
+      <v-btn
+        icon="mdi-crosshairs-gps"
+        variant="text"
+        density="compact"
+        :disabled="!props.tramId"
+        @click="onCenterTramClick"
+      />
+    </template>
     <div class="section">
       <div class="label">
         <v-icon icon="mdi-identifier" class="mr-2"></v-icon>
@@ -144,6 +165,29 @@ watch(
         Speed
       </div>
       <div class="value">{{ tramDetails?.speed }} km/h</div>
+    </div>
+    <div class="section">
+      <div class="label">
+        <v-icon icon="mdi-radar" class="mr-2"></v-icon>
+        Follow tram
+      </div>
+
+      <div class="value">
+        <v-btn
+          icon
+          variant="text"
+          size="x-small"
+          class="mini-checkbox"
+          :color="followTram ? 'primary' : undefined"
+          @click="() => emit('followTram', !followTram)"
+        >
+          <v-icon size="16">
+            {{
+              followTram ? "mdi-checkbox-marked" : "mdi-checkbox-blank-outline"
+            }}
+          </v-icon>
+        </v-btn>
+      </div>
     </div>
 
     <div class="section">
@@ -184,6 +228,7 @@ watch(
         density="compact"
         hide-default-footer
         hover
+        @click:row="onStopClick"
       >
         <template v-slot:item.time="{ item }">
           {{ new Time(item.time).toShortMinuteString() }}

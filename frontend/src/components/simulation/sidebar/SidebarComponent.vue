@@ -16,21 +16,21 @@ const slideDirection = computed(() => `sidebar-slide-${props.position}`)
     <v-card v-if="model" class="side-bar-card">
       <v-card-title class="d-flex align-center justify-space-between my-1">
         <transition name="content-fade" mode="out-in">
-          <div
-            class="d-flex align-center justify-space-between"
-            :key="props.title"
-          >
-            <v-icon :icon="props.titleIcon" class="mr-2"></v-icon>
+          <div class="title-left" :key="props.title">
+            <v-icon :icon="props.titleIcon" class="mr-2" />
             <span class="font-weight-bold">{{ props.title }}</span>
+
+            <slot name="title-actions" />
           </div>
         </transition>
+
         <v-btn
           icon="mdi-close"
           variant="text"
           density="compact"
-          class="ml-4"
+          class="ml-1"
           @click="model = false"
-        ></v-btn>
+        />
       </v-card-title>
       <v-card-text>
         <transition name="content-fade" mode="out-in">
@@ -97,6 +97,19 @@ const slideDirection = computed(() => `sidebar-slide-${props.position}`)
 .content-fade-enter-to,
 .content-fade-leave-from {
   opacity: 1;
+}
+
+.title-left {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+}
+
+.title-left span {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 </style>
 

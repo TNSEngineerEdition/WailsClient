@@ -9,6 +9,7 @@ export class LeafletMap {
   private entityCount = 0
   public selectedStop?: StopMarker
   public selectedTram?: TramMarker
+  private followTram = false
   public selectedRouteName?: string
   public highlightedRouteTrams?: TramMarker[]
   private routeHighlighter: RouteHighlighter
@@ -40,8 +41,10 @@ export class LeafletMap {
         ),
     )
 
+    const result: Record<number, StopMarker> = {}
+
     for (const stop of await GetStops()) {
-      const marker = new StopMarker(stop.lat, stop.lon, stop.name)
+      const marker = new StopMarker(stop.lat, stop.lon, stop.name, stop)
       marker.addTo(leafletMap.map)
       marker.on("click", () => {
         if (leafletMap.selectedStop) {
@@ -51,6 +54,7 @@ export class LeafletMap {
         marker.setSelected(true)
         handleStopSelection(stop)
       })
+      result[stop.id] = marker
     }
 
     tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
@@ -58,7 +62,7 @@ export class LeafletMap {
       attribution: `&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>`,
     }).addTo(leafletMap.map)
 
-    return leafletMap
+    return { leafletMap, result }
   }
 
   public highlightTramsForRoute(trams: TramMarker[]) {
@@ -125,5 +129,22 @@ export class LeafletMap {
 
   public getEntityCount() {
     return this.entityCount
+  }
+
+  public centerOn(lat: number, lon: number) {
+    const z = 17
+    this.map.flyTo([lat, lon], z, { animate: true, duration: 0.6 })
+  }
+
+  public setFollowTram(enabled: boolean) {
+    this.followTram = enabled
+  }
+
+  public followTick() {
+    if (!this.followTram || !this.selectedTram) return
+    this.map.panTo(this.selectedTram.getLatLng(), {
+      animate: true,
+      duration: 0.25,
+    })
   }
 }
