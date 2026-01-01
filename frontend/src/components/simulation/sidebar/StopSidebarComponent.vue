@@ -33,10 +33,14 @@ const arrivalsInfo = ref<simulation.Arrival[]>([])
 const routeChipColumns = ref(5)
 const passengerCount = ref(0)
 
-const emit = defineEmits(["routeSelected"])
+const emit = defineEmits(["routeSelected", "arrivalSelected"])
 
 function onChipClick(route: city.RouteInfo) {
   emit("routeSelected", route)
+}
+
+function onArrivalClick(_: MouseEvent, row: { item: simulation.Arrival }) {
+  emit("arrivalSelected", row.item.id)
 }
 
 watch(
@@ -152,24 +156,26 @@ watch(
       </div>
     </div>
     <v-data-table
-      v-if="arrivalsInfo.length"
       :headers="headers"
       :header-props="{
         style: 'font-weight: bold;',
       }"
       :items="arrivalsInfo"
+      :hover="arrivalsInfo.length > 0"
       class="stops-table"
       density="compact"
       hide-default-footer
-      hover
+      @click:row="onArrivalClick"
     >
       <template v-slot:item.time="{ item }">
         <span v-if="item.time === 0" class="blinking"> &gt;&gt;&gt; </span>
 
         <span v-else>{{ item.time }} min</span>
       </template>
+      <template v-slot:no-data>
+        <div class="no-arrivals">No upcoming arrivals</div>
+      </template>
     </v-data-table>
-    <div v-else class="no-arrivals">No upcoming departures</div>
   </SidebarComponent>
 </template>
 

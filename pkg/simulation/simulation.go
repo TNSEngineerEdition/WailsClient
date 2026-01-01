@@ -184,6 +184,7 @@ type Arrival struct {
 	Route        string `json:"route"`
 	TripHeadSign string `json:"tripHeadSign"`
 	Minutes      uint   `json:"time"`
+	TramID       uint   `json:"id"`
 }
 
 func (s *Simulation) GetArrivalsForStop(stopID uint64, count int) []Arrival {
@@ -219,6 +220,7 @@ func (s *Simulation) GetArrivalsForStop(stopID uint64, count int) []Arrival {
 			Route:        tram.Route.Name,
 			TripHeadSign: tram.TripDetails.Trip.TripHeadSign,
 			Minutes:      uint(math.Ceil(float64(expectedTime) / 60)),
+			TramID:       tram.ID,
 		})
 	}
 

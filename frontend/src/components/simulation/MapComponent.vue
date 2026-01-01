@@ -68,6 +68,14 @@ function handleRouteSelected(route: city.RouteInfo) {
   leafletMap.value?.highlightRoute(route)
 }
 
+function handleArrivalSelected(tramId: number) {
+  if (leafletMap.value?.selectedTram)
+    leafletMap.value.selectedTram.setSelected(false)
+  leafletMap.value!.selectedTram = tramMarkerByID.value[tramId]
+  leafletMap.value!.selectedTram.setSelected(true)
+  selectedTramID.value = tramId
+  tramSidebar.value = true
+}
 watch(() => props.resetCounter, reset)
 
 watch(stopSidebar, isOpen => {
@@ -171,6 +179,7 @@ onMounted(async () => {
       :stop="selectedStop"
       :current-time="time"
       @routeSelected="handleRouteSelected"
+      @arrival-selected="handleArrivalSelected"
     />
     <RouteSidebarComponent
       v-model="routeSidebar"
