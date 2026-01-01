@@ -65,7 +65,7 @@ func (s *Simulation) resetTrams() {
 }
 
 func (s *Simulation) ResetSimulation() {
-	s.passengersStore = passenger.NewPassengersStore(s.city)
+	s.passengersStore.ResetPassengers()
 	s.resetTrams()
 	s.city.Reset()
 }
@@ -75,6 +75,7 @@ type SimulationParameters struct {
 	Weekday        *api.Weekday `json:"weekday,omitempty"`
 	Date           *types.Date  `json:"date,omitempty"`
 	CustomSchedule []byte       `json:"customSchedule,omitempty"`
+	PassengerModel []byte       `json:"passengerModel,omitempty"`
 }
 
 func (s *Simulation) InitializeCity(parameters SimulationParameters) string {
@@ -90,6 +91,14 @@ func (s *Simulation) InitializeCity(parameters SimulationParameters) string {
 
 	if err != nil {
 		return err.Error()
+	}
+
+	s.passengersStore = passenger.NewPassengersStore(s.city)
+
+	if len(parameters.PassengerModel) == 0 {
+		s.passengersStore.GenerateRandomPassengers(s.city)
+	} else if err1 := s.passengersStore.GeneratePassengersDueModel(s.city, parameters.PassengerModel); err1 != nil {
+		return err1.Error()
 	}
 
 	return ""
