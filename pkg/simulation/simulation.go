@@ -65,7 +65,7 @@ func (s *Simulation) resetTrams() {
 }
 
 func (s *Simulation) ResetSimulation() {
-	s.passengersStore = passenger.NewPassengersStore(s.city)
+	s.passengersStore.ResetPassengers()
 	s.resetTrams()
 	s.city.Reset()
 }
@@ -75,9 +75,10 @@ type SimulationParameters struct {
 	Weekday        *api.Weekday `json:"weekday,omitempty"`
 	Date           *types.Date  `json:"date,omitempty"`
 	CustomSchedule []byte       `json:"customSchedule,omitempty"`
+	PassengerModel []byte       `json:"passengerModel,omitempty"`
 }
 
-func (s *Simulation) InitializeCityData(parameters SimulationParameters) string {
+func (s *Simulation) InitializeCity(parameters SimulationParameters) string {
 	err := s.city.FetchCity(
 		s.apiClient,
 		parameters.CityID,
@@ -90,6 +91,14 @@ func (s *Simulation) InitializeCityData(parameters SimulationParameters) string 
 
 	if err != nil {
 		return err.Error()
+	}
+
+	s.passengersStore = passenger.NewPassengersStore(s.city)
+
+	if len(parameters.PassengerModel) == 0 {
+		s.passengersStore.GenerateRandomPassengers(s.city)
+	} else if err1 := s.passengersStore.GeneratePassengersDueModel(s.city, parameters.PassengerModel); err1 != nil {
+		return err1.Error()
 	}
 
 	return ""
@@ -140,7 +149,8 @@ func (s *Simulation) GetTramIDs() (result []TramIdentifier) {
 func (s *Simulation) AdvanceTrams(time uint) (result []tram.TramPositionChange) {
 	s.time = time
 
-	s.passengersStore.SpawnAtTime(time)
+	s.passengersStore.DespawnPassengersAtTime(time)
+	s.passengersStore.SpawnPassengersAtTime(time)
 
 	s.tramWorkersData.wg.Add(len(s.trams))
 	for _, tram := range s.trams {
@@ -190,6 +200,10 @@ type Arrival struct {
 func (s *Simulation) GetArrivalsForStop(stopID uint64, count int) []Arrival {
 	plannedArrivals := s.city.GetPlannedArrivals(stopID)
 	arrivals := make([]Arrival, 0)
+
+	if plannedArrivals == nil {
+		return arrivals
+	}
 
 	// Skip trams which have already departed for future iterations
 	for i, arrival := range *plannedArrivals {
@@ -269,9 +283,31 @@ func (s *Simulation) ExportToFile() string {
 	zipWriter := zip.NewWriter(file)
 	defer zipWriter.Close()
 
+	// city data
+	if cityDataZipFileWriter, err := zipWriter.Create("city_data.json"); err != nil {
+		return err.Error()
+	} else if err := s.city.CityDataToJSONBuffer(cityDataZipFileWriter); err != nil {
+		return err.Error()
+	}
+
+	// trams
 	if tramZipFileWriter, err := zipWriter.Create("trams.csv"); err != nil {
 		return err.Error()
 	} else if err := tram.TramsToCSVBuffer(s.trams, tramZipFileWriter); err != nil {
+		return err.Error()
+	}
+
+	// passengers
+	if passengerZipFileWriter, err := zipWriter.Create("passengers.csv"); err != nil {
+		return err.Error()
+	} else if err := s.passengersStore.PassengersToCSVBuffer(passengerZipFileWriter); err != nil {
+		return err.Error()
+	}
+
+	// passenger trips
+	if passengerTripsZipFileWriter, err := zipWriter.Create("passenger_trips.csv"); err != nil {
+		return err.Error()
+	} else if err := s.passengersStore.PassengerTripsToCSVBuffer(passengerTripsZipFileWriter); err != nil {
 		return err.Error()
 	}
 

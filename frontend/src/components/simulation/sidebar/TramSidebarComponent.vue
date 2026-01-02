@@ -129,6 +129,16 @@ watch(
   },
   { immediate: true },
 )
+
+watch(
+  () => isTramDisabled.value,
+  disabled => {
+    if (disabled && props.followTram) {
+      emit("followTram", false)
+    }
+  },
+  { immediate: true },
+)
 </script>
 
 <template>
@@ -178,12 +188,15 @@ watch(
           variant="text"
           size="x-small"
           class="mini-checkbox"
-          :color="followTram ? 'primary' : undefined"
-          @click="() => emit('followTram', !followTram)"
+          :disabled="isTramDisabled"
+          :color="!isTramDisabled && followTram ? 'primary' : undefined"
+          @click="() => !isTramDisabled && emit('followTram', !followTram)"
         >
           <v-icon size="16">
             {{
-              followTram ? "mdi-checkbox-marked" : "mdi-checkbox-blank-outline"
+              !isTramDisabled && followTram
+                ? "mdi-checkbox-marked"
+                : "mdi-checkbox-blank-outline"
             }}
           </v-icon>
         </v-btn>

@@ -2,7 +2,7 @@
 import router from "@plugins/router"
 import { api, simulation } from "@wails/go/models"
 import {
-  InitializeCityData,
+  InitializeCity,
   InitializeSimulation,
 } from "@wails/go/simulation/Simulation"
 import { computed, ref } from "vue"
@@ -15,6 +15,7 @@ const props = defineProps<{
 const date = ref<string>()
 const weekday = ref<api.Weekday>()
 const customSchedule = ref<File>()
+const passengerModel = ref<File>()
 
 const showError = ref(false)
 const error = ref<string>()
@@ -44,10 +45,15 @@ async function handleButtonClick(isCustomizeMap: boolean) {
     cityID: props.city.cityID,
     date: date.value,
     weekday: weekday.value?.toLowerCase(),
-    customSchedule: Array.from((await customSchedule.value?.bytes()) ?? []),
+    customSchedule: Array.from(
+      new Uint8Array((await customSchedule.value?.arrayBuffer()) ?? []),
+    ),
+    passengerModel: Array.from(
+      new Uint8Array((await passengerModel.value?.arrayBuffer()) ?? []),
+    ),
   })
 
-  const dataErrorMessage = await InitializeCityData(parameters)
+  const dataErrorMessage = await InitializeCity(parameters)
   if (dataErrorMessage) {
     loading.value = false
     showError.value = true
@@ -139,10 +145,11 @@ async function handleButtonClick(isCustomizeMap: boolean) {
           ></v-file-input>
 
           <v-file-input
+            v-model="passengerModel"
+            :disabled="loading"
             accept="text/csv"
             prepend-icon="mdi-transit-transfer"
             label="Passenger model"
-            disabled
           ></v-file-input>
         </v-form>
       </v-card-text>

@@ -23,7 +23,7 @@ const resetCounter = ref(0)
     <MapComponent
       v-model:time="time"
       v-model:loading="loading"
-      :is-running="isRunning"
+      v-model:is-running="isRunning"
       :speed="speed"
       :reset-counter="resetCounter"
     ></MapComponent>

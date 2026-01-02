@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"math"
 	"slices"
+	"sort"
 
 	"github.com/TNSEngineerEdition/WailsClient/pkg/api"
 	"github.com/TNSEngineerEdition/WailsClient/pkg/city/graph"
@@ -14,13 +15,16 @@ import (
 )
 
 type City struct {
-	CityID          string
-	tramRoutes      []trip.TramRoute
-	nodesByID       map[uint64]graph.GraphNode
-	stopsByID       map[uint64]*graph.GraphTramStop
-	routesByStopID  map[uint64][]RouteInfo
-	plannedArrivals map[uint64][]PlannedArrival
-	bounds          LatLonBounds
+	CityID           string
+	tramRoutes       []trip.TramRoute
+	nodesByID        map[uint64]graph.GraphNode
+	stopsByID        map[uint64]*graph.GraphTramStop
+	stopsByName      map[string]map[uint64]*graph.GraphTramStop
+	tripsByID        map[uint]*trip.TramTrip
+	routesByStopID   map[uint64][]RouteInfo
+	plannedArrivals  map[uint64][]PlannedArrival
+	bounds           LatLonBounds
+	responseCityData *api.ResponseCityData
 }
 
 type FetchCityParams struct {
@@ -60,6 +64,7 @@ func (c *City) FetchCity(
 	}
 
 	c.CityID = cityID
+	c.responseCityData = responseCityData
 
 	c.tramRoutes = trip.TramTripsFromCityData(responseCityData)
 
@@ -74,6 +79,22 @@ func (c *City) FetchCity(
 		switch v := node.(type) {
 		case *graph.GraphTramStop:
 			c.stopsByID[nodeID] = v
+		}
+	}
+
+	c.stopsByName = make(map[string]map[uint64]*graph.GraphTramStop)
+	for stopID, stop := range c.stopsByID {
+		name := stop.GetGroupName()
+		if _, ok := c.stopsByName[name]; !ok {
+			c.stopsByName[name] = make(map[uint64]*graph.GraphTramStop)
+		}
+		c.stopsByName[name][stopID] = stop
+	}
+
+	c.tripsByID = make(map[uint]*trip.TramTrip)
+	for i, route := range c.tramRoutes {
+		for j, trip := range route.Trips {
+			c.tripsByID[trip.ID] = &c.tramRoutes[i].Trips[j]
 		}
 	}
 
@@ -112,12 +133,38 @@ func (c *City) GetStops() []api.ResponseGraphTramStop {
 	return result
 }
 
+func (c *City) GetStopsByName() map[string]map[uint64]*graph.GraphTramStop {
+	return c.stopsByName
+}
+
+func (c *City) IsTransferStop(stopID uint64) bool {
+	stops := c.GetStopsInGroup(stopID)
+	return len(stops) > 2
+}
+
+func (c *City) GetStopsInGroup(stopID uint64) map[uint64]*graph.GraphTramStop {
+	if _, ok := c.stopsByID[stopID]; !ok {
+		panic(fmt.Sprintf("Stop with ID %d not found", stopID))
+	}
+
+	groupName := c.stopsByID[stopID].GetGroupName()
+	if _, ok := c.stopsByName[groupName]; !ok {
+		panic(fmt.Sprintf("Stops with name %s not found", groupName))
+	}
+
+	return c.stopsByName[groupName]
+}
+
 func (c *City) GetTramRoutes() []trip.TramRoute {
 	return c.tramRoutes
 }
 
 func (c *City) GetBounds() LatLonBounds {
 	return c.bounds
+}
+
+func (c *City) GetTripsByID() map[uint]*trip.TramTrip {
+	return c.tripsByID
 }
 
 type RouteInfo struct {
@@ -208,8 +255,39 @@ func (c *City) GetPlannedArrivals(stopID uint64) *[]PlannedArrival {
 	if arrivals, ok := c.plannedArrivals[stopID]; ok {
 		return &arrivals
 	}
+	return nil
+}
 
-	panic(fmt.Sprintf("Stop ID %d not found", stopID))
+func (c *City) GetPlannedArrivalsInTimeSpan(stopID uint64, fromTime uint, toTime uint) []PlannedArrival {
+	if fromTime > toTime {
+		panic("Incorrect time span - 'fromTime' cannot be later than 'toTime'")
+	}
+
+	plannedArrivals := c.GetPlannedArrivals(stopID)
+	if plannedArrivals == nil {
+		return nil
+	}
+
+	arrivals := *plannedArrivals
+
+	// binary search for the first arrival in a time span
+	sliceStart := sort.Search(len(arrivals), func(i int) bool {
+		return arrivals[i].Time >= fromTime
+	})
+
+	// linear search for the last arrival in a time span
+	var sliceEnd int
+	for sliceEnd = sliceStart; sliceEnd < len(arrivals); sliceEnd++ {
+		if arrivals[sliceEnd].Time > toTime {
+			break
+		}
+	}
+
+	if sliceEnd-sliceStart == 0 {
+		return nil
+	}
+
+	return arrivals[sliceStart:sliceEnd]
 }
 
 type TimeBounds struct {
