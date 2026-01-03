@@ -190,6 +190,8 @@ func buildPassengersToSpawn(currentCity *city.City, records [][]string) (map[uin
 			passenger: passenger,
 			stopID:    travelPlan.GetStartStopID(),
 		})
+
+		log.Default().Printf("Travel plan created for passenger %d", passengerID)
 	}
 
 	return result, nil

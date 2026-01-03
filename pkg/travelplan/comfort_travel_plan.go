@@ -134,15 +134,23 @@ func (ctp *comfortTravelPlan) addStopsAlongTrip(
 	arrival city.PlannedArrival,
 	takenTrips tripSequence,
 ) {
+	stopsByID := ctp.currentCity.GetStopsByID()
+
 	tramTrip := ctp.currentCity.GetTripByID(arrival.TripID)
 	visitedStops := structs.NewSet[string]()
-	visitedStops.Add(ctp.currentCity.GetStopByID(tramTrip.Stops[arrival.StopIndex].ID).GetGroupName())
+	visitedStops.Add(stopsByID[tramTrip.Stops[arrival.StopIndex].ID].GetGroupName())
 
 	for _, stop := range tramTrip.Stops[arrival.StopIndex+1:] {
 		stopGroupName := ctp.currentCity.GetStopByID(stop.ID).GetGroupName()
 		visitedStops.Add(stopGroupName)
 
 		if takenTrips.visitedStopNames.Includes(stopGroupName) {
+			continue
+		}
+
+		// Transfer only on transfer stops, but allow ending
+		// trips at end stops
+		if !ctp.currentCity.IsTransferStop(stop.ID) && !ctp.endStopIDs.Includes(stop.ID) {
 			continue
 		}
 
