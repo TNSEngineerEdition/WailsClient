@@ -2,7 +2,6 @@ package travelplan
 
 import (
 	"cmp"
-	"math"
 
 	"github.com/TNSEngineerEdition/WailsClient/pkg/city"
 	"github.com/TNSEngineerEdition/WailsClient/pkg/structs"
@@ -10,27 +9,19 @@ import (
 
 const (
 	COMFORT_MAX_WAITING_TIME = 30 * 60     // 30 minutes
-	COMFORT_MAX_TRAVEL_TIME  = 3 * 60 * 60 // 3 hours
+	COMFORT_MAX_TRAVEL_TIME  = 3 * 60 * 60 // 2 hours
 	COMFORT_MAX_TRIPS        = 5
 )
-
-type takenTrip struct {
-	tripID                  uint
-	startStopID, endStopID  uint64
-	arrivalTime, travelTime uint
-}
 
 type comfortPQValue struct {
 	tripID      uint
 	stopID      uint64
 	arrivalTime uint
-	tripCount   uint8
-	takenTrips  []takenTrip
+	takenTrips  tripSequence
 }
 
 type comfortPQPriority struct {
-	tripCount      uint8
-	timeSinceSpawn uint
+	tripCount, timeSinceSpawn uint
 }
 
 func (c comfortPQPriority) compare(other comfortPQPriority) int {
@@ -45,8 +36,8 @@ type comfortTravelPlan struct {
 	endStopIDs         structs.Set[uint64]
 	spawnTime          uint
 	maxTravelTime      uint
-	minTripCount       uint8
-	foundPaths         [][]takenTrip
+	minTripCount       uint
+	foundPaths         []tripSequence
 	tripsPriorityQueue structs.PriorityQueue[comfortPQValue, comfortPQPriority]
 }
 
@@ -59,9 +50,10 @@ func GetComfortTravelPlan(
 	ctp := comfortTravelPlan{
 		currentCity:   currentCity,
 		endStopIDs:    endStopIDs,
-		minTripCount:  math.MaxUint8,
+		minTripCount:  COMFORT_MAX_TRIPS + 1,
 		maxTravelTime: spawnTime + COMFORT_MAX_TRAVEL_TIME,
 		spawnTime:     spawnTime,
+		foundPaths:    make([]tripSequence, 0),
 		tripsPriorityQueue: structs.NewPriorityQueue[comfortPQValue](
 			func(left, right comfortPQPriority) int { return left.compare(right) },
 		),
@@ -73,14 +65,17 @@ func GetComfortTravelPlan(
 	return ctp.createTravelPlan()
 }
 
-func (ctp *comfortTravelPlan) updateTrips(takenTrips []takenTrip) {
-	ctp.minTripCount = uint8(len(takenTrips))
+func (ctp *comfortTravelPlan) updateTrips(takenTrips tripSequence) {
+	// When updating the trip count, takenTrips.tripCount()
+	// is never larger than ctp.minTripCount
+	ctp.minTripCount = takenTrips.tripCount()
+
 	ctp.foundPaths = append(ctp.foundPaths, takenTrips)
 }
 
 func (ctp *comfortTravelPlan) initializePriorityQueue(startStopIDs []uint64, spawnTime uint) {
 	for _, startStopID := range startStopIDs {
-		ctp.addTripsFromStop(startStopID, spawnTime, spawnTime+COMFORT_MAX_WAITING_TIME, 1, []takenTrip{}, 0)
+		ctp.addTripsFromStop(startStopID, spawnTime, spawnTime+COMFORT_MAX_WAITING_TIME, newTripSequence(0))
 	}
 }
 
@@ -91,7 +86,7 @@ func (ctp *comfortTravelPlan) findPathsToEndStops() {
 		// Because priority queue orders entries by trip count,
 		// when a larger than already discovered trip count is found,
 		// it is no longer possible to find other solutions.
-		if value.tripCount > ctp.minTripCount {
+		if value.takenTrips.tripCount() >= ctp.minTripCount {
 			break
 		}
 
@@ -100,7 +95,7 @@ func (ctp *comfortTravelPlan) findPathsToEndStops() {
 			continue
 		}
 
-		if value.tripCount == COMFORT_MAX_TRIPS {
+		if value.takenTrips.tripCount() == COMFORT_MAX_TRIPS {
 			continue
 		}
 
@@ -109,15 +104,17 @@ func (ctp *comfortTravelPlan) findPathsToEndStops() {
 				transferStopID,
 				value.arrivalTime,
 				value.arrivalTime+COMFORT_MAX_WAITING_TIME,
-				value.tripCount+1,
 				value.takenTrips,
-				value.tripID,
 			)
 		}
 	}
 }
 
-func (ctp *comfortTravelPlan) addTripsFromStop(stopID uint64, startTime, endTime uint, tripCount uint8, takenTrips []takenTrip, lastTripID uint) {
+func (ctp *comfortTravelPlan) addTripsFromStop(
+	stopID uint64,
+	startTime, endTime uint,
+	takenTrips tripSequence,
+) {
 	arrivals := ctp.currentCity.GetPlannedArrivalsInTimeSpan(
 		stopID,
 		startTime,
@@ -125,29 +122,41 @@ func (ctp *comfortTravelPlan) addTripsFromStop(stopID uint64, startTime, endTime
 	)
 
 	for _, arrival := range arrivals {
-		if arrival.TripID == lastTripID {
+		if takenTrips.tripCount() > 0 && arrival.TripID == takenTrips.trips[0].tripID {
 			continue
 		}
 
-		ctp.addStopsAlongTrip(arrival, tripCount, takenTrips)
+		ctp.addStopsAlongTrip(arrival, takenTrips)
 	}
 }
 
-func (ctp *comfortTravelPlan) addStopsAlongTrip(arrival city.PlannedArrival, tripCount uint8, takenTrips []takenTrip) {
+func (ctp *comfortTravelPlan) addStopsAlongTrip(
+	arrival city.PlannedArrival,
+	takenTrips tripSequence,
+) {
 	tramTrip := ctp.currentCity.GetTripByID(arrival.TripID)
+	visitedStops := structs.NewSet[string]()
+	visitedStops.Add(ctp.currentCity.GetStopByID(tramTrip.Stops[arrival.StopIndex].ID).GetGroupName())
 
 	for _, stop := range tramTrip.Stops[arrival.StopIndex+1:] {
-		takenTrips = append(takenTrips[:], takenTrip{
-			tripID:      tramTrip.ID,
-			startStopID: tramTrip.Stops[arrival.StopIndex].ID,
-			endStopID:   stop.ID,
-			arrivalTime: stop.Time,
-			travelTime:  stop.Time - arrival.Time,
-		})
+		stopGroupName := ctp.currentCity.GetStopByID(stop.ID).GetGroupName()
+		visitedStops.Add(stopGroupName)
+
+		if takenTrips.visitedStopNames.Includes(stopGroupName) {
+			continue
+		}
+
+		takenTripsAfterStop := takenTrips.extendTripRecords(
+			tramTrip.ID,
+			stop.Time,
+			stop.Time-arrival.Time,
+			tramTrip.Stops[arrival.StopIndex].ID,
+			stop.ID,
+			visitedStops,
+		)
 
 		if ctp.endStopIDs.Includes(stop.ID) {
-			ctp.updateTrips(takenTrips)
-			ctp.foundPaths = append(ctp.foundPaths, takenTrips)
+			ctp.updateTrips(takenTripsAfterStop)
 			continue
 		}
 
@@ -156,11 +165,10 @@ func (ctp *comfortTravelPlan) addStopsAlongTrip(arrival city.PlannedArrival, tri
 				tripID:      tramTrip.ID,
 				stopID:      stop.ID,
 				arrivalTime: stop.Time,
-				tripCount:   tripCount,
-				takenTrips:  takenTrips,
+				takenTrips:  takenTripsAfterStop,
 			},
 			comfortPQPriority{
-				tripCount:      tripCount,
+				tripCount:      takenTripsAfterStop.tripCount(),
 				timeSinceSpawn: stop.Time - ctp.spawnTime,
 			},
 		)
@@ -169,30 +177,18 @@ func (ctp *comfortTravelPlan) addStopsAlongTrip(arrival city.PlannedArrival, tri
 
 func (ctp comfortTravelPlan) createTravelPlan() (TravelPlan, bool) {
 	// If minTripCount is not updated, then no solution is found
-	if ctp.minTripCount == math.MaxUint8 {
+	if ctp.minTripCount > COMFORT_MAX_TRIPS {
 		return TravelPlan{}, false
 	}
 
 	travelPlan := NewTravelPlan(
-		ctp.foundPaths[0][0].startStopID,
+		ctp.foundPaths[0].getStartStopID(),
 		ctp.endStopIDs,
 		ctp.spawnTime,
 	)
 
 	for _, takenTripsInPath := range ctp.foundPaths {
-		for i, takenTrip := range takenTripsInPath {
-			if i > 0 && takenTripsInPath[i-1].endStopID != takenTrip.startStopID {
-				travelPlan.addTransfer(takenTripsInPath[i-1].endStopID, takenTrip.startStopID)
-			}
-
-			travelPlan.addConnection(
-				takenTrip.startStopID,
-				takenTrip.endStopID,
-				takenTrip.tripID,
-				takenTrip.arrivalTime,
-				takenTrip.travelTime,
-			)
-		}
+		takenTripsInPath.addToTravelPlan(&travelPlan)
 	}
 
 	return travelPlan, true
