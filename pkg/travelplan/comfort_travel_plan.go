@@ -9,7 +9,7 @@ import (
 
 const (
 	COMFORT_MAX_WAITING_TIME = 30 * 60     // 30 minutes
-	COMFORT_MAX_TRAVEL_TIME  = 3 * 60 * 60 // 2 hours
+	COMFORT_MAX_TRAVEL_TIME  = 3 * 60 * 60 // 3 hours
 	COMFORT_MAX_TRIPS        = 5
 )
 
