@@ -35,3 +35,13 @@ func (s Set[T]) GetItems() iter.Seq[T] {
 		}
 	}
 }
+
+func (s Set[T]) Copy() Set[T] {
+	result := NewSet[T]()
+
+	for item := range s.GetItems() {
+		result.Add(item)
+	}
+
+	return result
+}
