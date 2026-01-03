@@ -24,6 +24,13 @@ func GetTravelPlan(
 		endStops.Add(stopID)
 	}
 
+	// Return empty travel plan if start stop is the same as end stop
+	for _, stopID := range startStopIDs {
+		if endStops.Includes(stopID) {
+			return NewTravelPlan(stopID, endStops, spawnTime), true
+		}
+	}
+
 	switch strategy {
 	case RANDOM:
 		startStopID := startStopIDs[rand.IntN(len(startStopIDs))]

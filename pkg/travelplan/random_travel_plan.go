@@ -6,6 +6,7 @@ import (
 	"github.com/TNSEngineerEdition/WailsClient/pkg/city"
 	"github.com/TNSEngineerEdition/WailsClient/pkg/city/trip"
 	"github.com/TNSEngineerEdition/WailsClient/pkg/consts"
+	"github.com/TNSEngineerEdition/WailsClient/pkg/structs"
 )
 
 /*
@@ -24,12 +25,7 @@ type randomTravelPlan struct {
 
 func GetRandomTravelPlan(currentCity *city.City, startStopID uint64, spawnTime uint) (TravelPlan, bool) {
 	rtp := randomTravelPlan{
-		TravelPlan: TravelPlan{
-			stops:       make(map[uint64]*travelStop),
-			connections: make(map[uint]*travelConnection),
-			startStopID: startStopID,
-			spawnTime:   spawnTime,
-		},
+		TravelPlan:  NewTravelPlan(startStopID, structs.NewSet[uint64](), spawnTime),
 		currentCity: currentCity,
 	}
 
@@ -38,14 +34,14 @@ func GetRandomTravelPlan(currentCity *city.City, startStopID uint64, spawnTime u
 	// direct trip
 	if !isPassengerChangingStops {
 		endStopID, _ := rtp.findConnectionToStop(startStopID, spawnTime, false)
-		rtp.endStopGroupIDs.Add(endStopID)
+		rtp.endStopIDs.Add(endStopID)
 		return rtp.TravelPlan, startStopID != endStopID
 	}
 
 	// trip with transfer
 	intermediateStopID, time := rtp.findConnectionToStop(startStopID, spawnTime, true)
 	if !currentCity.IsTransferStop(intermediateStopID) {
-		rtp.endStopGroupIDs.Add(intermediateStopID)
+		rtp.endStopIDs.Add(intermediateStopID)
 		return rtp.TravelPlan, true
 	}
 
@@ -64,7 +60,7 @@ func GetRandomTravelPlan(currentCity *city.City, startStopID uint64, spawnTime u
 
 	rtp.TravelPlan.addTransfer(intermediateStopID, transferStopID)
 	endStopID, _ := rtp.findConnectionToStop(transferStopID, time+consts.TRANSFER_TIME, false)
-	rtp.endStopGroupIDs.Add(endStopID)
+	rtp.endStopIDs.Add(endStopID)
 
 	return rtp.TravelPlan, true
 }

@@ -57,7 +57,8 @@ func (ps *PassengersStore) GenerateRandomPassengers(currentCity *city.City) {
 	timeBounds := currentCity.GetTimeBounds()
 	stopsByID := currentCity.GetStopsByID()
 
-	var counter uint64
+	// Start ID assignment from 1
+	passengerID := uint64(1)
 
 	for startStopID := range stopsByID {
 		for range 500 {
@@ -66,12 +67,12 @@ func (ps *PassengersStore) GenerateRandomPassengers(currentCity *city.City) {
 
 			travelPlan, ok := travelplan.GetTravelPlan(currentCity, travelplan.RANDOM, []uint64{startStopID}, nil, spawnTime)
 			if !ok {
-				log.Default().Printf("Travel plan couldn't be created for passenger %d", counter)
+				log.Default().Printf("Travel plan couldn't be created for passenger %d", passengerID)
 				continue
 			}
 
 			passenger := &Passenger{
-				ID:         counter,
+				ID:         passengerID,
 				strategy:   travelplan.RANDOM,
 				spawnTime:  spawnTime,
 				TravelPlan: travelPlan,
@@ -83,7 +84,7 @@ func (ps *PassengersStore) GenerateRandomPassengers(currentCity *city.City) {
 			})
 
 			ps.passengers = append(ps.passengers, passenger)
-			counter++
+			passengerID++
 		}
 	}
 }
@@ -132,8 +133,8 @@ func buildPassengersToSpawn(currentCity *city.City, records [][]string) (map[uin
 	result := make(map[uint][]passengerSpawn)
 
 	for i, row := range records[1:] {
-
 		lineNo := i + 2
+		passengerID := uint64(i + 1)
 
 		if len(row) < 4 {
 			return nil, fmt.Errorf("line %d: expected 4 columns, got %d", lineNo, len(row))
@@ -144,12 +145,12 @@ func buildPassengersToSpawn(currentCity *city.City, records [][]string) (map[uin
 		spawnTimeStr := strings.TrimSpace(row[2])
 		strategyStr := strings.TrimSpace(row[3])
 
-		startStopIDs, err := resolveStopsID(stopsByName, startName)
+		startStopIDs, err := getStopIDsFromGroupName(stopsByName, startName)
 		if err != nil {
 			return nil, fmt.Errorf("line %d: %w", lineNo, err)
 		}
 
-		endStopIDs, err := resolveStopsID(stopsByName, endName)
+		endStopIDs, err := getStopIDsFromGroupName(stopsByName, endName)
 		if err != nil {
 			return nil, fmt.Errorf("line %d: %w", lineNo, err)
 		}
@@ -163,10 +164,10 @@ func buildPassengersToSpawn(currentCity *city.City, records [][]string) (map[uin
 
 		strategy := travelplan.TravelPlanStrategy(strings.ToUpper(strategyStr))
 
-		// TODO: change when travelplans for strategies will be implemented
+		// TODO: change when travel plans for strategies will be implemented
 		switch strategy {
-		case travelplan.RANDOM:
-		case travelplan.ASAP, travelplan.COMFORT, travelplan.SURE:
+		case travelplan.RANDOM, travelplan.COMFORT:
+		case travelplan.ASAP, travelplan.SURE:
 			strategy = travelplan.RANDOM
 		default:
 			return nil, fmt.Errorf("line %d: unknown strategy %q", lineNo, strategyStr)
@@ -174,12 +175,12 @@ func buildPassengersToSpawn(currentCity *city.City, records [][]string) (map[uin
 
 		travelPlan, ok := travelplan.GetTravelPlan(currentCity, strategy, startStopIDs, endStopIDs, spawnSeconds)
 		if !ok {
-			log.Default().Printf("Travel plan couldn't be created for passenger %d", i)
+			log.Default().Printf("Travel plan couldn't be created for passenger %d", passengerID)
 			continue
 		}
 
 		passenger := &Passenger{
-			ID:         uint64(i),
+			ID:         passengerID,
 			strategy:   strategy,
 			spawnTime:  spawnSeconds,
 			TravelPlan: travelPlan,
@@ -194,7 +195,7 @@ func buildPassengersToSpawn(currentCity *city.City, records [][]string) (map[uin
 	return result, nil
 }
 
-func resolveStopsID(stopsByName map[string]map[uint64]*graph.GraphTramStop, stopName string) ([]uint64, error) {
+func getStopIDsFromGroupName(stopsByName map[string]map[uint64]*graph.GraphTramStop, stopName string) ([]uint64, error) {
 	if stopName == "" {
 		return nil, fmt.Errorf("empty stop group name")
 	}
@@ -208,8 +209,8 @@ func resolveStopsID(stopsByName map[string]map[uint64]*graph.GraphTramStop, stop
 	for id := range group {
 		ids = append(ids, id)
 	}
-	return ids, nil
 
+	return ids, nil
 }
 
 func (ps *PassengersStore) ResetPassengers() {

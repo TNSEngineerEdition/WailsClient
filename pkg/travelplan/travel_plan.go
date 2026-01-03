@@ -2,9 +2,7 @@ package travelplan
 
 import (
 	"fmt"
-	"math/rand/v2"
 
-	"github.com/TNSEngineerEdition/WailsClient/pkg/city"
 	"github.com/TNSEngineerEdition/WailsClient/pkg/structs"
 )
 
@@ -20,38 +18,21 @@ type travelStop struct {
 }
 
 type TravelPlan struct {
-	stops           map[uint64]*travelStop
-	connections     map[uint]*travelConnection
-	startStopID     uint64
-	endStopGroupIDs structs.Set[uint64]
-	spawnTime       uint
+	stops       map[uint64]*travelStop
+	connections map[uint]*travelConnection
+	startStopID uint64
+	endStopIDs  structs.Set[uint64]
+	spawnTime   uint
 }
 
-func GetTravelPlan(
-	currentCity *city.City,
-	strategy TravelPlanStrategy,
-	startStopIDs []uint64,
-	endStopGroupIDs []uint64,
-	spawnTime uint,
-) (TravelPlan, bool) {
-	var (
-		travelPlan TravelPlan
-		ok         bool
-	)
-
-	switch strategy {
-	case RANDOM:
-		startStopID := startStopIDs[rand.IntN(len(startStopIDs))]
-		travelPlan, ok = GetRandomTravelPlan(currentCity, startStopID, spawnTime)
-	case ASAP:
-		panic("ASAP strategy not implemented yet")
-	case COMFORT:
-		panic("COMFORT strategy not implemented yet")
-	case SURE:
-		panic("SURE strategy not implemented yet")
+func NewTravelPlan(startStopID uint64, endStopIDs structs.Set[uint64], spawnTime uint) TravelPlan {
+	return TravelPlan{
+		stops:       make(map[uint64]*travelStop),
+		connections: make(map[uint]*travelConnection),
+		startStopID: startStopID,
+		endStopIDs:  endStopIDs,
+		spawnTime:   spawnTime,
 	}
-
-	return travelPlan, ok
 }
 
 func (tp TravelPlan) GetStartStopID() uint64 {
@@ -87,7 +68,7 @@ func (tp TravelPlan) ContainsConnection(stopID uint64, tramID uint) bool {
 }
 
 func (tp TravelPlan) IsEndStopReached(stopID uint64) bool {
-	return tp.endStopGroupIDs.Includes(stopID)
+	return tp.endStopIDs.Includes(stopID)
 }
 
 func (tp *TravelPlan) addStop(stopID uint64) {

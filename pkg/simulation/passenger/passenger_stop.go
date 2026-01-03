@@ -38,7 +38,7 @@ func (ps *passengerStop) loadPassengersToTram(tramID, time uint) []*Passenger {
 	for _, p := range ps.passengers {
 		if p.TravelPlan.ContainsConnection(ps.stopID, tramID) {
 			boardingPassengers = append(boardingPassengers, p)
-			p.saveNewTrip(tramID, time, ps.stopID, p.TravelPlan.GetConnectionEnd(tramID))
+			p.saveNewTrip(tramID, time, ps.stopID, p.TravelPlan.GetConnectionDestination(tramID))
 		}
 		if len(boardingPassengers) >= consts.MAX_PASSENGERS_CHANGE_RATE {
 			break
