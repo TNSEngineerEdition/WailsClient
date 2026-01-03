@@ -6,6 +6,12 @@ import (
 	"github.com/TNSEngineerEdition/WailsClient/pkg/structs"
 )
 
+const (
+	MAX_WAITING_TIME = 30 * 60     // 30 minutes
+	TRANSFER_TIME    = 2 * 60      // 2 min
+	MAX_TRAVEL_TIME  = 3 * 60 * 60 // 3 hours
+)
+
 type travelConnection struct {
 	id, arrivalTime, travelTime uint
 	to                          uint64

@@ -12,7 +12,6 @@ import (
 
 	"github.com/TNSEngineerEdition/WailsClient/pkg/city"
 	"github.com/TNSEngineerEdition/WailsClient/pkg/city/graph"
-	"github.com/TNSEngineerEdition/WailsClient/pkg/consts"
 	"github.com/TNSEngineerEdition/WailsClient/pkg/travelplan"
 )
 
@@ -190,8 +189,6 @@ func buildPassengersToSpawn(currentCity *city.City, records [][]string) (map[uin
 			passenger: passenger,
 			stopID:    travelPlan.GetStartStopID(),
 		})
-
-		log.Default().Printf("Travel plan created for passenger %d", passengerID)
 	}
 
 	return result, nil
@@ -241,7 +238,7 @@ func (ps *PassengersStore) DespawnPassengersAtTime(time uint) {
 	ps.mu.Lock()
 	defer ps.mu.Unlock()
 
-	despawnTime := time - consts.MAX_WAITING_TIME - consts.DESPAWN_TIME_OFFSET
+	despawnTime := time - travelplan.MAX_WAITING_TIME
 	spawnList, ok := ps.passengersToSpawn[despawnTime]
 	if !ok {
 		return
@@ -271,7 +268,7 @@ func (ps *PassengersStore) UnloadPassengers(passengers []*Passenger, stopID uint
 
 		// transfer
 		transferStopID := p.TravelPlan.GetConnectionTransferDestination(stopID)
-		transferTime := time + consts.TRANSFER_TIME
+		transferTime := time + travelplan.TRANSFER_TIME
 		ps.passengersToSpawn[transferTime] = append(ps.passengersToSpawn[time], passengerSpawn{
 			passenger: p,
 			stopID:    transferStopID,

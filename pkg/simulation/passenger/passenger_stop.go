@@ -2,8 +2,10 @@ package passenger
 
 import (
 	"sync"
+)
 
-	"github.com/TNSEngineerEdition/WailsClient/pkg/consts"
+const (
+	MAX_PASSENGERS_CHANGE_RATE = 10
 )
 
 type passengerStop struct {
@@ -34,13 +36,14 @@ func (ps *passengerStop) loadPassengersToTram(tramID, time uint) []*Passenger {
 	ps.mu.Lock()
 	defer ps.mu.Unlock()
 
-	boardingPassengers := make([]*Passenger, 0, consts.MAX_PASSENGERS_CHANGE_RATE)
+	boardingPassengers := make([]*Passenger, 0, MAX_PASSENGERS_CHANGE_RATE)
 	for _, p := range ps.passengers {
 		if p.TravelPlan.ContainsConnection(ps.stopID, tramID) {
 			boardingPassengers = append(boardingPassengers, p)
 			p.saveNewTrip(tramID, time, ps.stopID, p.TravelPlan.GetConnectionDestination(tramID))
 		}
-		if len(boardingPassengers) >= consts.MAX_PASSENGERS_CHANGE_RATE {
+
+		if len(boardingPassengers) >= MAX_PASSENGERS_CHANGE_RATE {
 			break
 		}
 	}

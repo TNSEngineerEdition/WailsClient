@@ -3,6 +3,7 @@ package travelplan
 import (
 	"fmt"
 	"math/rand/v2"
+	"slices"
 
 	"github.com/TNSEngineerEdition/WailsClient/pkg/city"
 	"github.com/TNSEngineerEdition/WailsClient/pkg/structs"
@@ -25,10 +26,8 @@ func GetTravelPlan(
 	}
 
 	// Return empty travel plan if start stop is the same as end stop
-	for _, stopID := range startStopIDs {
-		if endStops.Includes(stopID) {
-			return NewTravelPlan(stopID, endStops, spawnTime), true
-		}
+	if slices.ContainsFunc(startStopIDs, endStops.Includes) {
+		return TravelPlan{}, false
 	}
 
 	switch strategy {

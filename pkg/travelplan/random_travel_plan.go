@@ -5,7 +5,6 @@ import (
 
 	"github.com/TNSEngineerEdition/WailsClient/pkg/city"
 	"github.com/TNSEngineerEdition/WailsClient/pkg/city/trip"
-	"github.com/TNSEngineerEdition/WailsClient/pkg/consts"
 	"github.com/TNSEngineerEdition/WailsClient/pkg/structs"
 )
 
@@ -18,6 +17,10 @@ Optionally, for some passengers the travel plan includes one tram change on a tr
 
 */
 
+const (
+	TRANSFER_PROBABILITY = 0.5
+)
+
 type randomTravelPlan struct {
 	TravelPlan
 	currentCity *city.City
@@ -29,7 +32,7 @@ func GetRandomTravelPlan(currentCity *city.City, startStopID uint64, spawnTime u
 		currentCity: currentCity,
 	}
 
-	isPassengerChangingStops := rand.Float32() < consts.TRANSFER_PROBABILITY
+	isPassengerChangingStops := rand.Float32() < TRANSFER_PROBABILITY
 
 	// direct trip
 	if !isPassengerChangingStops {
@@ -59,7 +62,7 @@ func GetRandomTravelPlan(currentCity *city.City, startStopID uint64, spawnTime u
 	}
 
 	rtp.TravelPlan.addTransfer(intermediateStopID, transferStopID)
-	endStopID, _ := rtp.findConnectionToStop(transferStopID, time+consts.TRANSFER_TIME, false)
+	endStopID, _ := rtp.findConnectionToStop(transferStopID, time+TRANSFER_TIME, false)
 	rtp.endStopIDs.Add(endStopID)
 
 	return rtp.TravelPlan, true
@@ -138,7 +141,7 @@ func (rtp *randomTravelPlan) selectRandomStop(trip *trip.TramTrip, arrival *city
 
 func (rtp *randomTravelPlan) getRandomArrivalFromStop(stopID uint64, time uint) (arrival *city.PlannedArrival, stopsLeft int) {
 	trips := rtp.currentCity.GetTripsByID()
-	arrivals := rtp.currentCity.GetPlannedArrivalsInTimeSpan(stopID, time, time+consts.MAX_WAITING_TIME)
+	arrivals := rtp.currentCity.GetPlannedArrivalsInTimeSpan(stopID, time, time+MAX_WAITING_TIME)
 	if arrivals == nil {
 		return nil, 0
 	}

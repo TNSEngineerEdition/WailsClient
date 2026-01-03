@@ -8,9 +8,7 @@ import (
 )
 
 const (
-	COMFORT_MAX_WAITING_TIME = 30 * 60     // 30 minutes
-	COMFORT_MAX_TRAVEL_TIME  = 3 * 60 * 60 // 3 hours
-	COMFORT_MAX_TRIPS        = 5
+	COMFORT_MAX_TRIPS = 5
 )
 
 type comfortPQValue struct {
@@ -51,7 +49,7 @@ func GetComfortTravelPlan(
 		currentCity:   currentCity,
 		endStopIDs:    endStopIDs,
 		minTripCount:  COMFORT_MAX_TRIPS + 1,
-		maxTravelTime: spawnTime + COMFORT_MAX_TRAVEL_TIME,
+		maxTravelTime: spawnTime + MAX_TRAVEL_TIME,
 		spawnTime:     spawnTime,
 		foundPaths:    make([]tripSequence, 0),
 		tripsPriorityQueue: structs.NewPriorityQueue[comfortPQValue](
@@ -75,7 +73,7 @@ func (ctp *comfortTravelPlan) updateTrips(takenTrips tripSequence) {
 
 func (ctp *comfortTravelPlan) initializePriorityQueue(startStopIDs []uint64, spawnTime uint) {
 	for _, startStopID := range startStopIDs {
-		ctp.addTripsFromStop(startStopID, spawnTime, spawnTime+COMFORT_MAX_WAITING_TIME, newTripSequence(0))
+		ctp.addTripsFromStop(startStopID, spawnTime, spawnTime+MAX_WAITING_TIME, newTripSequence(0))
 	}
 }
 
@@ -90,22 +88,18 @@ func (ctp *comfortTravelPlan) findPathsToEndStops() {
 			break
 		}
 
-		if ctp.endStopIDs.Includes(value.stopID) {
-			ctp.updateTrips(value.takenTrips)
-			continue
-		}
-
 		if value.takenTrips.tripCount() == COMFORT_MAX_TRIPS {
 			continue
 		}
 
 		for transferStopID := range ctp.currentCity.GetStopsInGroup(value.stopID) {
-			ctp.addTripsFromStop(
-				transferStopID,
-				value.arrivalTime,
-				value.arrivalTime+COMFORT_MAX_WAITING_TIME,
-				value.takenTrips,
-			)
+			startTime, endTime := value.arrivalTime, value.arrivalTime+MAX_WAITING_TIME
+
+			if value.stopID != transferStopID {
+				startTime += TRANSFER_TIME
+			}
+
+			ctp.addTripsFromStop(transferStopID, startTime, endTime, value.takenTrips)
 		}
 	}
 }
