@@ -116,7 +116,8 @@ func (ctp *comfortTravelPlan) addTripsFromStop(
 	)
 
 	for _, arrival := range arrivals {
-		if takenTrips.tripCount() > 0 && arrival.TripID == takenTrips.trips[0].tripID {
+		tripCount := takenTrips.tripCount()
+		if tripCount > 0 && arrival.TripID == takenTrips.trips[tripCount-1].tripID {
 			continue
 		}
 
@@ -159,7 +160,7 @@ func (ctp *comfortTravelPlan) addStopsAlongTrip(
 
 		if ctp.endStopIDs.Includes(stop.ID) {
 			ctp.updateTrips(takenTripsAfterStop)
-			continue
+			break
 		}
 
 		ctp.tripsPriorityQueue.Push(
