@@ -35,7 +35,7 @@ func NewPassengersStore(c *city.City) *PassengersStore {
 	stopsByID := c.GetStopsByID()
 
 	store := &PassengersStore{
-		passengers:        make([]*Passenger, 0, len(c.GetNodesByID())*50),
+		passengers:        make([]*Passenger, 0),
 		passengerStops:    make(map[uint64]*passengerStop, len(stopsByID)),
 		passengersToSpawn: make(map[uint][]passengerSpawn),
 	}
@@ -98,14 +98,23 @@ func (ps *PassengersStore) GeneratePassengersDueModel(c *city.City, passengerMod
 		return err
 	}
 
-	passengersToSpawn, err := buildPassengersToSpawn(c, records)
+	passengers, err := buildPassengersFromRecords(c, records)
 	if err != nil {
 		return err
 	}
 
 	ps.mu.Lock()
 	defer ps.mu.Unlock()
-	ps.passengersToSpawn = passengersToSpawn
+
+	ps.passengers = passengers
+	ps.passengersToSpawn = make(map[uint][]passengerSpawn)
+
+	for _, passenger := range passengers {
+		ps.passengersToSpawn[passenger.spawnTime] = append(ps.passengersToSpawn[passenger.spawnTime], passengerSpawn{
+			passenger: passenger,
+			stopID:    passenger.TravelPlan.GetStartStopID(),
+		})
+	}
 
 	return nil
 }
@@ -131,9 +140,9 @@ func readPassengerCSV(passengerModel []byte) ([][]string, error) {
 	return records, nil
 }
 
-func buildPassengersToSpawn(currentCity *city.City, records [][]string) (map[uint][]passengerSpawn, error) {
+func buildPassengersFromRecords(currentCity *city.City, records [][]string) ([]*Passenger, error) {
 	stopsByName := currentCity.GetStopsByName()
-	result := make(map[uint][]passengerSpawn)
+	result := make([]*Passenger, 0, len(records[1:]))
 
 	for i, row := range records[1:] {
 		lineNo := i + 2
@@ -189,10 +198,7 @@ func buildPassengersToSpawn(currentCity *city.City, records [][]string) (map[uin
 			TravelPlan: travelPlan,
 		}
 
-		result[spawnSeconds] = append(result[spawnSeconds], passengerSpawn{
-			passenger: passenger,
-			stopID:    travelPlan.GetStartStopID(),
-		})
+		result = append(result, passenger)
 	}
 
 	return result, nil
