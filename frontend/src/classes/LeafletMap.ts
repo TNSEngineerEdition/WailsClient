@@ -13,6 +13,7 @@ export class LeafletMap {
   public selectedRouteName?: string
   public highlightedRouteTrams?: TramMarker[]
   private routeHighlighter: RouteHighlighter
+  public stopMarkersById: Record<number, StopMarker> = {}
 
   constructor(private map: LMap) {
     this.routeHighlighter = new RouteHighlighter(map)
@@ -41,28 +42,32 @@ export class LeafletMap {
         ),
     )
 
-    const result: Record<number, StopMarker> = {}
-
-    for (const stop of await GetStops()) {
-      const marker = new StopMarker(stop.lat, stop.lon, stop.name, stop)
-      marker.addTo(leafletMap.map)
-      marker.on("click", () => {
-        if (leafletMap.selectedStop) {
-          leafletMap.selectedStop.setSelected(false)
-        }
-        leafletMap.selectedStop = marker
-        marker.setSelected(true)
-        handleStopSelection(stop)
-      })
-      result[stop.id] = marker
-    }
+    await leafletMap.makeStops(handleStopSelection)
 
     tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
       maxZoom: 19,
       attribution: `&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>`,
     }).addTo(leafletMap.map)
 
-    return { leafletMap, result }
+    return leafletMap
+  }
+
+  private async makeStops(
+    handleStopSelection: (stop: api.ResponseGraphTramStop) => void,
+  ) {
+    for (const stop of await GetStops()) {
+      const marker = new StopMarker(stop)
+      marker.addTo(this.map)
+      marker.on("click", () => {
+        if (this.selectedStop) {
+          this.selectedStop.setSelected(false)
+        }
+        this.selectedStop = marker
+        marker.setSelected(true)
+        handleStopSelection(stop)
+      })
+      this.stopMarkersById[stop.id] = marker
+    }
   }
 
   public highlightTramsForRoute(trams: TramMarker[]) {

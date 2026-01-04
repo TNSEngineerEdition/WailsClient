@@ -159,16 +159,12 @@ onMounted(async () => {
     throw new Error("Map element not found")
   }
 
-  const { leafletMap: map, result } = await LeafletMap.init(
-    mapHTMLElement.value,
-    stop => {
-      selectedStop.value = stop
-      stopSidebar.value = true
-    },
-  )
+  leafletMap.value = await LeafletMap.init(mapHTMLElement.value, stop => {
+    selectedStop.value = stop
+    stopSidebar.value = true
+  })
 
-  leafletMap.value = map
-  stopMarkerByID.value = result
+  stopMarkerByID.value = leafletMap.value.stopMarkersById
 
   await reset()
 

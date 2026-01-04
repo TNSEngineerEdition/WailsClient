@@ -5,13 +5,8 @@ export class StopMarker extends CircleMarker {
   private selected = false
   private stop?: api.ResponseGraphTramStop
 
-  constructor(
-    lat: number,
-    lon: number,
-    name?: string | null,
-    stop?: api.ResponseGraphTramStop,
-  ) {
-    super([lat, lon], {
+  constructor(stop: api.ResponseGraphTramStop) {
+    super([stop.lat, stop.lon], {
       radius: 5,
       fill: true,
       color: "darkblue",
@@ -20,7 +15,7 @@ export class StopMarker extends CircleMarker {
       opacity: 1,
       fillOpacity: 0.8,
     })
-    this.bindTooltip(name ?? "Unknown stop", {
+    this.bindTooltip(stop.name ?? "Unknown stop", {
       permanent: false,
       direction: "top",
     })

@@ -90,7 +90,7 @@ function onStopClick(_: MouseEvent, row: { item: any }) {
 }
 
 function onCenterTramClick() {
-  if (props.tramId) emit("centerTram")
+  emit("centerTram")
 }
 
 async function stopResumeTram() {
@@ -157,7 +157,7 @@ watch(
         icon="mdi-crosshairs-gps"
         variant="text"
         density="compact"
-        :disabled="!props.tramId"
+        :disabled="!props.tramId || isTramDisabled"
         @click="onCenterTramClick"
       />
     </template>
