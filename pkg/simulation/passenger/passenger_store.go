@@ -15,6 +15,10 @@ import (
 	"github.com/TNSEngineerEdition/WailsClient/pkg/travelplan"
 )
 
+const (
+	WAIT_DESPAWN_TIME = travelplan.MAX_WAITING_TIME + 5*60
+)
+
 type passengerSpawn struct {
 	passenger *Passenger
 	stopID    uint64
@@ -238,7 +242,7 @@ func (ps *PassengersStore) DespawnPassengersAtTime(time uint) {
 	ps.mu.Lock()
 	defer ps.mu.Unlock()
 
-	despawnTime := time - travelplan.MAX_WAITING_TIME
+	despawnTime := time - WAIT_DESPAWN_TIME
 	spawnList, ok := ps.passengersToSpawn[despawnTime]
 	if !ok {
 		return
