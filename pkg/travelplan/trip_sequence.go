@@ -55,7 +55,7 @@ func (t tripSequence) getStartStopID() uint64 {
 
 func (t tripSequence) addToTravelPlan(travelPlan *TravelPlan) {
 	for i, takenTrip := range t.trips {
-		if i > 0 && t.trips[i-1].endStopID != takenTrip.startStopID {
+		if i > 0 {
 			travelPlan.addTransfer(t.trips[i-1].endStopID, takenTrip.startStopID)
 		}
 

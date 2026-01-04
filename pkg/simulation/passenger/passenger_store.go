@@ -268,8 +268,13 @@ func (ps *PassengersStore) UnloadPassengers(passengers []*Passenger, stopID uint
 
 		// transfer
 		transferStopID := p.TravelPlan.GetConnectionTransferDestination(stopID)
-		transferTime := time + travelplan.TRANSFER_TIME
-		ps.passengersToSpawn[transferTime] = append(ps.passengersToSpawn[time], passengerSpawn{
+
+		transferTime := time
+		if transferStopID != stopID {
+			transferTime += travelplan.TRANSFER_TIME
+		}
+
+		ps.passengersToSpawn[transferTime] = append(ps.passengersToSpawn[transferTime], passengerSpawn{
 			passenger: p,
 			stopID:    transferStopID,
 		})
