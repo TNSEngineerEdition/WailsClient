@@ -1,6 +1,6 @@
 <script lang="ts" setup>
 import { nextTick, onMounted, ref, useTemplateRef, watch } from "vue"
-import { GetStops, GetTimeBounds } from "@wails/go/city/City"
+import { GetTimeBounds } from "@wails/go/city/City"
 import { city, api, tram } from "@wails/go/models"
 import {
   GetTramIDs,
@@ -9,7 +9,6 @@ import {
 } from "@wails/go/simulation/Simulation"
 import { LeafletMap } from "@classes/LeafletMap"
 import { TramMarker } from "@classes/TramMarker"
-import { StopMarker } from "@classes/StopMarker"
 import { Time } from "@classes/Time"
 import TramSidebarComponent from "@components/simulation/sidebar/TramSidebarComponent.vue"
 import StopSidebarComponent from "@components/simulation/sidebar/StopSidebarComponent.vue"
