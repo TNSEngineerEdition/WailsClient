@@ -29,7 +29,6 @@ const props = defineProps<{
 const endTime = ref(0)
 const leafletMap = ref<LeafletMap>()
 const tramMarkerByID = ref<Record<number, TramMarker>>({})
-const stopMarkerByID = ref<Record<number, StopMarker>>({})
 
 const tramSidebar = ref(false)
 const stopSidebar = ref(false)
@@ -108,10 +107,15 @@ function handleCenterStop() {
 function handleCenterTram() {
   if (selectedTramID.value && leafletMap.value) {
     const tramMarker = tramMarkerByID.value[selectedTramID.value]
+    const wasFollowing = followTram.value
+    handleFollowTram(false)
     leafletMap.value.centerOn(
       tramMarker.getLatLng().lat,
       tramMarker.getLatLng().lng,
     )
+    leafletMap.value?.getMap().once?.("moveend", () => {
+      handleFollowTram(wasFollowing)
+    })
   }
 }
 

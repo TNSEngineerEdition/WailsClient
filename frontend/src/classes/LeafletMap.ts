@@ -156,4 +156,8 @@ export class LeafletMap {
   public getStopMarker(stopId: number): StopMarker {
     return this.stopMarkersById[stopId]
   }
+
+  public getMap(): LMap {
+    return this.map
+  }
 }
