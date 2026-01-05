@@ -1,7 +1,6 @@
 package tram
 
 import (
-	"github.com/TNSEngineerEdition/WailsClient/pkg/consts"
 	"github.com/TNSEngineerEdition/WailsClient/pkg/simulation/passenger"
 )
 
@@ -14,18 +13,18 @@ func (t *Tram) loadPassengers(time uint) bool {
 	}
 
 	// return true if loading is finished
-	return len(boardedPassengers) < consts.MAX_PASSENGERS_CHANGE_RATE
+	return len(boardedPassengers) < passenger.MAX_PASSENGERS_CHANGE_RATE
 }
 
 func (t *Tram) unloadPassengers(time uint) bool {
 	stopID := t.TripDetails.Trip.Stops[t.TripDetails.Index].ID
-	disembarkingPassengers := make([]*passenger.Passenger, 0, consts.MAX_PASSENGERS_CHANGE_RATE)
+	disembarkingPassengers := make([]*passenger.Passenger, 0, passenger.MAX_PASSENGERS_CHANGE_RATE)
 
 	for _, p := range t.passengersInTram {
-		if p.TravelPlan.GetConnectionEnd(t.ID) == stopID {
+		if p.TravelPlan.GetConnectionDestination(t.ID) == stopID {
 			disembarkingPassengers = append(disembarkingPassengers, p)
 		}
-		if len(disembarkingPassengers) == consts.MAX_PASSENGERS_CHANGE_RATE {
+		if len(disembarkingPassengers) == passenger.MAX_PASSENGERS_CHANGE_RATE {
 			break
 		}
 	}
@@ -35,7 +34,7 @@ func (t *Tram) unloadPassengers(time uint) bool {
 	}
 
 	t.passengersStore.UnloadPassengers(disembarkingPassengers, stopID, time)
-	isUnloadingFinished := len(disembarkingPassengers) < consts.MAX_PASSENGERS_CHANGE_RATE
+	isUnloadingFinished := len(disembarkingPassengers) < passenger.MAX_PASSENGERS_CHANGE_RATE
 
 	return isUnloadingFinished
 }

@@ -123,6 +123,10 @@ func (c *City) GetStopsByID() map[uint64]*graph.GraphTramStop {
 	return c.stopsByID
 }
 
+func (c *City) GetStopByID(stopID uint64) *graph.GraphTramStop {
+	return c.stopsByID[stopID]
+}
+
 func (c *City) GetStops() []api.ResponseGraphTramStop {
 	result := make([]api.ResponseGraphTramStop, 0, len(c.stopsByID))
 
@@ -165,6 +169,10 @@ func (c *City) GetBounds() LatLonBounds {
 
 func (c *City) GetTripsByID() map[uint]*trip.TramTrip {
 	return c.tripsByID
+}
+
+func (c *City) GetTripByID(tripID uint) *trip.TramTrip {
+	return c.tripsByID[tripID]
 }
 
 type RouteInfo struct {
@@ -260,7 +268,7 @@ func (c *City) GetPlannedArrivals(stopID uint64) *[]PlannedArrival {
 
 func (c *City) GetPlannedArrivalsInTimeSpan(stopID uint64, fromTime uint, toTime uint) []PlannedArrival {
 	if fromTime > toTime {
-		panic("Incorrect time span - 'fromTime' cannot be later than 'toTime'")
+		return nil
 	}
 
 	plannedArrivals := c.GetPlannedArrivals(stopID)
