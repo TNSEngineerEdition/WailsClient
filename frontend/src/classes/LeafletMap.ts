@@ -13,7 +13,7 @@ export class LeafletMap {
   public selectedRouteName?: string
   public highlightedRouteTrams?: TramMarker[]
   private routeHighlighter: RouteHighlighter
-  public stopMarkersById: Record<number, StopMarker> = {}
+  private stopMarkersById: Record<number, StopMarker> = {}
 
   constructor(private map: LMap) {
     this.routeHighlighter = new RouteHighlighter(map)
@@ -151,5 +151,9 @@ export class LeafletMap {
       animate: true,
       duration: 0.25,
     })
+  }
+
+  public getStopMarker(stopId: number): StopMarker {
+    return this.stopMarkersById[stopId]
   }
 }

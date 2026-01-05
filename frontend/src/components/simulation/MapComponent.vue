@@ -92,9 +92,9 @@ function handleStopSelected(stopId: number) {
   if (leafletMap.value?.selectedStop) {
     leafletMap.value.selectedStop.setSelected(false)
   }
-  leafletMap.value!.selectedStop = stopMarkerByID.value[stopId]
+  leafletMap.value!.selectedStop = leafletMap.value!.getStopMarker(stopId)
   leafletMap.value!.selectedStop.setSelected(true)
-  selectedStop.value = stopMarkerByID.value[stopId].getStop()
+  selectedStop.value = leafletMap.value!.getStopMarker(stopId).getStop()
   stopSidebar.value = true
 }
 
@@ -163,8 +163,6 @@ onMounted(async () => {
     selectedStop.value = stop
     stopSidebar.value = true
   })
-
-  stopMarkerByID.value = leafletMap.value.stopMarkersById
 
   await reset()
 

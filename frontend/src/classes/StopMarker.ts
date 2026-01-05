@@ -3,9 +3,8 @@ import { CircleMarker } from "leaflet"
 
 export class StopMarker extends CircleMarker {
   private selected = false
-  private stop?: api.ResponseGraphTramStop
 
-  constructor(stop: api.ResponseGraphTramStop) {
+  constructor(private stop: api.ResponseGraphTramStop) {
     super([stop.lat, stop.lon], {
       radius: 5,
       fill: true,
