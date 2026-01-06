@@ -39,7 +39,7 @@ func GetTravelPlan(
 	case ASAP:
 		travelPlan, ok = GetFastestTravelPlan(currentCity, startStopIDs, endStops, spawnTime, 0)
 	case SURE:
-		travelPlan, ok = GetFastestTravelPlan(currentCity, startStopIDs, endStops, spawnTime, 5)
+		travelPlan, ok = GetFastestTravelPlan(currentCity, startStopIDs, endStops, spawnTime, 5*60) // 5 minutes
 	default:
 		panic(fmt.Sprintf("Unknown strategy: %s", strategy))
 	}
