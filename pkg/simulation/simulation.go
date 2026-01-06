@@ -94,13 +94,20 @@ func (s *Simulation) InitializeCity(parameters SimulationParameters) string {
 		return err.Error()
 	}
 
-	s.passengersStore = passenger.NewPassengersStore(s.city)
-
+	var passengerModelData []passenger.PassengerModelData
 	if len(parameters.PassengerModel) == 0 {
-		s.passengersStore.GenerateRandomPassengers(s.city)
-	} else if err1 := s.passengersStore.GeneratePassengersDueModel(s.city, parameters.PassengerModel); err1 != nil {
-		return err1.Error()
+		passengerModelData = passenger.GenerateRandomPassengers(s.city)
+	} else {
+		passengerModelData, err = passenger.GeneratePassengersFromModel(s.city, parameters.PassengerModel)
 	}
+
+	passengers := passenger.PassengersFromModelData(s.city, passengerModelData, 0)
+
+	if err != nil {
+		return err.Error()
+	}
+
+	s.passengersStore = passenger.NewPassengersStore(s.city, passengers)
 
 	return ""
 }
