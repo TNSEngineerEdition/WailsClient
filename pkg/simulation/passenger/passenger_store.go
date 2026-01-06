@@ -176,15 +176,6 @@ func buildPassengersFromRecords(currentCity *city.City, records [][]string) ([]*
 
 		strategy := travelplan.TravelPlanStrategy(strings.ToUpper(strategyStr))
 
-		// TODO: change when travel plans for strategies will be implemented
-		switch strategy {
-		case travelplan.RANDOM, travelplan.COMFORT:
-		case travelplan.ASAP, travelplan.SURE:
-			strategy = travelplan.RANDOM
-		default:
-			return nil, fmt.Errorf("line %d: unknown strategy %q", lineNo, strategyStr)
-		}
-
 		travelPlan, ok := travelplan.GetTravelPlan(currentCity, strategy, startStopIDs, endStopIDs, spawnSeconds)
 		if !ok {
 			log.Default().Printf("Travel plan couldn't be created for passenger %d", passengerID)

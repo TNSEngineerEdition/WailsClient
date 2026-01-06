@@ -8,8 +8,10 @@ import (
 
 const (
 	MAX_WAITING_TIME = 30 * 60     // 30 minutes
-	TRANSFER_TIME    = 2 * 60      // 2 min
-	MAX_TRAVEL_TIME  = 3 * 60 * 60 // 3 hours
+	MAX_TRAVEL_TIME  = 2 * 60 * 60 // 2 hours
+	MAX_TRIPS        = 4
+	MAX_PATHS        = 100
+	TRANSFER_TIME    = 2 * 60 // 2 min
 )
 
 type travelConnection struct {
