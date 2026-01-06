@@ -87,6 +87,8 @@ func PassengersFromModelData(
 		passengers = append(passengers, <-workerState.OutputChannel)
 	}
 
+	workerState.Stop()
+
 	return
 }
 
