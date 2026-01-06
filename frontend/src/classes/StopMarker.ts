@@ -1,10 +1,11 @@
+import { api } from "@wails/go/models"
 import { CircleMarker } from "leaflet"
 
 export class StopMarker extends CircleMarker {
   private selected = false
 
-  constructor(lat: number, lon: number, name?: string | null) {
-    super([lat, lon], {
+  constructor(private stop: api.ResponseGraphTramStop) {
+    super([stop.lat, stop.lon], {
       radius: 5,
       fill: true,
       color: "darkblue",
@@ -13,10 +14,11 @@ export class StopMarker extends CircleMarker {
       opacity: 1,
       fillOpacity: 0.8,
     })
-    this.bindTooltip(name ?? "Unknown stop", {
+    this.bindTooltip(stop.name ?? "Unknown stop", {
       permanent: false,
       direction: "top",
     })
+    this.stop = stop
   }
 
   public setSelected(selected: boolean) {
@@ -25,5 +27,9 @@ export class StopMarker extends CircleMarker {
       color: selected ? "darkcyan" : "darkblue",
       fillColor: selected ? "cyan" : "blue",
     })
+  }
+
+  public getStop(): api.ResponseGraphTramStop | undefined {
+    return this.stop
   }
 }

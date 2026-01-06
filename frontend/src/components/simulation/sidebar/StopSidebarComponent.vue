@@ -31,13 +31,20 @@ const props = defineProps<{
 const routes = ref<city.RouteInfo[]>([])
 const arrivalsInfo = ref<simulation.Arrival[]>([])
 const routeChipColumns = ref(5)
-const tab = ref<"arr" | "occ">("arr")
 const passengerCount = ref(0)
 
-const emit = defineEmits(["routeSelected"])
+const emit = defineEmits(["routeSelected", "arrivalSelected", "centerStop"])
 
 function onChipClick(route: city.RouteInfo) {
   emit("routeSelected", route)
+}
+
+function onArrivalClick(_: MouseEvent, row: { item: simulation.Arrival }) {
+  emit("arrivalSelected", row.item.id)
+}
+
+function onCenterClick() {
+  if (props.stop) emit("centerStop")
 }
 
 watch(
@@ -87,6 +94,15 @@ watch(
     :title="props.stop?.name ?? 'Unknown stop'"
     title-icon="mdi-tram-side"
   >
+    <template #title-actions>
+      <v-btn
+        icon="mdi-crosshairs-gps"
+        variant="text"
+        density="compact"
+        :disabled="!props.stop"
+        @click="onCenterClick"
+      />
+    </template>
     <div class="section">
       <div class="label">
         <v-icon icon="mdi-map-marker" class="mr-2"></v-icon>
@@ -146,42 +162,33 @@ watch(
         <span>{{ passengerCount }}</span>
       </div>
     </div>
+    <div class="section" style="margin-bottom: 0px">
+      <div class="label">
+        <v-icon icon="mdi-clock-time-four" class="mr-2"></v-icon>
+        Arrivals
+      </div>
+    </div>
+    <v-data-table
+      :headers="headers"
+      :header-props="{
+        style: 'font-weight: bold;',
+      }"
+      :items="arrivalsInfo"
+      :hover="arrivalsInfo.length > 0"
+      class="stops-table"
+      density="compact"
+      hide-default-footer
+      @click:row="onArrivalClick"
+    >
+      <template v-slot:item.time="{ item }">
+        <span v-if="item.time === 0" class="blinking"> &gt;&gt;&gt; </span>
 
-    <v-tabs v-model="tab" grow>
-      <v-tab value="arr">Arrivals</v-tab>
-      <v-tab value="occ">Occupancy graph</v-tab>
-    </v-tabs>
-
-    <v-card-text>
-      <v-tabs-window v-model="tab">
-        <v-tabs-window-item value="arr">
-          <v-data-table
-            v-if="arrivalsInfo.length && tab === 'arr'"
-            :headers="headers"
-            :header-props="{
-              style: 'font-weight: bold;',
-            }"
-            :items="arrivalsInfo"
-            class="stops-table"
-            density="compact"
-            hide-default-footer
-            hover
-          >
-            <template v-slot:item.time="{ item }">
-              <span v-if="item.time === 0" class="blinking">
-                &gt;&gt;&gt;
-              </span>
-
-              <span v-else>{{ item.time }} min</span>
-            </template>
-          </v-data-table>
-        </v-tabs-window-item>
-
-        <v-tabs-window-item value="occ">
-          Occupancy graph TODO
-        </v-tabs-window-item>
-      </v-tabs-window>
-    </v-card-text>
+        <span v-else>{{ item.time }} min</span>
+      </template>
+      <template v-slot:no-data>
+        <div class="no-arrivals">No upcoming arrivals</div>
+      </template>
+    </v-data-table>
   </SidebarComponent>
 </template>
 
@@ -230,5 +237,12 @@ watch(
 .stops-table {
   width: 100%;
   background-color: transparent;
+}
+
+.no-arrivals {
+  text-align: center;
+  font-size: 15px;
+  font-weight: 500;
+  color: #9e9e9e;
 }
 </style>

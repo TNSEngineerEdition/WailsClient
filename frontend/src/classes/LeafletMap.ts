@@ -9,9 +9,11 @@ export class LeafletMap {
   private entityCount = 0
   public selectedStop?: StopMarker
   public selectedTram?: TramMarker
+  private followTram = false
   public selectedRouteName?: string
   public highlightedRouteTrams?: TramMarker[]
   private routeHighlighter: RouteHighlighter
+  private stopMarkersById: Record<number, StopMarker> = {}
 
   constructor(private map: LMap) {
     this.routeHighlighter = new RouteHighlighter(map)
@@ -40,18 +42,7 @@ export class LeafletMap {
         ),
     )
 
-    for (const stop of await GetStops()) {
-      const marker = new StopMarker(stop.lat, stop.lon, stop.name)
-      marker.addTo(leafletMap.map)
-      marker.on("click", () => {
-        if (leafletMap.selectedStop) {
-          leafletMap.selectedStop.setSelected(false)
-        }
-        leafletMap.selectedStop = marker
-        marker.setSelected(true)
-        handleStopSelection(stop)
-      })
-    }
+    await leafletMap.makeStops(handleStopSelection)
 
     tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
       maxZoom: 19,
@@ -59,6 +50,24 @@ export class LeafletMap {
     }).addTo(leafletMap.map)
 
     return leafletMap
+  }
+
+  private async makeStops(
+    handleStopSelection: (stop: api.ResponseGraphTramStop) => void,
+  ) {
+    for (const stop of await GetStops()) {
+      const marker = new StopMarker(stop)
+      marker.addTo(this.map)
+      marker.on("click", () => {
+        if (this.selectedStop) {
+          this.selectedStop.setSelected(false)
+        }
+        this.selectedStop = marker
+        marker.setSelected(true)
+        handleStopSelection(stop)
+      })
+      this.stopMarkersById[stop.id] = marker
+    }
   }
 
   public highlightTramsForRoute(trams: TramMarker[]) {
@@ -125,5 +134,30 @@ export class LeafletMap {
 
   public getEntityCount() {
     return this.entityCount
+  }
+
+  public centerOn(lat: number, lon: number) {
+    const z = 17
+    this.map.flyTo([lat, lon], z, { animate: true, duration: 0.6 })
+  }
+
+  public setFollowTram(enabled: boolean) {
+    this.followTram = enabled
+  }
+
+  public followTick() {
+    if (!this.followTram || !this.selectedTram) return
+    this.map.panTo(this.selectedTram.getLatLng(), {
+      animate: true,
+      duration: 0.25,
+    })
+  }
+
+  public getStopMarker(stopId: number): StopMarker {
+    return this.stopMarkersById[stopId]
+  }
+
+  public getMap(): LMap {
+    return this.map
   }
 }

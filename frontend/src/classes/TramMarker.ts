@@ -97,6 +97,7 @@ export class TramMarker extends Marker {
       this.isOnMap = true
     }
     this.setHighlighted(this.route === this.leafletMap.selectedRouteName)
+    this.setSelected(this.leafletMap.selectedTram === this)
     this.setLatLng([lat, lon])
     this.setAzimuth(azimuth)
     if (isStopped !== undefined) {
