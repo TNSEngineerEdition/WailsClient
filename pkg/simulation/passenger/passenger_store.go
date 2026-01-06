@@ -1,14 +1,8 @@
 package passenger
 
 import (
-	"bytes"
-	"encoding/csv"
 	"fmt"
-	"log"
-	"math/rand/v2"
-	"strings"
 	"sync"
-	"time"
 
 	"github.com/TNSEngineerEdition/WailsClient/pkg/city"
 	"github.com/TNSEngineerEdition/WailsClient/pkg/city/graph"
@@ -25,19 +19,26 @@ type passengerSpawn struct {
 }
 
 type PassengersStore struct {
-	passengers        []*Passenger
+	passengers        []Passenger
 	passengerStops    map[uint64]*passengerStop
 	passengersToSpawn map[uint][]passengerSpawn
 	mu                sync.Mutex
 }
 
-func NewPassengersStore(c *city.City) *PassengersStore {
+func NewPassengersStore(c *city.City, passengers []Passenger) *PassengersStore {
 	stopsByID := c.GetStopsByID()
 
 	store := &PassengersStore{
-		passengers:        make([]*Passenger, 0),
+		passengers:        passengers,
 		passengerStops:    make(map[uint64]*passengerStop, len(stopsByID)),
 		passengersToSpawn: make(map[uint][]passengerSpawn),
+	}
+
+	for _, passenger := range passengers {
+		store.passengersToSpawn[passenger.spawnTime] = append(store.passengersToSpawn[passenger.spawnTime], passengerSpawn{
+			passenger: &passenger,
+			stopID:    passenger.TravelPlan.GetStartStopID(),
+		})
 	}
 
 	for id := range stopsByID {
@@ -52,147 +53,6 @@ func NewPassengersStore(c *city.City) *PassengersStore {
 
 func (ps *PassengersStore) GetPassengerCountAtStop(stopID uint64) uint {
 	return ps.passengerStops[stopID].GetPassengerCount()
-}
-
-func (ps *PassengersStore) GenerateRandomPassengers(currentCity *city.City) {
-	ps.passengersToSpawn = make(map[uint][]passengerSpawn)
-
-	timeBounds := currentCity.GetTimeBounds()
-	stopsByID := currentCity.GetStopsByID()
-
-	// Start ID assignment from 1
-	passengerID := uint64(1)
-
-	for startStopID := range stopsByID {
-		for range 500 {
-			timeAfterStart := rand.IntN(int(timeBounds.EndTime - timeBounds.StartTime + 1))
-			spawnTime := timeBounds.StartTime + uint(timeAfterStart)
-
-			travelPlan, ok := travelplan.GetTravelPlan(currentCity, travelplan.RANDOM, []uint64{startStopID}, nil, spawnTime)
-			if !ok {
-				log.Default().Printf("Travel plan couldn't be created for passenger %d", passengerID)
-				continue
-			}
-
-			passenger := &Passenger{
-				ID:         passengerID,
-				strategy:   travelplan.RANDOM,
-				spawnTime:  spawnTime,
-				TravelPlan: travelPlan,
-			}
-
-			ps.passengersToSpawn[spawnTime] = append(ps.passengersToSpawn[spawnTime], passengerSpawn{
-				passenger: passenger,
-				stopID:    travelPlan.GetStartStopID(),
-			})
-
-			ps.passengers = append(ps.passengers, passenger)
-			passengerID++
-		}
-	}
-}
-
-func (ps *PassengersStore) GeneratePassengersDueModel(c *city.City, passengerModel []byte) error {
-	records, err := readPassengerCSV(passengerModel)
-	if err != nil {
-		return err
-	}
-
-	passengers, err := buildPassengersFromRecords(c, records)
-	if err != nil {
-		return err
-	}
-
-	ps.mu.Lock()
-	defer ps.mu.Unlock()
-
-	ps.passengers = passengers
-	ps.passengersToSpawn = make(map[uint][]passengerSpawn)
-
-	for _, passenger := range passengers {
-		ps.passengersToSpawn[passenger.spawnTime] = append(ps.passengersToSpawn[passenger.spawnTime], passengerSpawn{
-			passenger: passenger,
-			stopID:    passenger.TravelPlan.GetStartStopID(),
-		})
-	}
-
-	return nil
-}
-
-func readPassengerCSV(passengerModel []byte) ([][]string, error) {
-	reader := csv.NewReader(bytes.NewReader(passengerModel))
-	reader.Comma = ','
-
-	records, err := reader.ReadAll()
-	if err != nil {
-		return nil, fmt.Errorf("error reading passenger model csv: %w", err)
-	}
-
-	if len(records) == 0 {
-		return nil, fmt.Errorf("passenger model csv is empty")
-	}
-
-	header := records[0]
-	if len(header) < 4 {
-		return nil, fmt.Errorf("invalid header, expected 4 columns, got %d", len(header))
-	}
-
-	return records, nil
-}
-
-func buildPassengersFromRecords(currentCity *city.City, records [][]string) ([]*Passenger, error) {
-	stopsByName := currentCity.GetStopsByName()
-	result := make([]*Passenger, 0, len(records[1:]))
-
-	for i, row := range records[1:] {
-		lineNo := i + 2
-		passengerID := uint64(i + 1)
-
-		if len(row) < 4 {
-			return nil, fmt.Errorf("line %d: expected 4 columns, got %d", lineNo, len(row))
-		}
-
-		startName := strings.TrimSpace(row[0])
-		endName := strings.TrimSpace(row[1])
-		spawnTimeStr := strings.TrimSpace(row[2])
-		strategyStr := strings.TrimSpace(row[3])
-
-		startStopIDs, err := getStopIDsFromGroupName(stopsByName, startName)
-		if err != nil {
-			return nil, fmt.Errorf("line %d: %w", lineNo, err)
-		}
-
-		endStopIDs, err := getStopIDsFromGroupName(stopsByName, endName)
-		if err != nil {
-			return nil, fmt.Errorf("line %d: %w", lineNo, err)
-		}
-
-		var spawnSeconds uint
-		if t, err := time.Parse("15:04:05", spawnTimeStr); err == nil {
-			spawnSeconds = uint(t.Hour()*3600 + t.Minute()*60 + t.Second())
-		} else {
-			return nil, fmt.Errorf("line %d: invalid spawn_time %q (expected HH:MM:SS)", lineNo, spawnTimeStr)
-		}
-
-		strategy := travelplan.TravelPlanStrategy(strings.ToUpper(strategyStr))
-
-		travelPlan, ok := travelplan.GetTravelPlan(currentCity, strategy, startStopIDs, endStopIDs, spawnSeconds)
-		if !ok {
-			log.Default().Printf("Travel plan couldn't be created for passenger %d", passengerID)
-			continue
-		}
-
-		passenger := &Passenger{
-			ID:         passengerID,
-			strategy:   strategy,
-			spawnTime:  spawnSeconds,
-			TravelPlan: travelPlan,
-		}
-
-		result = append(result, passenger)
-	}
-
-	return result, nil
 }
 
 func getStopIDsFromGroupName(stopsByName map[string]map[uint64]*graph.GraphTramStop, stopName string) ([]uint64, error) {
