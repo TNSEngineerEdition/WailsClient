@@ -49,12 +49,12 @@ func (t *Tram) onTripNotStarted(
 		break
 	}
 
-	lat, lon := stopsByID[t.TripDetails.Trip.Stops[0].ID].GetCoordinates()
+	t.lat, t.lon = stopsByID[t.TripDetails.Trip.Stops[0].ID].GetCoordinates()
 
 	result = TramPositionChange{
 		TramID:  t.ID,
-		Lat:     lat,
-		Lon:     lon,
+		Lat:     t.lat,
+		Lon:     t.lon,
 		Azimuth: t.azimuth,
 		State:   t.state,
 	}
