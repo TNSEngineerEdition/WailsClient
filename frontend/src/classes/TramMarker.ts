@@ -1,7 +1,9 @@
 import { Marker, DivIcon } from "leaflet"
 import { LeafletMap } from "@classes/LeafletMap"
+import { MarkerColoringMode } from "@utils/types"
 
 export class TramMarker extends Marker {
+  static coloringMode: MarkerColoringMode = "Default"
   private isOnMap = false
 
   constructor(
@@ -34,6 +36,33 @@ export class TramMarker extends Marker {
     }
 
     circleArrow.style.transform = `rotate(${azimuth + 135}deg)`
+  }
+
+  private setDelayColor(delay: number) {
+    const circleElement =
+      this.getElement()?.querySelector<HTMLElement>(".tm-circle")
+    if (!circleElement) {
+      return
+    }
+
+    const circleArrowElement =
+      this.getElement()?.querySelector<HTMLElement>(".tm-circle-arrow")
+    if (!circleArrowElement) {
+      return
+    }
+
+    let bgColor = "rgb(11, 116, 202)"
+
+    if (delay > 60) {
+      // scale delay so 5 minute delay translates to 225
+      // red value: 255-225=30, very much dark red tram marker
+      const scaledDelay = delay * 0.75
+      const rValue = 255 - Math.min(scaledDelay, 225)
+      bgColor = `rgb(${rValue}, 7, 7)`
+    }
+
+    circleElement.style.backgroundColor = bgColor
+    circleArrowElement.style.backgroundColor = bgColor
   }
 
   public getRoute(): string {
@@ -86,11 +115,29 @@ export class TramMarker extends Marker {
     }
   }
 
+  public removeCustomColoring() {
+    const circleElement =
+      this.getElement()?.querySelector<HTMLElement>(".tm-circle")
+    if (!circleElement) {
+      return
+    }
+
+    const circleArrowElement =
+      this.getElement()?.querySelector<HTMLElement>(".tm-circle-arrow")
+    if (!circleArrowElement) {
+      return
+    }
+
+    circleElement.style.backgroundColor = ""
+    circleArrowElement.style.backgroundColor = ""
+  }
+
   public updateCoordinates(
     lat: number,
     lon: number,
     azimuth: number,
     isStopped?: boolean,
+    delay?: number,
   ) {
     if (!this.isOnMap) {
       this.leafletMap.addTram(this)
@@ -100,8 +147,13 @@ export class TramMarker extends Marker {
     this.setSelected(this.leafletMap.selectedTram === this)
     this.setLatLng([lat, lon])
     this.setAzimuth(azimuth)
+
     if (isStopped !== undefined) {
       this.setStopped(isStopped)
+    }
+
+    if (TramMarker.coloringMode == "Delays" && delay !== undefined) {
+      this.setDelayColor(delay)
     }
   }
 

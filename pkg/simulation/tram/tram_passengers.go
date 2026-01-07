@@ -4,6 +4,10 @@ import (
 	"github.com/TNSEngineerEdition/WailsClient/pkg/simulation/passenger"
 )
 
+func (t *Tram) GetPassengerCount() uint {
+	return uint(len(t.passengersInTram))
+}
+
 func (t *Tram) loadPassengers(time uint) bool {
 	stopID := t.TripDetails.Trip.Stops[t.TripDetails.Index].ID
 	boardedPassengers := t.passengersStore.LoadPassengers(stopID, t.ID, time)

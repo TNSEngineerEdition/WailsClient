@@ -13,6 +13,7 @@ import { Time } from "@classes/Time"
 import TramSidebarComponent from "@components/simulation/sidebar/TramSidebarComponent.vue"
 import StopSidebarComponent from "@components/simulation/sidebar/StopSidebarComponent.vue"
 import RouteSidebarComponent from "@components/simulation/sidebar/RouteSidebarComponent.vue"
+import { MarkerColoringMode } from "@utils/types"
 
 const mapHTMLElement = useTemplateRef("map")
 
@@ -23,6 +24,7 @@ const isRunning = defineModel<boolean>("is-running", { required: true })
 const props = defineProps<{
   speed: number
   resetCounter: number
+  markerColoringMode: MarkerColoringMode
 }>()
 
 const endTime = ref(0)
@@ -157,6 +159,16 @@ watch(selectedRoute, route => {
   }
 })
 
+watch(
+  () => props.markerColoringMode,
+  mode => {
+    Object.values(tramMarkerByID.value).forEach(tramMarker =>
+      tramMarker.removeCustomColoring(),
+    )
+    TramMarker.coloringMode = mode
+  },
+)
+
 onMounted(async () => {
   if (mapHTMLElement.value === null) {
     throw new Error("Map element not found")
@@ -196,6 +208,7 @@ onMounted(async () => {
           tramPositionChange.lon,
           tramPositionChange.azimuth,
           isStopped,
+          tramPositionChange.delay,
         )
       }
       leafletMap.value?.followTick()
@@ -315,14 +328,14 @@ onMounted(async () => {
   z-index: 3;
 }
 
-.tram-marker.highlighted .tm-circle-arrow,
-.tram-marker.highlighted .tm-circle {
-  background-color: orange;
-}
-
 .tram-marker.selected .tm-circle-arrow,
 .tram-marker.selected .tm-circle {
   background-color: #67ad2f;
+}
+
+.tram-marker.highlighted .tm-circle-arrow,
+.tram-marker.highlighted .tm-circle {
+  background-color: orange !important;
 }
 
 @keyframes pulse-red {
@@ -339,7 +352,7 @@ onMounted(async () => {
 
 .tram-marker.stopped .tm-circle-arrow,
 .tram-marker.stopped .tm-circle {
-  background-color: red;
+  background-color: red !important;
   animation: pulse-red 1.5s infinite;
 }
 

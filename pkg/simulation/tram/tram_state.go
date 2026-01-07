@@ -72,6 +72,7 @@ func (t *Tram) onPassengersLoading(time uint) {
 	}
 
 	t.TripDetails.saveDeparture(time)
+	t.TripDetails.Index += 1
 	t.pathIndex = 0
 	t.state = StateTravelling
 }

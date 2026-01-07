@@ -24,5 +24,21 @@ func (t *tripDetails) saveArrival(time uint) {
 
 func (t *tripDetails) saveDeparture(time uint) {
 	t.Departures[t.Index] = time
-	t.Index += 1
+}
+
+func (t *tripDetails) getDelay(time uint) uint {
+	if t.Index == 0 {
+		if time < t.Trip.Stops[0].Time {
+			return 0
+		}
+		return time - t.Trip.Stops[0].Time
+	}
+
+	departureDelay := t.Departures[t.Index-1] - t.Trip.Stops[t.Index-1].Time
+	if time < t.Trip.Stops[t.Index].Time {
+		return departureDelay
+	}
+	nextStopDelay := time - t.Trip.Stops[t.Index].Time
+
+	return max(departureDelay, nextStopDelay)
 }

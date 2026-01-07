@@ -53,6 +53,15 @@ func NewTram(
 	}
 }
 
+type TramPositionChange struct {
+	TramID  uint      `json:"id"`
+	Lat     float32   `json:"lat"`
+	Lon     float32   `json:"lon"`
+	Azimuth float32   `json:"azimuth"`
+	State   TramState `json:"state"`
+	Delay   uint      `json:"delay"`
+}
+
 func (t *Tram) Advance(time uint, stopsByID map[uint64]*graph.GraphTramStop) (result TramPositionChange, update bool) {
 	switch t.state {
 	case StateTripNotStarted:
@@ -66,6 +75,8 @@ func (t *Tram) Advance(time uint, stopsByID map[uint64]*graph.GraphTramStop) (re
 	case StateTripFinished:
 		result, update = t.onTripFinished()
 	}
+
+	result.Delay = t.TripDetails.getDelay(time)
 	return
 }
 
@@ -221,14 +232,6 @@ func (t *Tram) GetEstimatedArrival(stopIndex int, time uint) uint {
 	return t.TripDetails.Trip.Stops[stopIndex].Time + estimatedPositiveDelay
 }
 
-type TramPositionChange struct {
-	TramID  uint      `json:"id"`
-	Lat     float32   `json:"lat"`
-	Lon     float32   `json:"lon"`
-	Azimuth float32   `json:"azimuth"`
-	State   TramState `json:"state"`
-}
-
 // Guarantees smooth arrival and deceleration to another tram, stop or a section
 // with a lower speed limit by solving a quadratic equation whose result is the new speed.
 // Returns new speed.
@@ -378,10 +381,6 @@ type TramDetails struct {
 	Speed           uint8                      `json:"speed"`
 	State           TramState                  `json:"state"`
 	PassengersCount uint                       `json:"passengers_count"`
-}
-
-func (t *Tram) GetPassengerCount() uint {
-	return uint(len(t.passengersInTram))
 }
 
 func (t *Tram) GetDetails(c *city.City, time uint) TramDetails {
