@@ -176,32 +176,6 @@ watch(
       </div>
       <div class="value">{{ tramDetails?.speed }} km/h</div>
     </div>
-    <div class="section">
-      <div class="label">
-        <v-icon icon="mdi-radar" class="mr-2"></v-icon>
-        Follow tram
-      </div>
-
-      <div class="value">
-        <v-btn
-          icon
-          variant="text"
-          size="x-small"
-          class="mini-checkbox"
-          :disabled="isTramDisabled"
-          :color="!isTramDisabled && followTram ? 'primary' : undefined"
-          @click="() => !isTramDisabled && emit('followTram', !followTram)"
-        >
-          <v-icon size="16">
-            {{
-              !isTramDisabled && followTram
-                ? "mdi-checkbox-marked"
-                : "mdi-checkbox-blank-outline"
-            }}
-          </v-icon>
-        </v-btn>
-      </div>
-    </div>
 
     <div class="section">
       <div class="label">
@@ -222,6 +196,26 @@ watch(
         @click="stopResumeTram"
       ></TramControlButtonComponent>
     </div>
+
+    <div class="section">
+      <div class="label">
+        <v-icon icon="mdi-radar" class="mr-2" />
+        Follow tram
+      </div>
+
+      <div class="value">
+        <v-switch
+          :model-value="followTram"
+          :disabled="isTramDisabled"
+          color="#2896F1"
+          density="compact"
+          hide-details
+          class="follow-switch"
+          @update:model-value="val => emit('followTram', val)"
+        />
+      </div>
+    </div>
+
     <div class="section" style="margin-bottom: 0px">
       <div class="label">
         <v-icon icon="mdi-map-marker-path" class="mr-2"></v-icon>
@@ -270,6 +264,10 @@ watch(
 </template>
 
 <style scoped lang="scss">
+.follow-switch {
+  max-height: 28px;
+}
+
 .scrollable {
   overflow-y: auto;
   max-height: 40vh;
