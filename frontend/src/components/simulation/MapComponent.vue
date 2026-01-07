@@ -352,7 +352,7 @@ onMounted(async () => {
 
 .tram-marker.stopped .tm-circle-arrow,
 .tram-marker.stopped .tm-circle {
-  background-color: red;
+  background-color: red !important;
   animation: pulse-red 1.5s infinite;
 }
 
