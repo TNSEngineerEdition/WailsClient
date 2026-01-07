@@ -187,18 +187,6 @@ watch(
 
     <div class="section">
       <div class="label">
-        <v-icon icon="mdi mdi-wrench-cog" class="mr-2"></v-icon>
-        Simulate failure
-      </div>
-      <TramControlButtonComponent
-        :running="isTramRunning"
-        :disabled="isTramDisabled"
-        @click="stopResumeTram"
-      ></TramControlButtonComponent>
-    </div>
-
-    <div class="section">
-      <div class="label">
         <v-icon icon="mdi-radar" class="mr-2" />
         Follow tram
       </div>
@@ -214,6 +202,18 @@ watch(
           @update:model-value="val => emit('followTram', val)"
         />
       </div>
+    </div>
+
+    <div class="section">
+      <div class="label">
+        <v-icon icon="mdi mdi-wrench-cog" class="mr-2"></v-icon>
+        Simulate failure
+      </div>
+      <TramControlButtonComponent
+        :running="isTramRunning"
+        :disabled="isTramDisabled"
+        @click="stopResumeTram"
+      ></TramControlButtonComponent>
     </div>
 
     <div class="section" style="margin-bottom: 0px">
