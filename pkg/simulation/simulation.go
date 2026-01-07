@@ -15,19 +15,20 @@ import (
 	"github.com/TNSEngineerEdition/WailsClient/pkg/controlcenter"
 	"github.com/TNSEngineerEdition/WailsClient/pkg/simulation/passenger"
 	"github.com/TNSEngineerEdition/WailsClient/pkg/simulation/tram"
+	"github.com/TNSEngineerEdition/WailsClient/pkg/structs"
 	"github.com/oapi-codegen/runtime/types"
 	wails_runtime "github.com/wailsapp/wails/v2/pkg/runtime"
 )
 
 type Simulation struct {
-	apiClient       *api.APIClient
-	city            *city.City
-	ctx             context.Context
-	trams           map[uint]*tram.Tram
-	tramWorkersData *workerData[*tram.Tram, tram.TramPositionChange]
-	controlCenter   controlcenter.ControlCenter
-	time            uint
-	passengersStore *passenger.PassengersStore
+	apiClient        *api.APIClient
+	city             *city.City
+	ctx              context.Context
+	trams            map[uint]*tram.Tram
+	tramWorkersState *structs.WorkerState[*tram.Tram, tram.TramPositionChange]
+	controlCenter    controlcenter.ControlCenter
+	time             uint
+	passengersStore  *passenger.PassengersStore
 }
 
 func NewSimulation(apiClient *api.APIClient, city *city.City) Simulation {
@@ -41,14 +42,14 @@ func (s *Simulation) SetContext(ctx context.Context) {
 	s.ctx = ctx
 }
 
-func (s *Simulation) tramWorker(data *workerData[*tram.Tram, tram.TramPositionChange]) {
-	for tram := range data.inputChannel {
+func (s *Simulation) tramWorker(state *structs.WorkerState[*tram.Tram, tram.TramPositionChange]) {
+	for tram := range state.InputChannel {
 		positionChange, update := tram.Advance(s.time, s.city.GetStopsByID())
 		if update {
-			data.outputChannel <- positionChange
+			state.OutputChannel <- positionChange
 		}
 
-		data.wg.Done()
+		state.WaitGroup.Done()
 	}
 }
 
@@ -65,7 +66,7 @@ func (s *Simulation) resetTrams() {
 }
 
 func (s *Simulation) ResetSimulation() {
-	s.passengersStore = passenger.NewPassengersStore(s.city)
+	s.passengersStore.ResetPassengers()
 	s.resetTrams()
 	s.city.Reset()
 }
@@ -75,6 +76,7 @@ type SimulationParameters struct {
 	Weekday        *api.Weekday `json:"weekday,omitempty"`
 	Date           *types.Date  `json:"date,omitempty"`
 	CustomSchedule []byte       `json:"customSchedule,omitempty"`
+	PassengerModel []byte       `json:"passengerModel,omitempty"`
 }
 
 func (s *Simulation) InitializeCity(parameters SimulationParameters) string {
@@ -92,6 +94,21 @@ func (s *Simulation) InitializeCity(parameters SimulationParameters) string {
 		return err.Error()
 	}
 
+	var passengerModelData []passenger.PassengerModelData
+	if len(parameters.PassengerModel) == 0 {
+		passengerModelData = passenger.GenerateRandomPassengers(s.city)
+	} else {
+		passengerModelData, err = passenger.GeneratePassengersFromModel(s.city, parameters.PassengerModel)
+	}
+
+	passengers := passenger.PassengersFromModelData(s.city, passengerModelData, 0)
+
+	if err != nil {
+		return err.Error()
+	}
+
+	s.passengersStore = passenger.NewPassengersStore(s.city, passengers)
+
 	return ""
 }
 
@@ -103,11 +120,11 @@ func (s *Simulation) InitializeSimulation(tramWorkerCount uint) string {
 	s.controlCenter = controlcenter.NewControlCenter(s.city)
 	s.ResetSimulation()
 
-	if s.tramWorkersData != nil {
-		s.tramWorkersData.stop()
+	if s.tramWorkersState != nil {
+		s.tramWorkersState.Stop()
 	}
 
-	s.tramWorkersData = newWorkerData[*tram.Tram, tram.TramPositionChange](len(s.trams))
+	s.tramWorkersState = structs.NewWorkerState[*tram.Tram, tram.TramPositionChange](len(s.trams))
 
 	if tramWorkerCount == 0 {
 		// CPU count * 110% for more efficiency
@@ -115,7 +132,7 @@ func (s *Simulation) InitializeSimulation(tramWorkerCount uint) string {
 	}
 
 	for range tramWorkerCount {
-		go s.tramWorker(s.tramWorkersData)
+		go s.tramWorker(s.tramWorkersState)
 	}
 
 	return ""
@@ -143,16 +160,16 @@ func (s *Simulation) AdvanceTrams(time uint) (result []tram.TramPositionChange) 
 	s.passengersStore.DespawnPassengersAtTime(time)
 	s.passengersStore.SpawnPassengersAtTime(time)
 
-	s.tramWorkersData.wg.Add(len(s.trams))
+	s.tramWorkersState.WaitGroup.Add(len(s.trams))
 	for _, tram := range s.trams {
-		s.tramWorkersData.inputChannel <- tram
+		s.tramWorkersState.InputChannel <- tram
 	}
 
-	s.tramWorkersData.wg.Wait()
+	s.tramWorkersState.WaitGroup.Wait()
 
 	result = make([]tram.TramPositionChange, 0)
-	for range len(s.tramWorkersData.outputChannel) {
-		result = append(result, <-s.tramWorkersData.outputChannel)
+	for range len(s.tramWorkersState.OutputChannel) {
+		result = append(result, <-s.tramWorkersState.OutputChannel)
 	}
 
 	return result
@@ -185,6 +202,7 @@ type Arrival struct {
 	Route        string `json:"route"`
 	TripHeadSign string `json:"tripHeadSign"`
 	Minutes      uint   `json:"time"`
+	TramID       uint   `json:"id"`
 }
 
 func (s *Simulation) GetArrivalsForStop(stopID uint64, count int) []Arrival {
@@ -224,6 +242,7 @@ func (s *Simulation) GetArrivalsForStop(stopID uint64, count int) []Arrival {
 			Route:        tram.Route.Name,
 			TripHeadSign: tram.TripDetails.Trip.TripHeadSign,
 			Minutes:      uint(math.Ceil(float64(expectedTime) / 60)),
+			TramID:       tram.ID,
 		})
 	}
 

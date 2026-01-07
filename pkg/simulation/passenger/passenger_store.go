@@ -1,12 +1,16 @@
 package passenger
 
 import (
-	"math/rand/v2"
+	"fmt"
 	"sync"
 
 	"github.com/TNSEngineerEdition/WailsClient/pkg/city"
-	"github.com/TNSEngineerEdition/WailsClient/pkg/consts"
-	"github.com/TNSEngineerEdition/WailsClient/pkg/simulation/passenger/travelplan"
+	"github.com/TNSEngineerEdition/WailsClient/pkg/city/graph"
+	"github.com/TNSEngineerEdition/WailsClient/pkg/travelplan"
+)
+
+const (
+	WAIT_DESPAWN_TIME = travelplan.MAX_WAITING_TIME + 5*60
 )
 
 type passengerSpawn struct {
@@ -15,19 +19,26 @@ type passengerSpawn struct {
 }
 
 type PassengersStore struct {
-	passengers        []*Passenger
+	passengers        []Passenger
 	passengerStops    map[uint64]*passengerStop
 	passengersToSpawn map[uint][]passengerSpawn
 	mu                sync.Mutex
 }
 
-func NewPassengersStore(c *city.City) *PassengersStore {
+func NewPassengersStore(c *city.City, passengers []Passenger) *PassengersStore {
 	stopsByID := c.GetStopsByID()
 
 	store := &PassengersStore{
-		passengers:        make([]*Passenger, 0, len(c.GetNodesByID())*50),
+		passengers:        passengers,
 		passengerStops:    make(map[uint64]*passengerStop, len(stopsByID)),
 		passengersToSpawn: make(map[uint][]passengerSpawn),
+	}
+
+	for _, passenger := range passengers {
+		store.passengersToSpawn[passenger.spawnTime] = append(store.passengersToSpawn[passenger.spawnTime], passengerSpawn{
+			passenger: &passenger,
+			stopID:    passenger.TravelPlan.GetStartStopID(),
+		})
 	}
 
 	for id := range stopsByID {
@@ -37,8 +48,6 @@ func NewPassengersStore(c *city.City) *PassengersStore {
 		}
 	}
 
-	store.generatePassengers(c)
-
 	return store
 }
 
@@ -46,42 +55,32 @@ func (ps *PassengersStore) GetPassengerCountAtStop(stopID uint64) uint {
 	return ps.passengerStops[stopID].GetPassengerCount()
 }
 
-func (ps *PassengersStore) generatePassengers(c *city.City) {
-	timeBounds := c.GetTimeBounds()
-	stopsByID := c.GetStopsByID()
+func getStopIDsFromGroupName(stopsByName map[string]map[uint64]*graph.GraphTramStop, stopName string) ([]uint64, error) {
+	if stopName == "" {
+		return nil, fmt.Errorf("empty stop group name")
+	}
 
-	var counter uint64
+	group, ok := stopsByName[stopName]
+	if !ok || len(group) == 0 {
+		return nil, fmt.Errorf("stop group %q not found", stopName)
+	}
 
-	for startStopID := range stopsByID {
-		for range 50 {
-			// TODO: time's upper bound is set to 18360 (6:00:00) for presentation purposes
-			//spawnTime := timeBounds.StartTime + uint(rand.IntN(int(timeBounds.EndTime-timeBounds.StartTime+1)))
-			spawnTime := timeBounds.StartTime + uint(rand.IntN(int(18360-timeBounds.StartTime+1)))
-			strategy := travelplan.RANDOM
+	ids := make([]uint64, 0, len(group))
+	for id := range group {
+		ids = append(ids, id)
+	}
 
-			tp, endStopID := travelplan.GetTravelPlan(strategy, startStopID, spawnTime, c)
+	return ids, nil
+}
 
-			if startStopID == endStopID {
-				continue // no trips found
-			}
+func (ps *PassengersStore) ResetPassengers() {
+	ps.mu.Lock()
+	defer ps.mu.Unlock()
 
-			passenger := &Passenger{
-				ID:          counter,
-				strategy:    strategy,
-				spawnTime:   spawnTime,
-				startStopID: startStopID,
-				endStopID:   endStopID,
-				TravelPlan:  tp,
-			}
-
-			ps.passengersToSpawn[spawnTime] = append(ps.passengersToSpawn[spawnTime], passengerSpawn{
-				passenger: passenger,
-				stopID:    passenger.startStopID,
-			})
-
-			ps.passengers = append(ps.passengers, passenger)
-			counter++
-		}
+	for _, stop := range ps.passengerStops {
+		stop.mu.Lock()
+		stop.passengers = make(map[uint64]*Passenger)
+		stop.mu.Unlock()
 	}
 }
 
@@ -100,7 +99,7 @@ func (ps *PassengersStore) DespawnPassengersAtTime(time uint) {
 	ps.mu.Lock()
 	defer ps.mu.Unlock()
 
-	despawnTime := time - consts.MAX_WAITING_TIME - consts.DESPAWN_TIME_OFFSET
+	despawnTime := time - WAIT_DESPAWN_TIME
 	spawnList, ok := ps.passengersToSpawn[despawnTime]
 	if !ok {
 		return
@@ -129,9 +128,14 @@ func (ps *PassengersStore) UnloadPassengers(passengers []*Passenger, stopID uint
 		}
 
 		// transfer
-		transferStopID := p.TravelPlan.GetTransferStop(stopID)
-		transferTime := time + consts.TRANSFER_TIME
-		ps.passengersToSpawn[transferTime] = append(ps.passengersToSpawn[time], passengerSpawn{
+		transferStopID := p.TravelPlan.GetConnectionTransferDestination(stopID)
+
+		transferTime := time
+		if transferStopID != stopID {
+			transferTime += travelplan.TRANSFER_TIME
+		}
+
+		ps.passengersToSpawn[transferTime] = append(ps.passengersToSpawn[transferTime], passengerSpawn{
 			passenger: p,
 			stopID:    transferStopID,
 		})

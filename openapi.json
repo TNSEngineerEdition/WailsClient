@@ -466,6 +466,11 @@
                         "type": "string",
                         "title": "Name"
                     },
+                    "stop_group_name": {
+                        "type": "string",
+                        "nullable": true,
+                        "title": "Stop Group Name"
+                    },
                     "gtfs_stop_ids": {
                         "items": {
                             "type": "string"

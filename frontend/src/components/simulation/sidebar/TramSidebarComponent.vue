@@ -13,10 +13,10 @@ const props = defineProps<{
   tramId?: number
   tramMarker?: TramMarker
   currentTime: number
+  followTram: boolean
 }>()
 
 const tramDetails = ref<tram.TramDetails>()
-const tab = ref<"stops" | "occ" | "delay">("stops")
 
 const headers = [
   { title: "Stop name", key: "stop", align: "center", sortable: false },
@@ -42,6 +42,7 @@ const stopsTableData = computed(
           index <= tripIndex - 1
             ? (tramDetails.value?.departures[index] ?? 0) - time
             : null,
+        id: tramDetails.value?.stops[index]?.id,
       }
     }) ?? [],
 )
@@ -59,6 +60,8 @@ const isTramDisabled = computed(() => {
     tramDetails.value?.state === tram.TramState.TRIP_NOT_STARTED
   )
 })
+
+const emit = defineEmits(["stopSelected", "centerTram", "followTram"])
 
 function getRowProps(data: any) {
   if (data.index === tramDetails.value?.trip_index)
@@ -80,6 +83,14 @@ function getDelayTextColorClass(delay: number) {
   } else {
     return ""
   }
+}
+
+function onStopClick(_: MouseEvent, row: { item: any }) {
+  emit("stopSelected", row.item.id)
+}
+
+function onCenterTramClick() {
+  emit("centerTram")
 }
 
 async function stopResumeTram() {
@@ -118,6 +129,16 @@ watch(
   },
   { immediate: true },
 )
+
+watch(
+  () => isTramDisabled.value,
+  disabled => {
+    if (disabled && props.followTram) {
+      emit("followTram", false)
+    }
+  },
+  { immediate: true },
+)
 </script>
 
 <template>
@@ -131,6 +152,15 @@ watch(
     "
     title-icon="mdi-tram"
   >
+    <template #title-actions>
+      <v-btn
+        icon="mdi-crosshairs-gps"
+        variant="text"
+        density="compact"
+        :disabled="!props.tramId || isTramDisabled"
+        @click="onCenterTramClick"
+      />
+    </template>
     <div class="section">
       <div class="label">
         <v-icon icon="mdi-identifier" class="mr-2"></v-icon>
@@ -145,6 +175,32 @@ watch(
         Speed
       </div>
       <div class="value">{{ tramDetails?.speed }} km/h</div>
+    </div>
+    <div class="section">
+      <div class="label">
+        <v-icon icon="mdi-radar" class="mr-2"></v-icon>
+        Follow tram
+      </div>
+
+      <div class="value">
+        <v-btn
+          icon
+          variant="text"
+          size="x-small"
+          class="mini-checkbox"
+          :disabled="isTramDisabled"
+          :color="!isTramDisabled && followTram ? 'primary' : undefined"
+          @click="() => !isTramDisabled && emit('followTram', !followTram)"
+        >
+          <v-icon size="16">
+            {{
+              !isTramDisabled && followTram
+                ? "mdi-checkbox-marked"
+                : "mdi-checkbox-blank-outline"
+            }}
+          </v-icon>
+        </v-btn>
+      </div>
     </div>
 
     <div class="section">
@@ -166,70 +222,57 @@ watch(
         @click="stopResumeTram"
       ></TramControlButtonComponent>
     </div>
-    <v-tabs v-model="tab" grow>
-      <v-tab value="stops">Stops table</v-tab>
-      <v-tab value="occ">Occupancy graph</v-tab>
-      <v-tab value="delay">Delay graph</v-tab>
-    </v-tabs>
+    <div class="section" style="margin-bottom: 0px">
+      <div class="label">
+        <v-icon icon="mdi-map-marker-path" class="mr-2"></v-icon>
+        Stops
+      </div>
+    </div>
+    <div class="scrollable">
+      <v-data-table-virtual
+        v-if="tramDetails?.stop_names.length"
+        :headers="headers"
+        :header-props="{
+          style: 'font-weight: bold;',
+        }"
+        :items="stopsTableData"
+        :row-props="getRowProps"
+        class="stops-table"
+        density="compact"
+        hide-default-footer
+        hover
+        @click:row="onStopClick"
+      >
+        <template v-slot:item.time="{ item }">
+          {{ new Time(item.time).toShortMinuteString() }}
+        </template>
 
-    <v-card-text>
-      <v-tabs-window v-model="tab">
-        <v-tabs-window-item value="stops">
-          <div class="scrollable">
-            <v-data-table-virtual
-              v-if="tramDetails?.stop_names.length"
-              :headers="headers"
-              :header-props="{
-                style: 'font-weight: bold;',
-              }"
-              :items="stopsTableData"
-              :row-props="getRowProps"
-              class="stops-table"
-              density="compact"
-              hide-default-footer
-              hover
-            >
-              <template v-slot:item.time="{ item }">
-                {{ new Time(item.time).toShortMinuteString() }}
-              </template>
+        <template v-slot:item.arrival="{ item }">
+          <span
+            v-if="item.arrival != null"
+            :class="getDelayTextColorClass(item.arrival)"
+          >
+            {{ new Time(item.arrival, true).toShortSecondString() }}
+          </span>
+        </template>
 
-              <template v-slot:item.arrival="{ item }">
-                <span
-                  v-if="item.arrival != null"
-                  :class="getDelayTextColorClass(item.arrival)"
-                >
-                  {{ new Time(item.arrival, true).toShortSecondString() }}
-                </span>
-              </template>
-
-              <template v-slot:item.departure="{ item }">
-                <span
-                  v-if="item.departure != null"
-                  :class="getDelayTextColorClass(item.departure)"
-                >
-                  {{ new Time(item.departure, true).toShortSecondString() }}
-                </span>
-              </template>
-            </v-data-table-virtual>
-          </div>
-        </v-tabs-window-item>
-
-        <v-tabs-window-item value="occ">
-          Occupancy graph TODO
-        </v-tabs-window-item>
-
-        <v-tabs-window-item value="delay">
-          Delay graph TODO
-        </v-tabs-window-item>
-      </v-tabs-window>
-    </v-card-text>
+        <template v-slot:item.departure="{ item }">
+          <span
+            v-if="item.departure != null"
+            :class="getDelayTextColorClass(item.departure)"
+          >
+            {{ new Time(item.departure, true).toShortSecondString() }}
+          </span>
+        </template>
+      </v-data-table-virtual>
+    </div>
   </SidebarComponent>
 </template>
 
 <style scoped lang="scss">
 .scrollable {
   overflow-y: auto;
-  max-height: 60vh;
+  max-height: 40vh;
 }
 
 .scrollable::-webkit-scrollbar {

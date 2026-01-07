@@ -36,6 +36,7 @@ const stopSidebar = ref(false)
 const routeSidebar = ref(false)
 
 const selectedTramID = ref<number>()
+const followTram = ref(false)
 const selectedStop = ref<api.ResponseGraphTramStop>()
 const selectedRoute = ref<city.RouteInfo>()
 
@@ -78,6 +79,52 @@ function handleRouteSelected(route: city.RouteInfo) {
   leafletMap.value?.highlightRoute(route)
 }
 
+function handleArrivalSelected(tramId: number) {
+  if (leafletMap.value?.selectedTram)
+    leafletMap.value.selectedTram.setSelected(false)
+  leafletMap.value!.selectedTram = tramMarkerByID.value[tramId]
+  leafletMap.value!.selectedTram.setSelected(true)
+  selectedTramID.value = tramId
+  tramSidebar.value = true
+}
+
+function handleStopSelected(stopId: number) {
+  if (leafletMap.value?.selectedStop) {
+    leafletMap.value.selectedStop.setSelected(false)
+  }
+  leafletMap.value!.selectedStop = leafletMap.value!.getStopMarker(stopId)
+  leafletMap.value!.selectedStop.setSelected(true)
+  selectedStop.value = leafletMap.value!.getStopMarker(stopId).getStop()
+  stopSidebar.value = true
+}
+
+function handleCenterStop() {
+  if (selectedStop.value && leafletMap.value) {
+    handleFollowTram(false)
+    leafletMap.value.centerOn(selectedStop.value.lat, selectedStop.value.lon)
+  }
+}
+
+function handleCenterTram() {
+  if (selectedTramID.value && leafletMap.value) {
+    const tramMarker = tramMarkerByID.value[selectedTramID.value]
+    const wasFollowing = followTram.value
+    handleFollowTram(false)
+    leafletMap.value.centerOn(
+      tramMarker.getLatLng().lat,
+      tramMarker.getLatLng().lng,
+    )
+    leafletMap.value?.getMap().once?.("moveend", () => {
+      handleFollowTram(wasFollowing)
+    })
+  }
+}
+
+function handleFollowTram(value: boolean) {
+  followTram.value = value
+  leafletMap.value?.setFollowTram(value)
+}
+
 watch(() => props.resetCounter, reset)
 
 watch(stopSidebar, isOpen => {
@@ -91,6 +138,8 @@ watch(tramSidebar, isOpen => {
   if (!isOpen) {
     leafletMap.value?.deselectTram()
     selectedTramID.value = undefined
+    followTram.value = false
+    leafletMap.value?.setFollowTram(false)
   }
 })
 
@@ -162,6 +211,7 @@ onMounted(async () => {
           tramPositionChange.delay,
         )
       }
+      leafletMap.value?.followTick()
 
       time.value += 1
 
@@ -197,6 +247,10 @@ onMounted(async () => {
       :tram-id="selectedTramID"
       :tram-marker="selectedTramID ? tramMarkerByID[selectedTramID] : undefined"
       :current-time="time"
+      :follow-tram="followTram"
+      @stopSelected="handleStopSelected"
+      @centerTram="handleCenterTram"
+      @followTram="handleFollowTram"
     />
   </div>
   <div class="sidebar-stack right">
@@ -205,6 +259,8 @@ onMounted(async () => {
       :stop="selectedStop"
       :current-time="time"
       @routeSelected="handleRouteSelected"
+      @arrivalSelected="handleArrivalSelected"
+      @centerStop="handleCenterStop"
     />
     <RouteSidebarComponent
       v-model="routeSidebar"

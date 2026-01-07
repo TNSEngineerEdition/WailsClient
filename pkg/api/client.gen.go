@@ -108,13 +108,14 @@ type ResponseGraphNode struct {
 
 // ResponseGraphTramStop defines model for ResponseGraphTramStop.
 type ResponseGraphTramStop struct {
-	GTFSStopIDs []string                     `json:"gtfs_stop_ids"`
-	ID          uint64                       `json:"id"`
-	Lat         float32                      `json:"lat"`
-	Lon         float32                      `json:"lon"`
-	Name        string                       `json:"name"`
-	Neighbors   map[uint64]ResponseGraphEdge `json:"neighbors"`
-	NodeType    string                       `json:"node_type,omitempty"`
+	GTFSStopIDs   []string                     `json:"gtfs_stop_ids"`
+	ID            uint64                       `json:"id"`
+	Lat           float32                      `json:"lat"`
+	Lon           float32                      `json:"lon"`
+	Name          string                       `json:"name"`
+	Neighbors     map[uint64]ResponseGraphEdge `json:"neighbors"`
+	NodeType      string                       `json:"node_type,omitempty"`
+	StopGroupName *string                      `json:"stop_group_name"`
 }
 
 // ResponseTramRoute defines model for ResponseTramRoute.
