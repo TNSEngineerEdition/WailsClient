@@ -103,6 +103,18 @@ export class TramMarker extends Marker {
     }
   }
 
+  public setStopped(isStopped: boolean) {
+    const element =
+      this.getElement()?.querySelector<HTMLElement>(".tram-marker")
+    if (!element) return
+
+    if (isStopped) {
+      element.classList.add("stopped")
+    } else {
+      element.classList.remove("stopped")
+    }
+  }
+
   public removeCustomColoring() {
     const circleElement =
       this.getElement()?.querySelector<HTMLElement>(".tm-circle")
@@ -118,18 +130,6 @@ export class TramMarker extends Marker {
 
     circleElement.style.backgroundColor = ""
     circleArrowElement.style.backgroundColor = ""
-  }
-
-  public setStopped(isStopped: boolean) {
-    const element =
-      this.getElement()?.querySelector<HTMLElement>(".tram-marker")
-    if (!element) return
-
-    if (isStopped) {
-      element.classList.add("stopped")
-    } else {
-      element.classList.remove("stopped")
-    }
   }
 
   public updateCoordinates(
