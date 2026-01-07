@@ -193,13 +193,11 @@ watch(
 
       <div class="value">
         <v-switch
-          :model-value="followTram"
           :disabled="isTramDisabled"
-          color="#2896F1"
+          color="info"
           density="compact"
           hide-details
-          class="follow-switch"
-          @update:model-value="val => emit('followTram', val)"
+          @update:model-value="value => emit('followTram', value)"
         />
       </div>
     </div>
@@ -264,10 +262,6 @@ watch(
 </template>
 
 <style scoped lang="scss">
-.follow-switch {
-  max-height: 28px;
-}
-
 .scrollable {
   overflow-y: auto;
   max-height: 40vh;
@@ -285,5 +279,11 @@ watch(
 .stops-table {
   width: 100%;
   background-color: transparent;
+}
+</style>
+
+<style lang="scss">
+.v-switch .v-selection-control {
+  min-height: unset !important;
 }
 </style>
