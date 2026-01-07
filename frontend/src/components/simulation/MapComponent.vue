@@ -163,7 +163,7 @@ watch(
   () => props.markerColoringMode,
   mode => {
     Object.values(tramMarkerByID.value).forEach(tramMarker =>
-      tramMarker.removeOptionalColoringClasses(),
+      tramMarker.removeCustomColoring(),
     )
     TramMarker.coloringMode = mode
   },
@@ -333,25 +333,9 @@ onMounted(async () => {
   background-color: #67ad2f;
 }
 
-// delays, keep them under "selected" class so the delay color is visible when tram is selected
-$delay-colors: (
-  0: #67ad2f,
-  1: #db5400,
-  2: #b80707,
-  3: #900000,
-  4: #4d0000,
-);
-
-@each $delay, $color in $delay-colors {
-  .tram-marker.delay-#{$delay} .tm-circle,
-  .tram-marker.delay-#{$delay} .tm-circle-arrow {
-    background-color: $color;
-  }
-}
-
 .tram-marker.highlighted .tm-circle-arrow,
 .tram-marker.highlighted .tm-circle {
-  background-color: orange;
+  background-color: orange !important;
 }
 
 @keyframes pulse-red {

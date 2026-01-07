@@ -33,14 +33,6 @@ const markerColoringCycle = useCycle<MarkerColoringMode>(
 
 const timer = useTimer()
 
-const markerColoringOptions: Array<{
-  label: string
-  value: MarkerColoringMode
-}> = [
-  { label: "Default", value: "Default" },
-  { label: "Delays", value: "Delays" },
-]
-
 function stop() {
   timer.stop()
   isRunning.value = false
@@ -112,19 +104,18 @@ watch(isRunning, () => {
             @click="speedsCycle.setNextValue"
           ></HeaderIconButtonComponent>
 
-          <HeaderIconButtonComponent
-            :disabled="loading"
-            :description="`Change tram markers coloring mode (${markerColoringMode})`"
-            :icon="getMarkerModeIcon()"
-            @click="markerColoringCycle.setNextValue"
-          >
-          </HeaderIconButtonComponent>
-
           <HeaderRestartConfirmationDialogComponent
             :disabled="loading"
             @click="stop"
             @reset="reset"
           ></HeaderRestartConfirmationDialogComponent>
+
+          <HeaderIconButtonComponent
+            :disabled="loading"
+            :description="`Change tram markers coloring mode (${markerColoringMode})`"
+            :icon="getMarkerModeIcon()"
+            @click="markerColoringCycle.setNextValue"
+          ></HeaderIconButtonComponent>
         </div>
       </v-col>
 
