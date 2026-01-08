@@ -8,9 +8,7 @@ export default function useTimer() {
   let interval: number | undefined = undefined
 
   function getTimeDelta() {
-    if (currentTimeStart === undefined) {
-      throw new Error("Time start is undefined")
-    }
+    if (currentTimeStart === undefined) return 0
 
     return (new Date().getTime() - currentTimeStart) / 1000
   }
