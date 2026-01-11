@@ -34,9 +34,9 @@ func NewPassengersStore(c *city.City, passengers []Passenger) *PassengersStore {
 		passengersToSpawn: make(map[uint][]passengerSpawn),
 	}
 
-	for _, passenger := range passengers {
+	for i, passenger := range store.passengers {
 		store.passengersToSpawn[passenger.spawnTime] = append(store.passengersToSpawn[passenger.spawnTime], passengerSpawn{
-			passenger: &passenger,
+			passenger: &store.passengers[i],
 			stopID:    passenger.TravelPlan.GetStartStopID(),
 		})
 	}
