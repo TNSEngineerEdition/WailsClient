@@ -2,21 +2,21 @@ package trip
 
 import "github.com/TNSEngineerEdition/WailsClient/pkg/api"
 
-type TramRoute struct {
+type Route struct {
 	Name            string
 	BackgroundColor string
 	TextColor       string
-	Trips           []TramTrip
+	Trips           []Trip
 	Variants        *map[string][]uint64
-	routeDetails    *api.ResponseTramRoute
+	routeDetails    *api.ResponseRoute
 }
 
-func NewTramRoute(tramRouteData *api.ResponseTramRoute, tripID *uint) TramRoute {
-	tramRoute := TramRoute{
+func NewRoute(tramRouteData *api.ResponseRoute, tripID *uint) Route {
+	tramRoute := Route{
 		Name:            tramRouteData.Name,
 		BackgroundColor: tramRouteData.BackgroundColor,
 		TextColor:       tramRouteData.TextColor,
-		Trips:           make([]TramTrip, 0),
+		Trips:           make([]Trip, 0),
 		Variants:        tramRouteData.Variants,
 		routeDetails:    tramRouteData,
 	}
@@ -26,9 +26,9 @@ func NewTramRoute(tramRouteData *api.ResponseTramRoute, tripID *uint) TramRoute 
 	return tramRoute
 }
 
-func (t *TramRoute) ResetTrips(tripID *uint) {
+func (t *Route) ResetTrips(tripID *uint) {
 	for _, item := range *t.routeDetails.Trips {
-		t.Trips = append(t.Trips, NewTramTrip(*tripID, &item))
+		t.Trips = append(t.Trips, NewTrip(*tripID, &item))
 		*tripID += 1
 	}
 }

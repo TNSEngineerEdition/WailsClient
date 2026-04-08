@@ -55,7 +55,7 @@ func NewControlCenter(city *city.City) ControlCenter {
 }
 
 func (c *ControlCenter) addPathsFromTrip(
-	trip *trip.TramTrip,
+	trip *trip.Trip,
 	nodesByID *map[uint64]graph.GraphNode,
 ) {
 	for i := 0; i < len(trip.Stops)-1; i++ {
@@ -70,7 +70,7 @@ func (c *ControlCenter) addPathsFromTrip(
 	}
 }
 
-func getGraphNodes(route *trip.TramRoute) map[uint64]*structs.Set[uint64] {
+func getGraphNodes(route *trip.Route) map[uint64]*structs.Set[uint64] {
 	nodes := make(map[uint64]*structs.Set[uint64])
 
 	for _, stopIDs := range *route.Variants {
@@ -83,7 +83,7 @@ func getGraphNodes(route *trip.TramRoute) map[uint64]*structs.Set[uint64] {
 	return nodes
 }
 
-func getSegmentPathsForRoute(route *trip.TramRoute) [][]uint64 {
+func getSegmentPathsForRoute(route *trip.Route) [][]uint64 {
 	inNodes, outNodes := getGraphNodes(route), getGraphNodes(route)
 
 	for _, stopIDs := range *route.Variants {
@@ -120,7 +120,7 @@ func getSegmentPathsForRoute(route *trip.TramRoute) [][]uint64 {
 	return segmentPaths
 }
 
-func (c *ControlCenter) setSegmentsByRouteName(route *trip.TramRoute) {
+func (c *ControlCenter) setSegmentsByRouteName(route *trip.Route) {
 	segmentPaths := getSegmentPathsForRoute(route)
 
 	for _, segment := range segmentPaths {

@@ -62,8 +62,8 @@ func (ftp *fastestTravelPlan) handlePQValue(value *fastestPQValue) bool {
 }
 
 func (ftp *fastestTravelPlan) getPQValueAndPriority(
-	tramTrip *trip.TramTrip,
-	stop *api.ResponseTramTripStop,
+	tramTrip *trip.Trip,
+	stop *api.ResponseTripStop,
 	takenTripsAfterStop *tripSequence,
 ) (fastestPQValue, uint) {
 	value := fastestPQValue{

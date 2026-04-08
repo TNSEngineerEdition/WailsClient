@@ -33,7 +33,7 @@ var TramStates = []struct {
 
 func (t *Tram) onTripNotStarted(
 	time uint,
-	stopsByID map[uint64]*graph.GraphTramStop,
+	stopsByID map[uint64]*graph.GraphStop,
 ) (result TramPositionChange, update bool) {
 	if time != t.departureTime {
 		return

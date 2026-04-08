@@ -17,6 +17,12 @@ import (
 	openapi_types "github.com/oapi-codegen/runtime/types"
 )
 
+// Defines values for TransitType.
+const (
+	Bus  TransitType = "bus"
+	Tram TransitType = "tram"
+)
+
 // Defines values for Weekday.
 const (
 	Friday    Weekday = "friday"
@@ -41,36 +47,35 @@ type CachedCityDates struct {
 
 // CityConfiguration defines model for CityConfiguration.
 type CityConfiguration struct {
-	City                                string                                                              `json:"city"`
-	Country                             string                                                              `json:"country"`
-	CustomStopMapping                   map[string]CityConfiguration_CustomStopMapping_AdditionalProperties `json:"custom_stop_mapping"`
-	CustomStopPairMapping               []CustomTramStopPairMapping                                         `json:"custom_stop_pair_mapping"`
-	CustomTramStopPairMaxDistanceChecks []TramStopPairCheck                                                 `json:"custom_tram_stop_pair_max_distance_checks"`
-	GtfsUrl                             string                                                              `json:"gtfs_url"`
-	IgnoredGtfsLines                    []string                                                            `json:"ignored_gtfs_lines"`
-	IgnoredOsmRelations                 []int                                                               `json:"ignored_osm_relations"`
-	Image                               string                                                              `json:"image"`
-	MaxDistanceRatio                    float32                                                             `json:"max_distance_ratio"`
-	OsmAreaName                         string                                                              `json:"osm_area_name"`
+	City                            string              `json:"city"`
+	Country                         string              `json:"country"`
+	CustomStopPairMaxDistanceChecks []StopPairCheck     `json:"custom_stop_pair_max_distance_checks"`
+	GtfsConfigurations              []GTFSConfiguration `json:"gtfs_configurations"`
+	IgnoredOsmRelations             []int               `json:"ignored_osm_relations"`
+	Image                           string              `json:"image"`
+	MaxDistanceRatio                float32             `json:"max_distance_ratio"`
+	OsmNetwork                      string              `json:"osm_network"`
+	OsmRelationsAreaName            string              `json:"osm_relations_area_name"`
+	OsmStopsAreaName                string              `json:"osm_stops_area_name"`
 }
 
-// CityConfigurationCustomStopMapping0 defines model for .
-type CityConfigurationCustomStopMapping0 = int
-
-// CityConfigurationCustomStopMapping1 defines model for .
-type CityConfigurationCustomStopMapping1 = []interface{}
-
-// CityConfiguration_CustomStopMapping_AdditionalProperties defines model for CityConfiguration.custom_stop_mapping.AdditionalProperties.
-type CityConfiguration_CustomStopMapping_AdditionalProperties struct {
-	union json.RawMessage
-}
-
-// CustomTramStopPairMapping defines model for CustomTramStopPairMapping.
-type CustomTramStopPairMapping struct {
+// CustomStopPairMapping defines model for CustomStopPairMapping.
+type CustomStopPairMapping struct {
 	DestinationGtfsStopId string `json:"destination_gtfs_stop_id"`
 	DestinationOsmNodeId  int    `json:"destination_osm_node_id"`
 	SourceGtfsStopId      string `json:"source_gtfs_stop_id"`
 	SourceOsmNodeId       int    `json:"source_osm_node_id"`
+}
+
+// GTFSConfiguration defines model for GTFSConfiguration.
+type GTFSConfiguration struct {
+	CustomStopMapping     *map[string]StopMapping  `json:"custom_stop_mapping,omitempty"`
+	CustomStopPairMapping *[]CustomStopPairMapping `json:"custom_stop_pair_mapping,omitempty"`
+	FileUrl               string                   `json:"file_url"`
+	IgnoredNodeConflicts  *[]string                `json:"ignored_node_conflicts,omitempty"`
+	IgnoredRouteNames     *[]string                `json:"ignored_route_names,omitempty"`
+	StopGroupNameRegex    string                   `json:"stop_group_name_regex"`
+	TransitType           TransitType              `json:"transit_type"`
 }
 
 // HTTPValidationError defines model for HTTPValidationError.
@@ -80,8 +85,16 @@ type HTTPValidationError struct {
 
 // ResponseCityData defines model for ResponseCityData.
 type ResponseCityData struct {
-	TramRoutes     []ResponseTramRoute                    `json:"tram_routes"`
+	BusRoadGraph   *[]ResponseCityData_BusRoadGraph_Item  `json:"bus_road_graph,omitempty"`
+	BusRoutes      *[]ResponseRoute                       `json:"bus_routes,omitempty"`
+	Paths          *map[string]map[string][]int           `json:"paths,omitempty"`
+	TramRoutes     []ResponseRoute                        `json:"tram_routes"`
 	TramTrackGraph []ResponseCityData_TramTrackGraph_Item `json:"tram_track_graph"`
+}
+
+// ResponseCityData_BusRoadGraph_Item defines model for ResponseCityData.bus_road_graph.Item.
+type ResponseCityData_BusRoadGraph_Item struct {
+	union json.RawMessage
 }
 
 // ResponseCityData_TramTrackGraph_Item defines model for ResponseCityData.tram_track_graph.Item.
@@ -106,9 +119,9 @@ type ResponseGraphNode struct {
 	NodeType  string                       `json:"node_type,omitempty"`
 }
 
-// ResponseGraphTramStop defines model for ResponseGraphTramStop.
-type ResponseGraphTramStop struct {
-	GTFSStopIDs   []string                     `json:"gtfs_stop_ids"`
+// ResponseGraphStop defines model for ResponseGraphStop.
+type ResponseGraphStop struct {
+	GTFSStopIDs   *[]string                    `json:"gtfs_stop_ids,omitempty"`
 	ID            uint64                       `json:"id"`
 	Lat           float32                      `json:"lat"`
 	Lon           float32                      `json:"lon"`
@@ -118,34 +131,48 @@ type ResponseGraphTramStop struct {
 	StopGroupName *string                      `json:"stop_group_name"`
 }
 
-// ResponseTramRoute defines model for ResponseTramRoute.
-type ResponseTramRoute struct {
+// ResponseRoute defines model for ResponseRoute.
+type ResponseRoute struct {
 	BackgroundColor string               `json:"background_color"`
 	Name            string               `json:"name"`
 	TextColor       string               `json:"text_color"`
-	Trips           *[]ResponseTramTrip  `json:"trips,omitempty"`
+	Trips           *[]ResponseTrip      `json:"trips,omitempty"`
 	Variants        *map[string][]uint64 `json:"variants,omitempty"`
 }
 
-// ResponseTramTrip defines model for ResponseTramTrip.
-type ResponseTramTrip struct {
-	Stops        []ResponseTramTripStop `json:"stops"`
-	TripHeadSign string                 `json:"trip_head_sign"`
-	Variant      *string                `json:"variant"`
+// ResponseTrip defines model for ResponseTrip.
+type ResponseTrip struct {
+	Stops        []ResponseTripStop `json:"stops"`
+	TripHeadSign string             `json:"trip_head_sign"`
+	Variant      *string            `json:"variant"`
 }
 
-// ResponseTramTripStop defines model for ResponseTramTripStop.
-type ResponseTramTripStop struct {
+// ResponseTripStop defines model for ResponseTripStop.
+type ResponseTripStop struct {
 	ID   uint64 `json:"id"`
 	Time uint   `json:"time"`
 }
 
-// TramStopPairCheck defines model for TramStopPairCheck.
-type TramStopPairCheck struct {
+// StopMapping defines model for StopMapping.
+type StopMapping struct {
+	union json.RawMessage
+}
+
+// StopMapping0 defines model for .
+type StopMapping0 = int
+
+// StopMapping1 defines model for .
+type StopMapping1 = []interface{}
+
+// StopPairCheck defines model for StopPairCheck.
+type StopPairCheck struct {
 	Destination int     `json:"destination"`
 	Ratio       float32 `json:"ratio"`
 	Source      int     `json:"source"`
 }
+
+// TransitType defines model for TransitType.
+type TransitType string
 
 // ValidationError defines model for ValidationError.
 type ValidationError struct {
@@ -182,22 +209,24 @@ type GetCityDataWithCustomScheduleCitiesCityIdPostParams struct {
 // GetCityDataWithCustomScheduleCitiesCityIdPostMultipartRequestBody defines body for GetCityDataWithCustomScheduleCitiesCityIdPost for multipart/form-data ContentType.
 type GetCityDataWithCustomScheduleCitiesCityIdPostMultipartRequestBody = BodyGetCityDataWithCustomScheduleCitiesCityIdPost
 
-// AsCityConfigurationCustomStopMapping0 returns the union data inside the CityConfiguration_CustomStopMapping_AdditionalProperties as a CityConfigurationCustomStopMapping0
-func (t CityConfiguration_CustomStopMapping_AdditionalProperties) AsCityConfigurationCustomStopMapping0() (CityConfigurationCustomStopMapping0, error) {
-	var body CityConfigurationCustomStopMapping0
+// AsResponseGraphNode returns the union data inside the ResponseCityData_BusRoadGraph_Item as a ResponseGraphNode
+func (t ResponseCityData_BusRoadGraph_Item) AsResponseGraphNode() (ResponseGraphNode, error) {
+	var body ResponseGraphNode
 	err := json.Unmarshal(t.union, &body)
 	return body, err
 }
 
-// FromCityConfigurationCustomStopMapping0 overwrites any union data inside the CityConfiguration_CustomStopMapping_AdditionalProperties as the provided CityConfigurationCustomStopMapping0
-func (t *CityConfiguration_CustomStopMapping_AdditionalProperties) FromCityConfigurationCustomStopMapping0(v CityConfigurationCustomStopMapping0) error {
+// FromResponseGraphNode overwrites any union data inside the ResponseCityData_BusRoadGraph_Item as the provided ResponseGraphNode
+func (t *ResponseCityData_BusRoadGraph_Item) FromResponseGraphNode(v ResponseGraphNode) error {
+	v.NodeType = "node"
 	b, err := json.Marshal(v)
 	t.union = b
 	return err
 }
 
-// MergeCityConfigurationCustomStopMapping0 performs a merge with any union data inside the CityConfiguration_CustomStopMapping_AdditionalProperties, using the provided CityConfigurationCustomStopMapping0
-func (t *CityConfiguration_CustomStopMapping_AdditionalProperties) MergeCityConfigurationCustomStopMapping0(v CityConfigurationCustomStopMapping0) error {
+// MergeResponseGraphNode performs a merge with any union data inside the ResponseCityData_BusRoadGraph_Item, using the provided ResponseGraphNode
+func (t *ResponseCityData_BusRoadGraph_Item) MergeResponseGraphNode(v ResponseGraphNode) error {
+	v.NodeType = "node"
 	b, err := json.Marshal(v)
 	if err != nil {
 		return err
@@ -208,22 +237,24 @@ func (t *CityConfiguration_CustomStopMapping_AdditionalProperties) MergeCityConf
 	return err
 }
 
-// AsCityConfigurationCustomStopMapping1 returns the union data inside the CityConfiguration_CustomStopMapping_AdditionalProperties as a CityConfigurationCustomStopMapping1
-func (t CityConfiguration_CustomStopMapping_AdditionalProperties) AsCityConfigurationCustomStopMapping1() (CityConfigurationCustomStopMapping1, error) {
-	var body CityConfigurationCustomStopMapping1
+// AsResponseGraphStop returns the union data inside the ResponseCityData_BusRoadGraph_Item as a ResponseGraphStop
+func (t ResponseCityData_BusRoadGraph_Item) AsResponseGraphStop() (ResponseGraphStop, error) {
+	var body ResponseGraphStop
 	err := json.Unmarshal(t.union, &body)
 	return body, err
 }
 
-// FromCityConfigurationCustomStopMapping1 overwrites any union data inside the CityConfiguration_CustomStopMapping_AdditionalProperties as the provided CityConfigurationCustomStopMapping1
-func (t *CityConfiguration_CustomStopMapping_AdditionalProperties) FromCityConfigurationCustomStopMapping1(v CityConfigurationCustomStopMapping1) error {
+// FromResponseGraphStop overwrites any union data inside the ResponseCityData_BusRoadGraph_Item as the provided ResponseGraphStop
+func (t *ResponseCityData_BusRoadGraph_Item) FromResponseGraphStop(v ResponseGraphStop) error {
+	v.NodeType = "stop"
 	b, err := json.Marshal(v)
 	t.union = b
 	return err
 }
 
-// MergeCityConfigurationCustomStopMapping1 performs a merge with any union data inside the CityConfiguration_CustomStopMapping_AdditionalProperties, using the provided CityConfigurationCustomStopMapping1
-func (t *CityConfiguration_CustomStopMapping_AdditionalProperties) MergeCityConfigurationCustomStopMapping1(v CityConfigurationCustomStopMapping1) error {
+// MergeResponseGraphStop performs a merge with any union data inside the ResponseCityData_BusRoadGraph_Item, using the provided ResponseGraphStop
+func (t *ResponseCityData_BusRoadGraph_Item) MergeResponseGraphStop(v ResponseGraphStop) error {
+	v.NodeType = "stop"
 	b, err := json.Marshal(v)
 	if err != nil {
 		return err
@@ -234,12 +265,35 @@ func (t *CityConfiguration_CustomStopMapping_AdditionalProperties) MergeCityConf
 	return err
 }
 
-func (t CityConfiguration_CustomStopMapping_AdditionalProperties) MarshalJSON() ([]byte, error) {
+func (t ResponseCityData_BusRoadGraph_Item) Discriminator() (string, error) {
+	var discriminator struct {
+		Discriminator string `json:"node_type"`
+	}
+	err := json.Unmarshal(t.union, &discriminator)
+	return discriminator.Discriminator, err
+}
+
+func (t ResponseCityData_BusRoadGraph_Item) ValueByDiscriminator() (interface{}, error) {
+	discriminator, err := t.Discriminator()
+	if err != nil {
+		return nil, err
+	}
+	switch discriminator {
+	case "node":
+		return t.AsResponseGraphNode()
+	case "stop":
+		return t.AsResponseGraphStop()
+	default:
+		return nil, errors.New("unknown discriminator value: " + discriminator)
+	}
+}
+
+func (t ResponseCityData_BusRoadGraph_Item) MarshalJSON() ([]byte, error) {
 	b, err := t.union.MarshalJSON()
 	return b, err
 }
 
-func (t *CityConfiguration_CustomStopMapping_AdditionalProperties) UnmarshalJSON(b []byte) error {
+func (t *ResponseCityData_BusRoadGraph_Item) UnmarshalJSON(b []byte) error {
 	err := t.union.UnmarshalJSON(b)
 	return err
 }
@@ -272,23 +326,23 @@ func (t *ResponseCityData_TramTrackGraph_Item) MergeResponseGraphNode(v Response
 	return err
 }
 
-// AsResponseGraphTramStop returns the union data inside the ResponseCityData_TramTrackGraph_Item as a ResponseGraphTramStop
-func (t ResponseCityData_TramTrackGraph_Item) AsResponseGraphTramStop() (ResponseGraphTramStop, error) {
-	var body ResponseGraphTramStop
+// AsResponseGraphStop returns the union data inside the ResponseCityData_TramTrackGraph_Item as a ResponseGraphStop
+func (t ResponseCityData_TramTrackGraph_Item) AsResponseGraphStop() (ResponseGraphStop, error) {
+	var body ResponseGraphStop
 	err := json.Unmarshal(t.union, &body)
 	return body, err
 }
 
-// FromResponseGraphTramStop overwrites any union data inside the ResponseCityData_TramTrackGraph_Item as the provided ResponseGraphTramStop
-func (t *ResponseCityData_TramTrackGraph_Item) FromResponseGraphTramStop(v ResponseGraphTramStop) error {
+// FromResponseGraphStop overwrites any union data inside the ResponseCityData_TramTrackGraph_Item as the provided ResponseGraphStop
+func (t *ResponseCityData_TramTrackGraph_Item) FromResponseGraphStop(v ResponseGraphStop) error {
 	v.NodeType = "stop"
 	b, err := json.Marshal(v)
 	t.union = b
 	return err
 }
 
-// MergeResponseGraphTramStop performs a merge with any union data inside the ResponseCityData_TramTrackGraph_Item, using the provided ResponseGraphTramStop
-func (t *ResponseCityData_TramTrackGraph_Item) MergeResponseGraphTramStop(v ResponseGraphTramStop) error {
+// MergeResponseGraphStop performs a merge with any union data inside the ResponseCityData_TramTrackGraph_Item, using the provided ResponseGraphStop
+func (t *ResponseCityData_TramTrackGraph_Item) MergeResponseGraphStop(v ResponseGraphStop) error {
 	v.NodeType = "stop"
 	b, err := json.Marshal(v)
 	if err != nil {
@@ -317,7 +371,7 @@ func (t ResponseCityData_TramTrackGraph_Item) ValueByDiscriminator() (interface{
 	case "node":
 		return t.AsResponseGraphNode()
 	case "stop":
-		return t.AsResponseGraphTramStop()
+		return t.AsResponseGraphStop()
 	default:
 		return nil, errors.New("unknown discriminator value: " + discriminator)
 	}
@@ -329,6 +383,68 @@ func (t ResponseCityData_TramTrackGraph_Item) MarshalJSON() ([]byte, error) {
 }
 
 func (t *ResponseCityData_TramTrackGraph_Item) UnmarshalJSON(b []byte) error {
+	err := t.union.UnmarshalJSON(b)
+	return err
+}
+
+// AsStopMapping0 returns the union data inside the StopMapping as a StopMapping0
+func (t StopMapping) AsStopMapping0() (StopMapping0, error) {
+	var body StopMapping0
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromStopMapping0 overwrites any union data inside the StopMapping as the provided StopMapping0
+func (t *StopMapping) FromStopMapping0(v StopMapping0) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeStopMapping0 performs a merge with any union data inside the StopMapping, using the provided StopMapping0
+func (t *StopMapping) MergeStopMapping0(v StopMapping0) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+// AsStopMapping1 returns the union data inside the StopMapping as a StopMapping1
+func (t StopMapping) AsStopMapping1() (StopMapping1, error) {
+	var body StopMapping1
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromStopMapping1 overwrites any union data inside the StopMapping as the provided StopMapping1
+func (t *StopMapping) FromStopMapping1(v StopMapping1) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeStopMapping1 performs a merge with any union data inside the StopMapping, using the provided StopMapping1
+func (t *StopMapping) MergeStopMapping1(v StopMapping1) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+func (t StopMapping) MarshalJSON() ([]byte, error) {
+	b, err := t.union.MarshalJSON()
+	return b, err
+}
+
+func (t *StopMapping) UnmarshalJSON(b []byte) error {
 	err := t.union.UnmarshalJSON(b)
 	return err
 }

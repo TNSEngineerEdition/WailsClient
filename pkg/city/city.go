@@ -16,11 +16,11 @@ import (
 
 type City struct {
 	CityID           string
-	tramRoutes       []trip.TramRoute
+	tramRoutes       []trip.Route
 	nodesByID        map[uint64]graph.GraphNode
-	stopsByID        map[uint64]*graph.GraphTramStop
-	stopsByName      map[string]map[uint64]*graph.GraphTramStop
-	tripsByID        map[uint]*trip.TramTrip
+	stopsByID        map[uint64]*graph.GraphStop
+	stopsByName      map[string]map[uint64]*graph.GraphStop
+	tripsByID        map[uint]*trip.Trip
 	routesByStopID   map[uint64][]RouteInfo
 	plannedArrivals  map[uint64][]PlannedArrival
 	bounds           LatLonBounds
@@ -74,24 +74,24 @@ func (c *City) FetchCity(
 		return err
 	}
 
-	c.stopsByID = make(map[uint64]*graph.GraphTramStop)
+	c.stopsByID = make(map[uint64]*graph.GraphStop)
 	for nodeID, node := range c.nodesByID {
 		switch v := node.(type) {
-		case *graph.GraphTramStop:
+		case *graph.GraphStop:
 			c.stopsByID[nodeID] = v
 		}
 	}
 
-	c.stopsByName = make(map[string]map[uint64]*graph.GraphTramStop)
+	c.stopsByName = make(map[string]map[uint64]*graph.GraphStop)
 	for stopID, stop := range c.stopsByID {
 		name := stop.GetGroupName()
 		if _, ok := c.stopsByName[name]; !ok {
-			c.stopsByName[name] = make(map[uint64]*graph.GraphTramStop)
+			c.stopsByName[name] = make(map[uint64]*graph.GraphStop)
 		}
 		c.stopsByName[name][stopID] = stop
 	}
 
-	c.tripsByID = make(map[uint]*trip.TramTrip)
+	c.tripsByID = make(map[uint]*trip.Trip)
 	for i, route := range c.tramRoutes {
 		for j, trip := range route.Trips {
 			c.tripsByID[trip.ID] = &c.tramRoutes[i].Trips[j]
@@ -119,16 +119,16 @@ func (c *City) GetNodesByID() map[uint64]graph.GraphNode {
 	return c.nodesByID
 }
 
-func (c *City) GetStopsByID() map[uint64]*graph.GraphTramStop {
+func (c *City) GetStopsByID() map[uint64]*graph.GraphStop {
 	return c.stopsByID
 }
 
-func (c *City) GetStopByID(stopID uint64) *graph.GraphTramStop {
+func (c *City) GetStopByID(stopID uint64) *graph.GraphStop {
 	return c.stopsByID[stopID]
 }
 
-func (c *City) GetStops() []api.ResponseGraphTramStop {
-	result := make([]api.ResponseGraphTramStop, 0, len(c.stopsByID))
+func (c *City) GetStops() []api.ResponseGraphStop {
+	result := make([]api.ResponseGraphStop, 0, len(c.stopsByID))
 
 	for _, stop := range c.stopsByID {
 		result = append(result, stop.GetDetails())
@@ -137,7 +137,7 @@ func (c *City) GetStops() []api.ResponseGraphTramStop {
 	return result
 }
 
-func (c *City) GetStopsByName() map[string]map[uint64]*graph.GraphTramStop {
+func (c *City) GetStopsByName() map[string]map[uint64]*graph.GraphStop {
 	return c.stopsByName
 }
 
@@ -146,7 +146,7 @@ func (c *City) IsTransferStop(stopID uint64) bool {
 	return len(stops) > 2
 }
 
-func (c *City) GetStopsInGroup(stopID uint64) map[uint64]*graph.GraphTramStop {
+func (c *City) GetStopsInGroup(stopID uint64) map[uint64]*graph.GraphStop {
 	if _, ok := c.stopsByID[stopID]; !ok {
 		panic(fmt.Sprintf("Stop with ID %d not found", stopID))
 	}
@@ -159,7 +159,7 @@ func (c *City) GetStopsInGroup(stopID uint64) map[uint64]*graph.GraphTramStop {
 	return c.stopsByName[groupName]
 }
 
-func (c *City) GetTramRoutes() []trip.TramRoute {
+func (c *City) GetTramRoutes() []trip.Route {
 	return c.tramRoutes
 }
 
@@ -167,11 +167,11 @@ func (c *City) GetBounds() LatLonBounds {
 	return c.bounds
 }
 
-func (c *City) GetTripsByID() map[uint]*trip.TramTrip {
+func (c *City) GetTripsByID() map[uint]*trip.Trip {
 	return c.tripsByID
 }
 
-func (c *City) GetTripByID(tripID uint) *trip.TramTrip {
+func (c *City) GetTripByID(tripID uint) *trip.Trip {
 	return c.tripsByID[tripID]
 }
 
@@ -208,7 +208,7 @@ func (c *City) GetRoutesByStopID() map[uint64][]RouteInfo {
 		routeNamesByStopID[stopID] = routes
 	}
 
-	routesByName := make(map[string]trip.TramRoute, len(c.tramRoutes))
+	routesByName := make(map[string]trip.Route, len(c.tramRoutes))
 	for _, route := range c.tramRoutes {
 		routesByName[route.Name] = route
 	}

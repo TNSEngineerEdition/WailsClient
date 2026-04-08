@@ -55,7 +55,7 @@ func (ps *PassengersStore) GetPassengerCountAtStop(stopID uint64) uint {
 	return ps.passengerStops[stopID].GetPassengerCount()
 }
 
-func getStopIDsFromGroupName(stopsByName map[string]map[uint64]*graph.GraphTramStop, stopName string) ([]uint64, error) {
+func getStopIDsFromGroupName(stopsByName map[string]map[uint64]*graph.GraphStop, stopName string) ([]uint64, error) {
 	if stopName == "" {
 		return nil, fmt.Errorf("empty stop group name")
 	}

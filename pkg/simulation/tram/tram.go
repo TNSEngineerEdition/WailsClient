@@ -20,7 +20,7 @@ type Tram struct {
 	speed, length       float32
 	lat, lon, azimuth   float32
 	distToNextInterNode float32
-	Route               *trip.TramRoute
+	Route               *trip.Route
 	TripDetails         tripDetails
 	controlCenter       *controlcenter.ControlCenter
 	blockedNodesBehind  []graph.GraphNode
@@ -34,8 +34,8 @@ type Tram struct {
 
 func NewTram(
 	id uint,
-	route *trip.TramRoute,
-	trip *trip.TramTrip,
+	route *trip.Route,
+	trip *trip.Trip,
 	controlCenter *controlcenter.ControlCenter,
 	passengersStore *passenger.PassengersStore,
 ) *Tram {
@@ -62,7 +62,7 @@ type TramPositionChange struct {
 	Delay   uint      `json:"delay"`
 }
 
-func (t *Tram) Advance(time uint, stopsByID map[uint64]*graph.GraphTramStop) (result TramPositionChange, update bool) {
+func (t *Tram) Advance(time uint, stopsByID map[uint64]*graph.GraphStop) (result TramPositionChange, update bool) {
 	switch t.state {
 	case StateTripNotStarted:
 		result, update = t.onTripNotStarted(time, stopsByID)
@@ -303,7 +303,7 @@ func (t *Tram) updateSpeedAndReserveNodes(path *controlcenter.Path) (availableDi
 			break
 		}
 
-		if u.IsTramStop() {
+		if u.IsStop() {
 			reservedDistanceAhead += distToNextNode
 			distToStop = reservedDistanceAhead
 
@@ -371,16 +371,16 @@ func (t *Tram) getSpeed() uint8 {
 }
 
 type TramDetails struct {
-	Route           string                     `json:"route"`
-	TripHeadSign    string                     `json:"trip_head_sign"`
-	TripIndex       int                        `json:"trip_index"`
-	Stops           []api.ResponseTramTripStop `json:"stops"`
-	Arrivals        []uint                     `json:"arrivals"`
-	Departures      []uint                     `json:"departures"`
-	StopNames       []string                   `json:"stop_names"`
-	Speed           uint8                      `json:"speed"`
-	State           TramState                  `json:"state"`
-	PassengersCount uint                       `json:"passengers_count"`
+	Route           string                 `json:"route"`
+	TripHeadSign    string                 `json:"trip_head_sign"`
+	TripIndex       int                    `json:"trip_index"`
+	Stops           []api.ResponseTripStop `json:"stops"`
+	Arrivals        []uint                 `json:"arrivals"`
+	Departures      []uint                 `json:"departures"`
+	StopNames       []string               `json:"stop_names"`
+	Speed           uint8                  `json:"speed"`
+	State           TramState              `json:"state"`
+	PassengersCount uint                   `json:"passengers_count"`
 }
 
 func (t *Tram) GetDetails(c *city.City, time uint) TramDetails {

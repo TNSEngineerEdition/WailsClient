@@ -93,7 +93,7 @@ func readPassengerCSV(passengerModel []byte) ([][]string, error) {
 func getPassengerDataFromRow(
 	passengerID uint64,
 	row []string,
-	stopsByName map[string]map[uint64]*graph.GraphTramStop,
+	stopsByName map[string]map[uint64]*graph.GraphStop,
 ) (PassengerModelData, error) {
 	if len(row) < 4 {
 		return PassengerModelData{}, fmt.Errorf("Passenger ID %d: expected 4 columns, got %d", passengerID, len(row))

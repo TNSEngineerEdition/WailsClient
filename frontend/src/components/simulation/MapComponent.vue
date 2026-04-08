@@ -37,7 +37,7 @@ const routeSidebar = ref(false)
 
 const selectedTramID = ref<number>()
 const followTram = ref(false)
-const selectedStop = ref<api.ResponseGraphTramStop>()
+const selectedStop = ref<api.ResponseGraphStop>()
 const selectedRoute = ref<city.RouteInfo>()
 
 async function setTime() {

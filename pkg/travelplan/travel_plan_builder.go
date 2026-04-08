@@ -10,8 +10,8 @@ import (
 type travelPlanBuilder[V, P any] interface {
 	handlePQValue(value *V) bool
 	getPQValueAndPriority(
-		tramTrip *trip.TramTrip,
-		stop *api.ResponseTramTripStop,
+		tramTrip *trip.Trip,
+		stop *api.ResponseTripStop,
 		takenTripsAfterStop *tripSequence,
 	) (V, P)
 	onPathFound(takenTripsAfterStop *tripSequence)

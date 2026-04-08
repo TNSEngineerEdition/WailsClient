@@ -8,7 +8,7 @@ import (
 
 type GraphNode interface {
 	NodeBlocker
-	IsTramStop() bool
+	IsStop() bool
 	GetID() uint64
 	GetCoordinates() (float32, float32)
 	GetNeighbors() map[uint64]api.ResponseGraphEdge
@@ -25,8 +25,8 @@ func GraphNodesFromCityData(responseCityData *api.ResponseCityData) (map[uint64]
 		}
 
 		switch node := value.(type) {
-		case api.ResponseGraphTramStop:
-			nodesByID[node.ID] = &GraphTramStop{Details: node}
+		case api.ResponseGraphStop:
+			nodesByID[node.ID] = &GraphStop{Details: node}
 		case api.ResponseGraphNode:
 			nodesByID[node.ID] = &GraphTrackNode{Details: node}
 		default:

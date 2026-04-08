@@ -78,8 +78,8 @@ func (ctp *comfortTravelPlan) handlePQValue(value *comfortPQValue) bool {
 }
 
 func (ctp *comfortTravelPlan) getPQValueAndPriority(
-	tramTrip *trip.TramTrip,
-	stop *api.ResponseTramTripStop,
+	tramTrip *trip.Trip,
+	stop *api.ResponseTripStop,
 	takenTripsAfterStop *tripSequence,
 ) (comfortPQValue, comfortPQPriority) {
 	value := comfortPQValue{

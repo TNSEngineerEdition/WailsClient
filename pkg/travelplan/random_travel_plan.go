@@ -102,7 +102,7 @@ func (rtp *randomTravelPlan) findConnectionToStop(fromStopID uint64, time uint, 
 	return toStopID, arrival.Time + travelTime
 }
 
-func (rtp *randomTravelPlan) findTransferStop(trip *trip.TramTrip, arrival *city.PlannedArrival) (uint64, uint, bool) {
+func (rtp *randomTravelPlan) findTransferStop(trip *trip.Trip, arrival *city.PlannedArrival) (uint64, uint, bool) {
 	transferStops := make([]struct {
 		stopID      uint64
 		arrivalTime uint
@@ -131,7 +131,7 @@ func (rtp *randomTravelPlan) findTransferStop(trip *trip.TramTrip, arrival *city
 	return destination.stopID, destination.arrivalTime - arrival.Time, true
 }
 
-func (rtp *randomTravelPlan) selectRandomStop(trip *trip.TramTrip, arrival *city.PlannedArrival, stopsLeft int) (uint64, uint) {
+func (rtp *randomTravelPlan) selectRandomStop(trip *trip.Trip, arrival *city.PlannedArrival, stopsLeft int) (uint64, uint) {
 	stopsToTravel := rand.Intn(stopsLeft) + 1 // Travel for at least 1 stop
 	toStopIndex := arrival.StopIndex + stopsToTravel
 	toStopID := trip.Stops[toStopIndex].ID

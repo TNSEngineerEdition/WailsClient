@@ -5,12 +5,12 @@ import (
 )
 
 type tripDetails struct {
-	Trip                 *trip.TramTrip
+	Trip                 *trip.Trip
 	Index                int
 	Arrivals, Departures []uint
 }
 
-func newTripDetails(trip *trip.TramTrip) tripDetails {
+func newTripDetails(trip *trip.Trip) tripDetails {
 	return tripDetails{
 		Trip:       trip,
 		Arrivals:   make([]uint, len(trip.Stops)),

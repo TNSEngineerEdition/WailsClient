@@ -4,7 +4,7 @@ import { CircleMarker } from "leaflet"
 export class StopMarker extends CircleMarker {
   private selected = false
 
-  constructor(private stop: api.ResponseGraphTramStop) {
+  constructor(private stop: api.ResponseGraphStop) {
     super([stop.lat, stop.lon], {
       radius: 5,
       fill: true,
@@ -29,7 +29,7 @@ export class StopMarker extends CircleMarker {
     })
   }
 
-  public getStop(): api.ResponseGraphTramStop | undefined {
+  public getStop(): api.ResponseGraphStop | undefined {
     return this.stop
   }
 }

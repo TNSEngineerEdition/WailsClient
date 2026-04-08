@@ -24,7 +24,7 @@ const headers = [
 const model = defineModel<boolean>({ required: true })
 
 const props = defineProps<{
-  stop?: api.ResponseGraphTramStop
+  stop?: api.ResponseGraphStop
   currentTime: number
 }>()
 

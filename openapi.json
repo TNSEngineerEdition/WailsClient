@@ -156,9 +156,7 @@
                     }
                 },
                 "type": "object",
-                "required": [
-                    "custom_schedule_file"
-                ],
+                "required": ["custom_schedule_file"],
                 "title": "Body_get_city_data_with_custom_schedule_cities__city_id__post"
             },
             "CachedCityDates": {
@@ -176,10 +174,7 @@
                     }
                 },
                 "type": "object",
-                "required": [
-                    "city_configuration",
-                    "available_dates"
-                ],
+                "required": ["city_configuration", "available_dates"],
                 "title": "CachedCityDates"
             },
             "CityConfiguration": {
@@ -196,20 +191,24 @@
                         "type": "string",
                         "title": "Image"
                     },
-                    "osm_area_name": {
+                    "osm_relations_area_name": {
                         "type": "string",
-                        "title": "Osm Area Name"
+                        "title": "Osm Relations Area Name"
                     },
-                    "gtfs_url": {
+                    "osm_stops_area_name": {
                         "type": "string",
-                        "title": "Gtfs Url"
+                        "title": "Osm Stops Area Name"
                     },
-                    "ignored_gtfs_lines": {
+                    "osm_network": {
+                        "type": "string",
+                        "title": "Osm Network"
+                    },
+                    "gtfs_configurations": {
                         "items": {
-                            "type": "string"
+                            "$ref": "#/components/schemas/GTFSConfiguration"
                         },
                         "type": "array",
-                        "title": "Ignored Gtfs Lines"
+                        "title": "Gtfs Configurations"
                     },
                     "ignored_osm_relations": {
                         "items": {
@@ -218,53 +217,16 @@
                         "type": "array",
                         "title": "Ignored Osm Relations"
                     },
-                    "custom_stop_mapping": {
-                        "additionalProperties": {
-                            "anyOf": [
-                                {
-                                    "type": "integer"
-                                },
-                                {
-                                    "prefixItems": [
-                                        {
-                                            "type": "integer",
-                                            "nullable:": true
-                                        },
-                                        {
-                                            "type": "integer",
-                                            "nullable:": true
-                                        },
-                                        {
-                                            "type": "integer",
-                                            "nullable:": true
-                                        }
-                                    ],
-                                    "type": "array",
-                                    "maxItems": 3,
-                                    "minItems": 3
-                                }
-                            ]
-                        },
-                        "type": "object",
-                        "title": "Custom Stop Mapping"
-                    },
-                    "custom_stop_pair_mapping": {
-                        "items": {
-                            "$ref": "#/components/schemas/CustomTramStopPairMapping"
-                        },
-                        "type": "array",
-                        "title": "Custom Stop Pair Mapping"
-                    },
                     "max_distance_ratio": {
                         "type": "number",
                         "title": "Max Distance Ratio"
                     },
-                    "custom_tram_stop_pair_max_distance_checks": {
+                    "custom_stop_pair_max_distance_checks": {
                         "items": {
-                            "$ref": "#/components/schemas/TramStopPairCheck"
+                            "$ref": "#/components/schemas/StopPairCheck"
                         },
                         "type": "array",
-                        "title": "Custom Tram Stop Pair Max Distance Checks"
+                        "title": "Custom Stop Pair Max Distance Checks"
                     }
                 },
                 "type": "object",
@@ -272,18 +234,17 @@
                     "city",
                     "country",
                     "image",
-                    "osm_area_name",
-                    "gtfs_url",
-                    "ignored_gtfs_lines",
+                    "osm_relations_area_name",
+                    "osm_stops_area_name",
+                    "osm_network",
+                    "gtfs_configurations",
                     "ignored_osm_relations",
-                    "custom_stop_mapping",
-                    "custom_stop_pair_mapping",
                     "max_distance_ratio",
-                    "custom_tram_stop_pair_max_distance_checks"
+                    "custom_stop_pair_max_distance_checks"
                 ],
                 "title": "CityConfiguration"
             },
-            "CustomTramStopPairMapping": {
+            "CustomStopPairMapping": {
                 "properties": {
                     "source_gtfs_stop_id": {
                         "type": "string",
@@ -309,7 +270,57 @@
                     "destination_gtfs_stop_id",
                     "destination_osm_node_id"
                 ],
-                "title": "CustomTramStopPairMapping"
+                "title": "CustomStopPairMapping"
+            },
+            "GTFSConfiguration": {
+                "properties": {
+                    "transit_type": {
+                        "$ref": "#/components/schemas/TransitType"
+                    },
+                    "file_url": {
+                        "type": "string",
+                        "title": "File Url"
+                    },
+                    "ignored_route_names": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array",
+                        "title": "Ignored Route Names"
+                    },
+                    "custom_stop_mapping": {
+                        "additionalProperties": {
+                            "$ref": "#/components/schemas/StopMapping"
+                        },
+                        "type": "object",
+                        "title": "Custom Stop Mapping"
+                    },
+                    "custom_stop_pair_mapping": {
+                        "items": {
+                            "$ref": "#/components/schemas/CustomStopPairMapping"
+                        },
+                        "type": "array",
+                        "title": "Custom Stop Pair Mapping"
+                    },
+                    "ignored_node_conflicts": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array",
+                        "title": "Ignored Node Conflicts"
+                    },
+                    "stop_group_name_regex": {
+                        "type": "string",
+                        "title": "Stop Group Name Regex"
+                    }
+                },
+                "type": "object",
+                "required": [
+                    "transit_type",
+                    "file_url",
+                    "stop_group_name_regex"
+                ],
+                "title": "GTFSConfiguration"
             },
             "HTTPValidationError": {
                 "properties": {
@@ -333,14 +344,14 @@
                                     "$ref": "#/components/schemas/ResponseGraphNode"
                                 },
                                 {
-                                    "$ref": "#/components/schemas/ResponseGraphTramStop"
+                                    "$ref": "#/components/schemas/ResponseGraphStop"
                                 }
                             ],
                             "discriminator": {
                                 "propertyName": "node_type",
                                 "mapping": {
                                     "node": "#/components/schemas/ResponseGraphNode",
-                                    "stop": "#/components/schemas/ResponseGraphTramStop"
+                                    "stop": "#/components/schemas/ResponseGraphStop"
                                 }
                             }
                         },
@@ -349,17 +360,55 @@
                     },
                     "tram_routes": {
                         "items": {
-                            "$ref": "#/components/schemas/ResponseTramRoute"
+                            "$ref": "#/components/schemas/ResponseRoute"
                         },
                         "type": "array",
                         "title": "Tram Routes"
+                    },
+                    "bus_road_graph": {
+                        "items": {
+                            "oneOf": [
+                                {
+                                    "$ref": "#/components/schemas/ResponseGraphNode"
+                                },
+                                {
+                                    "$ref": "#/components/schemas/ResponseGraphStop"
+                                }
+                            ],
+                            "discriminator": {
+                                "propertyName": "node_type",
+                                "mapping": {
+                                    "node": "#/components/schemas/ResponseGraphNode",
+                                    "stop": "#/components/schemas/ResponseGraphStop"
+                                }
+                            }
+                        },
+                        "type": "array",
+                        "title": "Bus Road Graph"
+                    },
+                    "bus_routes": {
+                        "items": {
+                            "$ref": "#/components/schemas/ResponseRoute"
+                        },
+                        "type": "array",
+                        "title": "Bus Routes"
+                    },
+                    "paths": {
+                        "additionalProperties": {
+                            "additionalProperties": {
+                                "items": {
+                                    "type": "integer"
+                                },
+                                "type": "array"
+                            },
+                            "type": "object"
+                        },
+                        "type": "object",
+                        "title": "Paths"
                     }
                 },
                 "type": "object",
-                "required": [
-                    "tram_track_graph",
-                    "tram_routes"
-                ],
+                "required": ["tram_track_graph", "tram_routes"],
                 "title": "ResponseCityData"
             },
             "ResponseGraphEdge": {
@@ -384,12 +433,7 @@
                     }
                 },
                 "type": "object",
-                "required": [
-                    "id",
-                    "distance",
-                    "azimuth",
-                    "max_speed"
-                ],
+                "required": ["id", "distance", "azimuth", "max_speed"],
                 "title": "ResponseGraphEdge"
             },
             "ResponseGraphNode": {
@@ -424,15 +468,10 @@
                     }
                 },
                 "type": "object",
-                "required": [
-                    "id",
-                    "lat",
-                    "lon",
-                    "neighbors"
-                ],
+                "required": ["id", "lat", "lon", "neighbors"],
                 "title": "ResponseGraphNode"
             },
-            "ResponseGraphTramStop": {
+            "ResponseGraphStop": {
                 "properties": {
                     "id": {
                         "type": "integer",
@@ -481,17 +520,10 @@
                     }
                 },
                 "type": "object",
-                "required": [
-                    "id",
-                    "lat",
-                    "lon",
-                    "neighbors",
-                    "name",
-                    "gtfs_stop_ids"
-                ],
-                "title": "ResponseGraphTramStop"
+                "required": ["id", "lat", "lon", "neighbors", "name"],
+                "title": "ResponseGraphStop"
             },
-            "ResponseTramRoute": {
+            "ResponseRoute": {
                 "properties": {
                     "name": {
                         "type": "string",
@@ -518,21 +550,17 @@
                     },
                     "trips": {
                         "items": {
-                            "$ref": "#/components/schemas/ResponseTramTrip"
+                            "$ref": "#/components/schemas/ResponseTrip"
                         },
                         "type": "array",
                         "title": "Trips"
                     }
                 },
                 "type": "object",
-                "required": [
-                    "name",
-                    "background_color",
-                    "text_color"
-                ],
-                "title": "ResponseTramRoute"
+                "required": ["name", "background_color", "text_color"],
+                "title": "ResponseRoute"
             },
-            "ResponseTramTrip": {
+            "ResponseTrip": {
                 "properties": {
                     "trip_head_sign": {
                         "type": "string",
@@ -545,20 +573,17 @@
                     },
                     "stops": {
                         "items": {
-                            "$ref": "#/components/schemas/ResponseTramTripStop"
+                            "$ref": "#/components/schemas/ResponseTripStop"
                         },
                         "type": "array",
                         "title": "Stops"
                     }
                 },
                 "type": "object",
-                "required": [
-                    "trip_head_sign",
-                    "stops"
-                ],
-                "title": "ResponseTramTrip"
+                "required": ["trip_head_sign", "stops"],
+                "title": "ResponseTrip"
             },
-            "ResponseTramTripStop": {
+            "ResponseTripStop": {
                 "properties": {
                     "id": {
                         "type": "integer",
@@ -573,13 +598,36 @@
                     }
                 },
                 "type": "object",
-                "required": [
-                    "id",
-                    "time"
-                ],
-                "title": "ResponseTramTripStop"
+                "required": ["id", "time"],
+                "title": "ResponseTripStop"
             },
-            "TramStopPairCheck": {
+            "StopMapping": {
+                "anyOf": [
+                    {
+                        "type": "integer"
+                    },
+                    {
+                        "prefixItems": [
+                            {
+                                "type": "string",
+                                "nullable": true
+                            },
+                            {
+                                "type": "string",
+                                "nullable": true
+                            },
+                            {
+                                "type": "string",
+                                "nullable": true
+                            }
+                        ],
+                        "type": "array",
+                        "maxItems": 3,
+                        "minItems": 3
+                    }
+                ]
+            },
+            "StopPairCheck": {
                 "properties": {
                     "source": {
                         "type": "integer",
@@ -595,12 +643,13 @@
                     }
                 },
                 "type": "object",
-                "required": [
-                    "source",
-                    "destination",
-                    "ratio"
-                ],
-                "title": "TramStopPairCheck"
+                "required": ["source", "destination", "ratio"],
+                "title": "StopPairCheck"
+            },
+            "TransitType": {
+                "type": "string",
+                "enum": ["tram", "bus"],
+                "title": "TransitType"
             },
             "ValidationError": {
                 "properties": {
@@ -628,11 +677,7 @@
                     }
                 },
                 "type": "object",
-                "required": [
-                    "loc",
-                    "msg",
-                    "type"
-                ],
+                "required": ["loc", "msg", "type"],
                 "title": "ValidationError"
             },
             "Weekday": {

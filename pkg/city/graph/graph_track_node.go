@@ -7,7 +7,7 @@ type GraphTrackNode struct {
 	Details api.ResponseGraphNode `json:"details"`
 }
 
-func (g *GraphTrackNode) IsTramStop() bool {
+func (g *GraphTrackNode) IsStop() bool {
 	return false
 }
 

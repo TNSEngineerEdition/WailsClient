@@ -21,7 +21,7 @@ export class LeafletMap {
 
   static async init(
     mapHTMLElement: HTMLElement,
-    handleStopSelection: (stop: api.ResponseGraphTramStop) => void,
+    handleStopSelection: (stop: api.ResponseGraphStop) => void,
   ) {
     const leafletMap = new LeafletMap(
       await GetBounds()
@@ -53,7 +53,7 @@ export class LeafletMap {
   }
 
   private async makeStops(
-    handleStopSelection: (stop: api.ResponseGraphTramStop) => void,
+    handleStopSelection: (stop: api.ResponseGraphStop) => void,
   ) {
     for (const stop of await GetStops()) {
       const marker = new StopMarker(stop)
