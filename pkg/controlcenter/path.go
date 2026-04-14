@@ -1,12 +1,7 @@
 package controlcenter
 
 import (
-	"fmt"
-	"slices"
-
 	"github.com/TNSEngineerEdition/WailsClient/pkg/city/graph"
-	"github.com/TNSEngineerEdition/WailsClient/pkg/structs"
-	"github.com/umahmood/haversine"
 )
 
 type Path struct {
@@ -15,71 +10,16 @@ type Path struct {
 	TimePrefixSum []float32
 }
 
-func (p *Path) GetProgressForIndex(index int) float32 {
-	return p.TimePrefixSum[index] / p.TimePrefixSum[len(p.TimePrefixSum)-1]
-}
+func pathFromNodeIDs(nodeIDs []uint64, nodesByID *map[uint64]graph.GraphNode) (result Path) {
+	result.Nodes = make([]graph.GraphNode, 0, len(nodeIDs))
 
-func getShortestPath(nodesByID *map[uint64]graph.GraphNode, stops stopPair) (result Path) {
-	nodesToProcess := structs.NewPriorityQueueOrdered[uint64, float32]()
-	nodesToProcess.Push(stops.source, 0)
-
-	predecessors := make(map[uint64]uint64)
-	tentativeDistFromSource := make(map[uint64]float32)
-	visitedNodes := structs.NewSet[uint64]()
-
-	for nodesToProcess.Len() > 0 {
-		currentID := nodesToProcess.Pop()
-
-		if currentID == stops.destination {
-			result.Nodes = reconstructPath(predecessors, nodesByID, currentID)
-			result.MaxSpeeds = getMaxSpeeds(result.Nodes)
-			result.TimePrefixSum = getPathTimePrefixSum(result.Nodes)
-			return
-		}
-
-		if visitedNodes.Includes(currentID) {
-			continue
-		}
-
-		visitedNodes.Add(currentID)
-
-		for _, neighbor := range (*nodesByID)[currentID].GetNeighbors() {
-			tentativeDistance := tentativeDistFromSource[currentID] + neighbor.Distance
-			cost, wasVisited := tentativeDistFromSource[neighbor.ID]
-
-			if wasVisited && tentativeDistance >= cost {
-				continue
-			}
-
-			predecessors[neighbor.ID] = currentID
-			tentativeDistFromSource[neighbor.ID] = tentativeDistance
-
-			heuristicDistance := getDistanceInMeters(
-				(*nodesByID)[neighbor.ID], (*nodesByID)[stops.destination],
-			)
-			nodesToProcess.Push(neighbor.ID, heuristicDistance+tentativeDistance)
-		}
+	for _, nodeID := range nodeIDs {
+		result.Nodes = append(result.Nodes, (*nodesByID)[nodeID])
 	}
 
-	panic(fmt.Sprintf("No path found between %d and %d nodes", stops.source, stops.destination))
-}
+	result.MaxSpeeds = getMaxSpeeds(result.Nodes)
+	result.TimePrefixSum = getPathTimePrefixSum(result.Nodes)
 
-func reconstructPath(
-	predecessors map[uint64]uint64,
-	nodesByID *map[uint64]graph.GraphNode,
-	currentID uint64,
-) (nodes []graph.GraphNode) {
-	for {
-		nodes = append(nodes, (*nodesByID)[currentID])
-
-		if previousNodeID, ok := predecessors[currentID]; ok {
-			currentID = previousNodeID
-		} else {
-			break
-		}
-	}
-
-	slices.Reverse(nodes)
 	return
 }
 
@@ -99,24 +39,6 @@ func getMaxSpeeds(nodes []graph.GraphNode) []float32 {
 	return maxSpeeds
 }
 
-func getDistanceInMeters(source, destination graph.GraphNode) float32 {
-	sourceLat, sourceLon := source.GetCoordinates()
-	destLat, destLon := destination.GetCoordinates()
-
-	_, kilometers := haversine.Distance(
-		haversine.Coord{
-			Lat: float64(sourceLat),
-			Lon: float64(sourceLon),
-		},
-		haversine.Coord{
-			Lat: float64(destLat),
-			Lon: float64(destLon),
-		},
-	)
-
-	return float32(kilometers * 1000)
-}
-
 func getPathTimePrefixSum(nodes []graph.GraphNode) []float32 {
 	prefixSum := make([]float32, len(nodes))
 
@@ -127,4 +49,8 @@ func getPathTimePrefixSum(nodes []graph.GraphNode) []float32 {
 	}
 
 	return prefixSum
+}
+
+func (p *Path) GetProgressForIndex(index int) float32 {
+	return p.TimePrefixSum[index] / p.TimePrefixSum[len(p.TimePrefixSum)-1]
 }

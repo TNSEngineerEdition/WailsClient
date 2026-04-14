@@ -337,7 +337,7 @@
             },
             "ResponseCityData": {
                 "properties": {
-                    "tram_track_graph": {
+                    "graph": {
                         "items": {
                             "oneOf": [
                                 {
@@ -356,7 +356,7 @@
                             }
                         },
                         "type": "array",
-                        "title": "Tram Track Graph"
+                        "title": "Graph"
                     },
                     "tram_routes": {
                         "items": {
@@ -365,33 +365,13 @@
                         "type": "array",
                         "title": "Tram Routes"
                     },
-                    "bus_road_graph": {
-                        "items": {
-                            "oneOf": [
-                                {
-                                    "$ref": "#/components/schemas/ResponseGraphNode"
-                                },
-                                {
-                                    "$ref": "#/components/schemas/ResponseGraphStop"
-                                }
-                            ],
-                            "discriminator": {
-                                "propertyName": "node_type",
-                                "mapping": {
-                                    "node": "#/components/schemas/ResponseGraphNode",
-                                    "stop": "#/components/schemas/ResponseGraphStop"
-                                }
-                            }
-                        },
-                        "type": "array",
-                        "title": "Bus Road Graph"
-                    },
                     "bus_routes": {
                         "items": {
                             "$ref": "#/components/schemas/ResponseRoute"
                         },
                         "type": "array",
-                        "title": "Bus Routes"
+                        "title": "Bus Routes",
+                        "x-go-type-skip-optional-pointer": true
                     },
                     "paths": {
                         "additionalProperties": {
@@ -404,11 +384,13 @@
                             "type": "object"
                         },
                         "type": "object",
-                        "title": "Paths"
+                        "title": "Paths",
+                        "x-go-type": "map[uint64]map[uint64][]uint64",
+                        "x-go-type-skip-optional-pointer": true
                     }
                 },
                 "type": "object",
-                "required": ["tram_track_graph", "tram_routes"],
+                "required": ["graph", "tram_routes"],
                 "title": "ResponseCityData"
             },
             "ResponseGraphEdge": {
@@ -430,10 +412,19 @@
                     "max_speed": {
                         "type": "number",
                         "title": "Max Speed"
+                    },
+                    "transit_type": {
+                        "$ref": "#/components/schemas/TransitType"
                     }
                 },
                 "type": "object",
-                "required": ["id", "distance", "azimuth", "max_speed"],
+                "required": [
+                    "id",
+                    "distance",
+                    "azimuth",
+                    "max_speed",
+                    "transit_type"
+                ],
                 "title": "ResponseGraphEdge"
             },
             "ResponseGraphNode": {

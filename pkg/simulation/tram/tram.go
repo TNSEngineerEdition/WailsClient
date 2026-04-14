@@ -1,6 +1,7 @@
 package tram
 
 import (
+	"fmt"
 	"math"
 	"math/rand/v2"
 
@@ -145,7 +146,7 @@ func (t *Tram) getDistanceToNeighbor(v graph.GraphNode, u graph.GraphNode) float
 	} else if neighbor, ok := u.GetNeighbors()[v.GetID()]; ok {
 		return neighbor.Distance
 	} else {
-		panic("Distance between nodes not found")
+		panic(fmt.Sprintf("Distance between nodes %d and %d not found", v.GetID(), u.GetID()))
 	}
 }
 

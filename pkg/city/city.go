@@ -175,6 +175,10 @@ func (c *City) GetTripByID(tripID uint) *trip.Trip {
 	return c.tripsByID[tripID]
 }
 
+func (c *City) GetPaths() map[uint64]map[uint64][]uint64 {
+	return c.responseCityData.Paths
+}
+
 type RouteInfo struct {
 	Name            string `json:"name"`
 	TextColor       string `json:"text_color"`

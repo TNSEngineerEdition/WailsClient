@@ -16,9 +16,9 @@ type GraphNode interface {
 }
 
 func GraphNodesFromCityData(responseCityData *api.ResponseCityData) (map[uint64]GraphNode, error) {
-	nodesByID := make(map[uint64]GraphNode, len(responseCityData.TramTrackGraph))
+	nodesByID := make(map[uint64]GraphNode, len(responseCityData.Graph))
 
-	for _, nodeItem := range responseCityData.TramTrackGraph {
+	for _, nodeItem := range responseCityData.Graph {
 		value, err := nodeItem.ValueByDiscriminator()
 		if err != nil {
 			return nil, err
@@ -28,7 +28,7 @@ func GraphNodesFromCityData(responseCityData *api.ResponseCityData) (map[uint64]
 		case api.ResponseGraphStop:
 			nodesByID[node.ID] = &GraphStop{Details: node}
 		case api.ResponseGraphNode:
-			nodesByID[node.ID] = &GraphTrackNode{Details: node}
+			nodesByID[node.ID] = &GraphRoadNode{Details: node}
 		default:
 			return nil, fmt.Errorf("Unrecognized node type: %s", node)
 		}
