@@ -85,29 +85,24 @@ type HTTPValidationError struct {
 
 // ResponseCityData defines model for ResponseCityData.
 type ResponseCityData struct {
-	BusRoadGraph   *[]ResponseCityData_BusRoadGraph_Item  `json:"bus_road_graph,omitempty"`
-	BusRoutes      *[]ResponseRoute                       `json:"bus_routes,omitempty"`
-	Paths          *map[string]map[string][]int           `json:"paths,omitempty"`
-	TramRoutes     []ResponseRoute                        `json:"tram_routes"`
-	TramTrackGraph []ResponseCityData_TramTrackGraph_Item `json:"tram_track_graph"`
+	BusRoutes  []ResponseRoute                `json:"bus_routes,omitempty"`
+	Graph      []ResponseCityData_Graph_Item  `json:"graph"`
+	Paths      map[uint64]map[uint64][]uint64 `json:"paths,omitempty"`
+	TramRoutes []ResponseRoute                `json:"tram_routes"`
 }
 
-// ResponseCityData_BusRoadGraph_Item defines model for ResponseCityData.bus_road_graph.Item.
-type ResponseCityData_BusRoadGraph_Item struct {
-	union json.RawMessage
-}
-
-// ResponseCityData_TramTrackGraph_Item defines model for ResponseCityData.tram_track_graph.Item.
-type ResponseCityData_TramTrackGraph_Item struct {
+// ResponseCityData_Graph_Item defines model for ResponseCityData.graph.Item.
+type ResponseCityData_Graph_Item struct {
 	union json.RawMessage
 }
 
 // ResponseGraphEdge defines model for ResponseGraphEdge.
 type ResponseGraphEdge struct {
-	Azimuth  float32 `json:"azimuth"`
-	Distance float32 `json:"distance"`
-	ID       uint64  `json:"id"`
-	MaxSpeed float32 `json:"max_speed"`
+	Azimuth     float32     `json:"azimuth"`
+	Distance    float32     `json:"distance"`
+	ID          uint64      `json:"id"`
+	MaxSpeed    float32     `json:"max_speed"`
+	TransitType TransitType `json:"transit_type"`
 }
 
 // ResponseGraphNode defines model for ResponseGraphNode.
@@ -209,23 +204,23 @@ type GetCityDataWithCustomScheduleCitiesCityIdPostParams struct {
 // GetCityDataWithCustomScheduleCitiesCityIdPostMultipartRequestBody defines body for GetCityDataWithCustomScheduleCitiesCityIdPost for multipart/form-data ContentType.
 type GetCityDataWithCustomScheduleCitiesCityIdPostMultipartRequestBody = BodyGetCityDataWithCustomScheduleCitiesCityIdPost
 
-// AsResponseGraphNode returns the union data inside the ResponseCityData_BusRoadGraph_Item as a ResponseGraphNode
-func (t ResponseCityData_BusRoadGraph_Item) AsResponseGraphNode() (ResponseGraphNode, error) {
+// AsResponseGraphNode returns the union data inside the ResponseCityData_Graph_Item as a ResponseGraphNode
+func (t ResponseCityData_Graph_Item) AsResponseGraphNode() (ResponseGraphNode, error) {
 	var body ResponseGraphNode
 	err := json.Unmarshal(t.union, &body)
 	return body, err
 }
 
-// FromResponseGraphNode overwrites any union data inside the ResponseCityData_BusRoadGraph_Item as the provided ResponseGraphNode
-func (t *ResponseCityData_BusRoadGraph_Item) FromResponseGraphNode(v ResponseGraphNode) error {
+// FromResponseGraphNode overwrites any union data inside the ResponseCityData_Graph_Item as the provided ResponseGraphNode
+func (t *ResponseCityData_Graph_Item) FromResponseGraphNode(v ResponseGraphNode) error {
 	v.NodeType = "node"
 	b, err := json.Marshal(v)
 	t.union = b
 	return err
 }
 
-// MergeResponseGraphNode performs a merge with any union data inside the ResponseCityData_BusRoadGraph_Item, using the provided ResponseGraphNode
-func (t *ResponseCityData_BusRoadGraph_Item) MergeResponseGraphNode(v ResponseGraphNode) error {
+// MergeResponseGraphNode performs a merge with any union data inside the ResponseCityData_Graph_Item, using the provided ResponseGraphNode
+func (t *ResponseCityData_Graph_Item) MergeResponseGraphNode(v ResponseGraphNode) error {
 	v.NodeType = "node"
 	b, err := json.Marshal(v)
 	if err != nil {
@@ -237,23 +232,23 @@ func (t *ResponseCityData_BusRoadGraph_Item) MergeResponseGraphNode(v ResponseGr
 	return err
 }
 
-// AsResponseGraphStop returns the union data inside the ResponseCityData_BusRoadGraph_Item as a ResponseGraphStop
-func (t ResponseCityData_BusRoadGraph_Item) AsResponseGraphStop() (ResponseGraphStop, error) {
+// AsResponseGraphStop returns the union data inside the ResponseCityData_Graph_Item as a ResponseGraphStop
+func (t ResponseCityData_Graph_Item) AsResponseGraphStop() (ResponseGraphStop, error) {
 	var body ResponseGraphStop
 	err := json.Unmarshal(t.union, &body)
 	return body, err
 }
 
-// FromResponseGraphStop overwrites any union data inside the ResponseCityData_BusRoadGraph_Item as the provided ResponseGraphStop
-func (t *ResponseCityData_BusRoadGraph_Item) FromResponseGraphStop(v ResponseGraphStop) error {
+// FromResponseGraphStop overwrites any union data inside the ResponseCityData_Graph_Item as the provided ResponseGraphStop
+func (t *ResponseCityData_Graph_Item) FromResponseGraphStop(v ResponseGraphStop) error {
 	v.NodeType = "stop"
 	b, err := json.Marshal(v)
 	t.union = b
 	return err
 }
 
-// MergeResponseGraphStop performs a merge with any union data inside the ResponseCityData_BusRoadGraph_Item, using the provided ResponseGraphStop
-func (t *ResponseCityData_BusRoadGraph_Item) MergeResponseGraphStop(v ResponseGraphStop) error {
+// MergeResponseGraphStop performs a merge with any union data inside the ResponseCityData_Graph_Item, using the provided ResponseGraphStop
+func (t *ResponseCityData_Graph_Item) MergeResponseGraphStop(v ResponseGraphStop) error {
 	v.NodeType = "stop"
 	b, err := json.Marshal(v)
 	if err != nil {
@@ -265,7 +260,7 @@ func (t *ResponseCityData_BusRoadGraph_Item) MergeResponseGraphStop(v ResponseGr
 	return err
 }
 
-func (t ResponseCityData_BusRoadGraph_Item) Discriminator() (string, error) {
+func (t ResponseCityData_Graph_Item) Discriminator() (string, error) {
 	var discriminator struct {
 		Discriminator string `json:"node_type"`
 	}
@@ -273,7 +268,7 @@ func (t ResponseCityData_BusRoadGraph_Item) Discriminator() (string, error) {
 	return discriminator.Discriminator, err
 }
 
-func (t ResponseCityData_BusRoadGraph_Item) ValueByDiscriminator() (interface{}, error) {
+func (t ResponseCityData_Graph_Item) ValueByDiscriminator() (interface{}, error) {
 	discriminator, err := t.Discriminator()
 	if err != nil {
 		return nil, err
@@ -288,101 +283,12 @@ func (t ResponseCityData_BusRoadGraph_Item) ValueByDiscriminator() (interface{},
 	}
 }
 
-func (t ResponseCityData_BusRoadGraph_Item) MarshalJSON() ([]byte, error) {
+func (t ResponseCityData_Graph_Item) MarshalJSON() ([]byte, error) {
 	b, err := t.union.MarshalJSON()
 	return b, err
 }
 
-func (t *ResponseCityData_BusRoadGraph_Item) UnmarshalJSON(b []byte) error {
-	err := t.union.UnmarshalJSON(b)
-	return err
-}
-
-// AsResponseGraphNode returns the union data inside the ResponseCityData_TramTrackGraph_Item as a ResponseGraphNode
-func (t ResponseCityData_TramTrackGraph_Item) AsResponseGraphNode() (ResponseGraphNode, error) {
-	var body ResponseGraphNode
-	err := json.Unmarshal(t.union, &body)
-	return body, err
-}
-
-// FromResponseGraphNode overwrites any union data inside the ResponseCityData_TramTrackGraph_Item as the provided ResponseGraphNode
-func (t *ResponseCityData_TramTrackGraph_Item) FromResponseGraphNode(v ResponseGraphNode) error {
-	v.NodeType = "node"
-	b, err := json.Marshal(v)
-	t.union = b
-	return err
-}
-
-// MergeResponseGraphNode performs a merge with any union data inside the ResponseCityData_TramTrackGraph_Item, using the provided ResponseGraphNode
-func (t *ResponseCityData_TramTrackGraph_Item) MergeResponseGraphNode(v ResponseGraphNode) error {
-	v.NodeType = "node"
-	b, err := json.Marshal(v)
-	if err != nil {
-		return err
-	}
-
-	merged, err := runtime.JSONMerge(t.union, b)
-	t.union = merged
-	return err
-}
-
-// AsResponseGraphStop returns the union data inside the ResponseCityData_TramTrackGraph_Item as a ResponseGraphStop
-func (t ResponseCityData_TramTrackGraph_Item) AsResponseGraphStop() (ResponseGraphStop, error) {
-	var body ResponseGraphStop
-	err := json.Unmarshal(t.union, &body)
-	return body, err
-}
-
-// FromResponseGraphStop overwrites any union data inside the ResponseCityData_TramTrackGraph_Item as the provided ResponseGraphStop
-func (t *ResponseCityData_TramTrackGraph_Item) FromResponseGraphStop(v ResponseGraphStop) error {
-	v.NodeType = "stop"
-	b, err := json.Marshal(v)
-	t.union = b
-	return err
-}
-
-// MergeResponseGraphStop performs a merge with any union data inside the ResponseCityData_TramTrackGraph_Item, using the provided ResponseGraphStop
-func (t *ResponseCityData_TramTrackGraph_Item) MergeResponseGraphStop(v ResponseGraphStop) error {
-	v.NodeType = "stop"
-	b, err := json.Marshal(v)
-	if err != nil {
-		return err
-	}
-
-	merged, err := runtime.JSONMerge(t.union, b)
-	t.union = merged
-	return err
-}
-
-func (t ResponseCityData_TramTrackGraph_Item) Discriminator() (string, error) {
-	var discriminator struct {
-		Discriminator string `json:"node_type"`
-	}
-	err := json.Unmarshal(t.union, &discriminator)
-	return discriminator.Discriminator, err
-}
-
-func (t ResponseCityData_TramTrackGraph_Item) ValueByDiscriminator() (interface{}, error) {
-	discriminator, err := t.Discriminator()
-	if err != nil {
-		return nil, err
-	}
-	switch discriminator {
-	case "node":
-		return t.AsResponseGraphNode()
-	case "stop":
-		return t.AsResponseGraphStop()
-	default:
-		return nil, errors.New("unknown discriminator value: " + discriminator)
-	}
-}
-
-func (t ResponseCityData_TramTrackGraph_Item) MarshalJSON() ([]byte, error) {
-	b, err := t.union.MarshalJSON()
-	return b, err
-}
-
-func (t *ResponseCityData_TramTrackGraph_Item) UnmarshalJSON(b []byte) error {
+func (t *ResponseCityData_Graph_Item) UnmarshalJSON(b []byte) error {
 	err := t.union.UnmarshalJSON(b)
 	return err
 }

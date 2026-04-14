@@ -4,7 +4,6 @@ import (
 	"fmt"
 
 	"github.com/TNSEngineerEdition/WailsClient/pkg/city"
-	"github.com/TNSEngineerEdition/WailsClient/pkg/city/graph"
 	"github.com/TNSEngineerEdition/WailsClient/pkg/city/trip"
 	"github.com/TNSEngineerEdition/WailsClient/pkg/structs"
 )
@@ -33,16 +32,9 @@ func NewControlCenter(city *city.City) ControlCenter {
 		paths:               make(map[stopPair]Path),
 		segmentsByRouteName: make(map[string][]RouteSegment),
 	}
+	controlCenter.setPaths(city)
 
 	tramRoutes := city.GetTramRoutes()
-	nodesByID := city.GetNodesByID()
-
-	for _, route := range tramRoutes {
-		for _, trip := range route.Trips {
-			controlCenter.addPathsFromTrip(&trip, &nodesByID)
-		}
-	}
-
 	for _, route := range tramRoutes {
 		if route.Variants == nil {
 			continue
@@ -54,18 +46,21 @@ func NewControlCenter(city *city.City) ControlCenter {
 	return controlCenter
 }
 
-func (c *ControlCenter) addPathsFromTrip(
-	trip *trip.Trip,
-	nodesByID *map[uint64]graph.GraphNode,
-) {
-	for i := 0; i < len(trip.Stops)-1; i++ {
-		stopPair := stopPair{
-			source:      trip.Stops[i].ID,
-			destination: trip.Stops[i+1].ID,
-		}
+func (c *ControlCenter) setPaths(city *city.City) {
+	nodesByID := city.GetNodesByID()
+	paths := city.GetPaths()
 
-		if _, ok := c.paths[stopPair]; !ok {
-			c.paths[stopPair] = getShortestPath(nodesByID, stopPair)
+	for startNodeID := range paths {
+		for endNodeID := range paths[startNodeID] {
+			stopPair := stopPair{
+				source:      startNodeID,
+				destination: endNodeID,
+			}
+
+			c.paths[stopPair] = pathFromNodeIDs(
+				paths[startNodeID][endNodeID],
+				&nodesByID,
+			)
 		}
 	}
 }
