@@ -2,7 +2,7 @@ import { Marker, DivIcon } from "leaflet"
 import { LeafletMap } from "@classes/LeafletMap"
 import { MarkerColoringMode } from "@utils/types"
 
-export class TramMarker extends Marker {
+export class VehicleMarker extends Marker {
   static coloringMode: MarkerColoringMode = "Default"
   private isOnMap = false
 
@@ -10,17 +10,17 @@ export class TramMarker extends Marker {
     private leafletMap: LeafletMap,
     private route: string,
   ) {
-    super([0, 0], { icon: TramMarker.createIcon(route) })
+    super([0, 0], { icon: VehicleMarker.createIcon(route) })
   }
 
   private static createIcon(route: string): DivIcon {
     return new DivIcon({
       className: "",
       html: `
-        <div class="tram-marker">
-          <div class="tm-circle-arrow" style="transform: rotate(0);"></div>
-          <div class="tm-circle"></div>
-          <div class="tm-route-label">${route}</div>
+        <div class="vehicle-marker">
+          <div class="vm-circle-arrow" style="transform: rotate(0);"></div>
+          <div class="vm-circle"></div>
+          <div class="vm-route-label">${route}</div>
         </div>
       `,
       iconSize: [24, 24],
@@ -30,9 +30,9 @@ export class TramMarker extends Marker {
 
   private setAzimuth(azimuth: number) {
     const circleArrow =
-      this.getElement()?.querySelector<HTMLElement>(".tm-circle-arrow")
+      this.getElement()?.querySelector<HTMLElement>(".vm-circle-arrow")
     if (!circleArrow) {
-      throw new Error("Tram marker arrow not found")
+      throw new Error("Vehicle marker arrow not found")
     }
 
     circleArrow.style.transform = `rotate(${azimuth + 135}deg)`
@@ -40,13 +40,13 @@ export class TramMarker extends Marker {
 
   private setDelayColor(delay: number) {
     const circleElement =
-      this.getElement()?.querySelector<HTMLElement>(".tm-circle")
+      this.getElement()?.querySelector<HTMLElement>(".vm-circle")
     if (!circleElement) {
       return
     }
 
     const circleArrowElement =
-      this.getElement()?.querySelector<HTMLElement>(".tm-circle-arrow")
+      this.getElement()?.querySelector<HTMLElement>(".vm-circle-arrow")
     if (!circleArrowElement) {
       return
     }
@@ -55,7 +55,7 @@ export class TramMarker extends Marker {
 
     if (delay > 60) {
       // scale delay so 5 minute delay translates to 225
-      // red value: 255-225=30, very much dark red tram marker
+      // red value: 255-225=30, very much dark red vehicle marker
       const scaledDelay = delay * 0.75
       const rValue = 255 - Math.min(scaledDelay, 225)
       bgColor = `rgb(${rValue}, 7, 7)`
@@ -75,7 +75,7 @@ export class TramMarker extends Marker {
 
   public setHighlighted(isHighlighted: boolean) {
     const element =
-      this.getElement()?.querySelector<HTMLElement>(".tram-marker")
+      this.getElement()?.querySelector<HTMLElement>(".vehicle-marker")
     if (!element) {
       return
     }
@@ -90,10 +90,10 @@ export class TramMarker extends Marker {
     if (!this.isOnMap) return
 
     const element =
-      this.getElement()?.querySelector<HTMLElement>(".tram-marker")
+      this.getElement()?.querySelector<HTMLElement>(".vehicle-marker")
 
     if (!element) {
-      throw new Error("Tram marker not found")
+      throw new Error("Vehicle marker not found")
     }
 
     if (isSelected) {
@@ -105,7 +105,7 @@ export class TramMarker extends Marker {
 
   public setStopped(isStopped: boolean) {
     const element =
-      this.getElement()?.querySelector<HTMLElement>(".tram-marker")
+      this.getElement()?.querySelector<HTMLElement>(".vehicle-marker")
     if (!element) return
 
     if (isStopped) {
@@ -117,13 +117,13 @@ export class TramMarker extends Marker {
 
   public removeCustomColoring() {
     const circleElement =
-      this.getElement()?.querySelector<HTMLElement>(".tm-circle")
+      this.getElement()?.querySelector<HTMLElement>(".vm-circle")
     if (!circleElement) {
       return
     }
 
     const circleArrowElement =
-      this.getElement()?.querySelector<HTMLElement>(".tm-circle-arrow")
+      this.getElement()?.querySelector<HTMLElement>(".vm-circle-arrow")
     if (!circleArrowElement) {
       return
     }
@@ -140,11 +140,11 @@ export class TramMarker extends Marker {
     delay?: number,
   ) {
     if (!this.isOnMap) {
-      this.leafletMap.addTram(this)
+      this.leafletMap.addVehicle(this)
       this.isOnMap = true
     }
     this.setHighlighted(this.route === this.leafletMap.selectedRouteName)
-    this.setSelected(this.leafletMap.selectedTram === this)
+    this.setSelected(this.leafletMap.selectedVehicle === this)
     this.setLatLng([lat, lon])
     this.setAzimuth(azimuth)
 
@@ -152,7 +152,7 @@ export class TramMarker extends Marker {
       this.setStopped(isStopped)
     }
 
-    if (TramMarker.coloringMode == "Delays" && delay !== undefined) {
+    if (VehicleMarker.coloringMode == "Delays" && delay !== undefined) {
       this.setDelayColor(delay)
     }
   }
@@ -160,7 +160,7 @@ export class TramMarker extends Marker {
   public removeFromMap() {
     if (!this.isOnMap) return
 
-    this.leafletMap.removeTram(this)
+    this.leafletMap.removeVehicle(this)
     this.isOnMap = false
   }
 }

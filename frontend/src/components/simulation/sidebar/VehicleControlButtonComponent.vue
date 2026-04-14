@@ -7,9 +7,9 @@ const props = defineProps<{
 
 const emit = defineEmits(["click"])
 
-const tramButtonLabel = computed(() => {
+const vehicleButtonLabel = computed(() => {
   if (props.disabled) return "Unavailable"
-  return props.running ? "Stop Tram" : "Resume Tram"
+  return props.running ? "Stop Vehicle" : "Resume Vehicle"
 })
 
 const buttonColor = computed(() => {
@@ -34,7 +34,7 @@ const iconName = computed(() => {
     @click="emit('click')"
   >
     <v-icon class="mr-2" size="20">{{ iconName }}</v-icon>
-    <span>{{ tramButtonLabel }}</span>
+    <span>{{ vehicleButtonLabel }}</span>
   </v-btn>
 </template>
 

@@ -26,7 +26,7 @@ func (ps *PassengersStore) PassengersToCSVBuffer(writer io.Writer) error {
 }
 
 func (ps *PassengersStore) PassengerTripsToCSVBuffer(writer io.Writer) error {
-	writer.Write([]byte("passenger_id,trip_sequence,tram_id,start_stop_id,get_on_time,end_stop_id,get_off_time\n"))
+	writer.Write([]byte("passenger_id,trip_sequence,vehicle_id,start_stop_id,get_on_time,end_stop_id,get_off_time\n"))
 
 	for _, p := range ps.passengers {
 		for _, t := range p.TakenTrips {
@@ -35,7 +35,7 @@ func (ps *PassengersStore) PassengerTripsToCSVBuffer(writer io.Writer) error {
 				"%d,%d,%d,%d,%d,%d,%d\n",
 				p.ID,
 				t.tripSequence,
-				t.tramID,
+				t.vehicleID,
 				t.startStopID,
 				t.getOnTime,
 				t.endStopID,

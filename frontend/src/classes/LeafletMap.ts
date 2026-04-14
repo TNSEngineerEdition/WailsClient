@@ -1,6 +1,6 @@
 import { GetBounds, GetStops } from "@wails/go/city/City"
 import { LatLngBounds, Map as LMap, tileLayer } from "leaflet"
-import { TramMarker } from "@classes/TramMarker"
+import { VehicleMarker } from "@classes/VehicleMarker"
 import { StopMarker } from "@classes/StopMarker"
 import { city, simulation, api } from "@wails/go/models"
 import { RouteHighlighter } from "./RouteHighlighter"
@@ -8,10 +8,10 @@ import { RouteHighlighter } from "./RouteHighlighter"
 export class LeafletMap {
   private entityCount = 0
   public selectedStop?: StopMarker
-  public selectedTram?: TramMarker
-  private followTram = false
+  public selectedVehicle?: VehicleMarker
+  private followVehicle = false
   public selectedRouteName?: string
-  public highlightedRouteTrams?: TramMarker[]
+  public highlightedRouteVehicles?: VehicleMarker[]
   private routeHighlighter: RouteHighlighter
   private stopMarkersById: Record<number, StopMarker> = {}
 
@@ -70,10 +70,10 @@ export class LeafletMap {
     }
   }
 
-  public highlightTramsForRoute(trams: TramMarker[]) {
-    this.highlightedRouteTrams?.forEach(m => m.setHighlighted(false))
-    this.highlightedRouteTrams = trams
-    this.highlightedRouteTrams.forEach(m => m.setHighlighted(true))
+  public highlightVehiclesForRoute(vehicles: VehicleMarker[]) {
+    this.highlightedRouteVehicles?.forEach(m => m.setHighlighted(false))
+    this.highlightedRouteVehicles = vehicles
+    this.highlightedRouteVehicles.forEach(m => m.setHighlighted(true))
   }
 
   public async highlightRoute(route: city.RouteInfo) {
@@ -83,8 +83,8 @@ export class LeafletMap {
 
   public deselectRoute() {
     this.selectedRouteName = undefined
-    this.highlightedRouteTrams?.forEach(m => m.setHighlighted(false))
-    this.highlightedRouteTrams = undefined
+    this.highlightedRouteVehicles?.forEach(m => m.setHighlighted(false))
+    this.highlightedRouteVehicles = undefined
     this.routeHighlighter.clear()
   }
 
@@ -95,40 +95,40 @@ export class LeafletMap {
     }
   }
 
-  public getTramMarkers(
-    trams: simulation.TramIdentifier[],
+  public getVehicleMarkers(
+    vehicles: simulation.VehicleIdentifier[],
     onClickHandler: (id: number) => void,
   ) {
-    const result: Record<number, TramMarker> = {}
+    const result: Record<number, VehicleMarker> = {}
 
-    for (const tram of trams) {
-      const marker = new TramMarker(this, tram.route)
+    for (const vehicle of vehicles) {
+      const marker = new VehicleMarker(this, vehicle.route)
       marker.on("click", () => {
-        if (this.selectedTram) this.selectedTram.setSelected(false)
-        this.selectedTram = marker
+        if (this.selectedVehicle) this.selectedVehicle.setSelected(false)
+        this.selectedVehicle = marker
         marker.setSelected(true)
-        onClickHandler(tram.id)
+        onClickHandler(vehicle.id)
       })
-      result[tram.id] = marker
+      result[vehicle.id] = marker
     }
 
     return result
   }
 
-  public addTram(tramMarker: TramMarker) {
+  public addVehicle(vehicleMarker: VehicleMarker) {
     this.entityCount++
-    tramMarker.addTo(this.map)
+    vehicleMarker.addTo(this.map)
   }
 
-  public removeTram(tramMarker: TramMarker) {
+  public removeVehicle(vehicleMarker: VehicleMarker) {
     this.entityCount--
-    tramMarker.removeFrom(this.map)
+    vehicleMarker.removeFrom(this.map)
   }
 
-  public deselectTram() {
-    if (this.selectedTram) {
-      this.selectedTram.setSelected(false)
-      this.selectedTram = undefined
+  public deselectVehicle() {
+    if (this.selectedVehicle) {
+      this.selectedVehicle.setSelected(false)
+      this.selectedVehicle = undefined
     }
   }
 
@@ -141,13 +141,13 @@ export class LeafletMap {
     this.map.flyTo([lat, lon], z, { animate: true, duration: 0.6 })
   }
 
-  public setFollowTram(enabled: boolean) {
-    this.followTram = enabled
+  public setFollowVehicle(enabled: boolean) {
+    this.followVehicle = enabled
   }
 
   public followTick() {
-    if (!this.followTram || !this.selectedTram) return
-    this.map.panTo(this.selectedTram.getLatLng(), {
+    if (!this.followVehicle || !this.selectedVehicle) return
+    this.map.panTo(this.selectedVehicle.getLatLng(), {
       animate: true,
       duration: 0.25,
     })

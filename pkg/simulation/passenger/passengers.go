@@ -10,7 +10,7 @@ import (
 )
 
 type takenTrip struct {
-	tramID                 uint
+	vehicleID              uint
 	tripSequence           int
 	startStopID, endStopID uint64
 	getOnTime, getOffTime  uint
@@ -92,10 +92,10 @@ func PassengersFromModelData(
 	return
 }
 
-func (p *Passenger) saveNewTrip(tramID, time uint, startStopID, endStopID uint64) {
+func (p *Passenger) saveNewTrip(vehicleID, time uint, startStopID, endStopID uint64) {
 	tripSequence := len(p.TakenTrips) + 1
 	p.TakenTrips = append(p.TakenTrips, takenTrip{
-		tramID:       tramID,
+		vehicleID:    vehicleID,
 		tripSequence: tripSequence,
 		getOnTime:    time,
 		startStopID:  startStopID,

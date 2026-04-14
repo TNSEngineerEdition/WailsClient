@@ -55,20 +55,20 @@ func (tp TravelPlan) GetConnectionTransferDestination(stopID uint64) uint64 {
 	}
 }
 
-func (tp TravelPlan) GetConnectionDestination(tramID uint) uint64 {
-	if _, ok := tp.connections[tramID]; ok {
-		return tp.connections[tramID].to
+func (tp TravelPlan) GetConnectionDestination(vehicleID uint) uint64 {
+	if _, ok := tp.connections[vehicleID]; ok {
+		return tp.connections[vehicleID].to
 	} else {
-		panic(fmt.Sprintf("Connection %d not found", tramID))
+		panic(fmt.Sprintf("Connection %d not found", vehicleID))
 	}
 }
 
-func (tp TravelPlan) ContainsConnection(stopID uint64, tramID uint) bool {
+func (tp TravelPlan) ContainsConnection(stopID uint64, vehicleID uint) bool {
 	if _, ok := tp.stops[stopID]; !ok {
 		return false
 	}
 
-	if _, ok := tp.stops[stopID].connections[tramID]; ok {
+	if _, ok := tp.stops[stopID].connections[vehicleID]; ok {
 		return true
 	}
 

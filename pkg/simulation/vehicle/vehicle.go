@@ -1,7 +1,6 @@
-package tram
+package vehicle
 
 import (
-	"fmt"
 	"math"
 	"math/rand/v2"
 
@@ -15,7 +14,7 @@ import (
 
 const MAX_ACCELERATION = 1.0
 
-type Tram struct {
+type Vehicle struct {
 	ID                  uint
 	pathIndex           int
 	speed, length       float32
@@ -27,43 +26,45 @@ type Tram struct {
 	blockedNodesBehind  []graph.GraphNode
 	departureTime       uint
 	isFinished          bool
-	state               TramState
-	prevState           TramState
-	passengersInTram    map[uint64]*passenger.Passenger
+	state               VehicleState
+	prevState           VehicleState
+	passengersInVehicle map[uint64]*passenger.Passenger
 	passengersStore     *passenger.PassengersStore
+	useNodeBlocking     bool
 }
 
-func NewTram(
+func NewVehicle(
 	id uint,
 	route *trip.Route,
 	trip *trip.Trip,
 	controlCenter *controlcenter.ControlCenter,
 	passengersStore *passenger.PassengersStore,
-) *Tram {
+) *Vehicle {
 	startTime := uint(trip.Stops[0].Time)
-	return &Tram{
-		ID:               id,
-		length:           30,
-		Route:            route,
-		TripDetails:      newTripDetails(trip),
-		departureTime:    startTime - uint(rand.IntN(11)) - 15,
-		state:            StateTripNotStarted,
-		controlCenter:    controlCenter,
-		passengersStore:  passengersStore,
-		passengersInTram: make(map[uint64]*passenger.Passenger),
+	return &Vehicle{
+		ID:                  id,
+		length:              30,
+		Route:               route,
+		TripDetails:         newTripDetails(trip),
+		departureTime:       startTime - uint(rand.IntN(11)) - 15,
+		state:               StateTripNotStarted,
+		controlCenter:       controlCenter,
+		passengersStore:     passengersStore,
+		passengersInVehicle: make(map[uint64]*passenger.Passenger),
+		useNodeBlocking:     route.TransitType == api.Tram,
 	}
 }
 
-type TramPositionChange struct {
-	TramID  uint      `json:"id"`
-	Lat     float32   `json:"lat"`
-	Lon     float32   `json:"lon"`
-	Azimuth float32   `json:"azimuth"`
-	State   TramState `json:"state"`
-	Delay   uint      `json:"delay"`
+type VehiclePositionChange struct {
+	VehicleID uint         `json:"id"`
+	Lat       float32      `json:"lat"`
+	Lon       float32      `json:"lon"`
+	Azimuth   float32      `json:"azimuth"`
+	State     VehicleState `json:"state"`
+	Delay     uint         `json:"delay"`
 }
 
-func (t *Tram) Advance(time uint, stopsByID map[uint64]*graph.GraphStop) (result TramPositionChange, update bool) {
+func (t *Vehicle) Advance(time uint, stopsByID map[uint64]*graph.GraphStop) (result VehiclePositionChange, update bool) {
 	switch t.state {
 	case StateTripNotStarted:
 		result, update = t.onTripNotStarted(time, stopsByID)
@@ -81,7 +82,7 @@ func (t *Tram) Advance(time uint, stopsByID map[uint64]*graph.GraphStop) (result
 	return
 }
 
-func (t *Tram) IsAtStop() bool {
+func (t *Vehicle) IsAtStop() bool {
 	if t.state == StateStopped {
 		return t.prevState == StatePassengersLoading || t.prevState == StatePassengersUnloading
 	}
@@ -89,7 +90,7 @@ func (t *Tram) IsAtStop() bool {
 	return t.state == StatePassengersLoading || t.state == StatePassengersUnloading
 }
 
-func (t *Tram) getTravelPath() *controlcenter.Path {
+func (t *Vehicle) getTravelPath() *controlcenter.Path {
 	startStopID, endStopID := 0, 1
 	if t.TripDetails.Index > 0 {
 		startStopID, endStopID = t.TripDetails.Index-1, t.TripDetails.Index
@@ -101,7 +102,7 @@ func (t *Tram) getTravelPath() *controlcenter.Path {
 	return t.controlCenter.GetPath(previousStop.ID, nextStop.ID)
 }
 
-func (t *Tram) findNewLocation(path []graph.GraphNode, distanceToDrive float32) {
+func (t *Vehicle) findNewLocation(path []graph.GraphNode, distanceToDrive float32) {
 	for distanceToDrive > 0 && t.pathIndex < len(path)-1 {
 		if t.distToNextInterNode == 0 {
 			t.setAzimuthAndDistanceToNextNode(path)
@@ -122,7 +123,7 @@ func (t *Tram) findNewLocation(path []graph.GraphNode, distanceToDrive float32) 
 	}
 }
 
-func (t *Tram) findIntermediateLocation(path []graph.GraphNode, remainingPart float32) {
+func (t *Vehicle) findIntermediateLocation(path []graph.GraphNode, remainingPart float32) {
 	nextLat, nextLon := path[t.pathIndex+1].GetCoordinates()
 
 	vectorLat := nextLat - t.lat
@@ -131,7 +132,7 @@ func (t *Tram) findIntermediateLocation(path []graph.GraphNode, remainingPart fl
 	t.lon += vectorLon * remainingPart
 }
 
-func (t *Tram) setAzimuthAndDistanceToNextNode(path []graph.GraphNode) {
+func (t *Vehicle) setAzimuthAndDistanceToNextNode(path []graph.GraphNode) {
 	neighbors := path[t.pathIndex].GetNeighbors()
 
 	if nextNode, ok := neighbors[path[t.pathIndex+1].GetID()]; ok {
@@ -140,17 +141,17 @@ func (t *Tram) setAzimuthAndDistanceToNextNode(path []graph.GraphNode) {
 	}
 }
 
-func (t *Tram) getDistanceToNeighbor(v graph.GraphNode, u graph.GraphNode) float32 {
+func (t *Vehicle) getDistanceToNeighbor(v graph.GraphNode, u graph.GraphNode) float32 {
 	if neighbor, ok := v.GetNeighbors()[u.GetID()]; ok {
 		return neighbor.Distance
 	} else if neighbor, ok := u.GetNeighbors()[v.GetID()]; ok {
 		return neighbor.Distance
 	} else {
-		panic(fmt.Sprintf("Distance between nodes %d and %d not found", v.GetID(), u.GetID()))
+		panic("Distance between nodes not found")
 	}
 }
 
-func (t *Tram) nextNodeDistance(path []graph.GraphNode, i int) float32 {
+func (t *Vehicle) nextNodeDistance(path []graph.GraphNode, i int) float32 {
 	if i == t.pathIndex && t.distToNextInterNode > 0 {
 		return t.distToNextInterNode
 	}
@@ -158,18 +159,22 @@ func (t *Tram) nextNodeDistance(path []graph.GraphNode, i int) float32 {
 	return t.getDistanceToNeighbor(path[i], path[i+1])
 }
 
-func (t *Tram) blockNodesBehind() {
+func (t *Vehicle) blockNodesBehind() {
+	if !t.useNodeBlocking {
+		return
+	}
+
 	if len(t.blockedNodesBehind) == 0 {
 		return
 	}
 	idx := len(t.blockedNodesBehind) - 1
 
-	// block current position of a tram marker
+	// block current position of a vehicle marker
 	u := t.blockedNodesBehind[idx]
 	u.TryBlocking(t.ID)
 	idx--
 
-	// block nodes behind a tram marker simulating tram length
+	// block nodes behind a vehicle marker simulating vehicle length
 	distanceLeft := t.length
 	for distanceLeft > 0 && idx >= 0 {
 		v := t.blockedNodesBehind[idx]
@@ -179,7 +184,7 @@ func (t *Tram) blockNodesBehind() {
 		idx--
 	}
 
-	// unblock (and remove from the slice) nodes left behind by a tram
+	// unblock (and remove from the slice) nodes left behind by a vehicle
 	p := idx + 1
 	for idx >= 0 {
 		t.blockedNodesBehind[idx].Unblock(t.ID)
@@ -188,20 +193,28 @@ func (t *Tram) blockNodesBehind() {
 	t.blockedNodesBehind = t.blockedNodesBehind[p:]
 }
 
-func (t *Tram) unblockNodesBehind() {
+func (t *Vehicle) unblockNodesBehind() {
+	if !t.useNodeBlocking {
+		return
+	}
+
 	for _, node := range t.blockedNodesBehind {
 		node.Unblock(t.ID)
 	}
 }
 
-func (t *Tram) unblockNodesAhead() {
+func (t *Vehicle) unblockNodesAhead() {
+	if !t.useNodeBlocking {
+		return
+	}
+
 	path := t.getTravelPath()
 	for i := t.pathIndex; i < len(path.Nodes)-1; i++ {
 		path.Nodes[i+1].Unblock(t.ID)
 	}
 }
 
-func (t *Tram) GetEstimatedArrival(stopIndex int, time uint) uint {
+func (t *Vehicle) GetEstimatedArrival(stopIndex int, time uint) uint {
 	if t.TripDetails.Index > stopIndex || t.TripDetails.Index == stopIndex && t.IsAtStop() {
 		return t.TripDetails.Arrivals[stopIndex]
 	}
@@ -220,7 +233,7 @@ func (t *Tram) GetEstimatedArrival(stopIndex int, time uint) uint {
 	remainingTravelTimeToNextStop := uint(math.Round(float64(scheduledTravelTimeToNextStop) * pathLeft))
 	estimatedArrivalAtNextStop := time + remainingTravelTimeToNextStop
 
-	// Estimating arrival at next tram stop
+	// Estimating arrival at next vehicle stop
 	if t.TripDetails.Index == stopIndex {
 		return estimatedArrivalAtNextStop
 	}
@@ -233,10 +246,10 @@ func (t *Tram) GetEstimatedArrival(stopIndex int, time uint) uint {
 	return t.TripDetails.Trip.Stops[stopIndex].Time + estimatedPositiveDelay
 }
 
-// Guarantees smooth arrival and deceleration to another tram, stop or a section
+// Guarantees smooth arrival and deceleration to another vehicle, stop or a section
 // with a lower speed limit by solving a quadratic equation whose result is the new speed.
 // Returns new speed.
-func (t *Tram) handleDeceleration(targetDistance, targetSpeed, maxSpeed float32) float32 {
+func (t *Vehicle) handleDeceleration(targetDistance, targetSpeed, maxSpeed float32) float32 {
 	// (v0+v1target)/2 + v1target^2/(2a) = targetDistance =>
 	// v1target^2 + v1target*a + v0*a - 2*a*targetDistance = 0
 	A := 1.0
@@ -258,11 +271,11 @@ func (t *Tram) handleDeceleration(targetDistance, targetSpeed, maxSpeed float32)
 	return v1target
 }
 
-func (t *Tram) getBlockingDistance(speed float32) float32 {
+func (t *Vehicle) getBlockingDistance(speed float32) float32 {
 	return speed + speed*speed/(2*MAX_ACCELERATION) + 2*t.length
 }
 
-func (t *Tram) extendReservedDistance(reservedDistance, neededDistance, distanceToNextNode float32) float32 {
+func (t *Vehicle) extendReservedDistance(reservedDistance, neededDistance, distanceToNextNode float32) float32 {
 	if reservedDistance+distanceToNextNode <= neededDistance {
 		reservedDistance += distanceToNextNode
 	} else {
@@ -271,9 +284,16 @@ func (t *Tram) extendReservedDistance(reservedDistance, neededDistance, distance
 	return reservedDistance
 }
 
-func (t *Tram) updateSpeedAndReserveNodes(path *controlcenter.Path) (availableDistance float32) {
+func (t *Vehicle) updateSpeedAndReserveNodes(path *controlcenter.Path) (availableDistance float32) {
 	currentMaxSpeed := path.MaxSpeeds[t.pathIndex]
 	newSpeed := min(t.speed+MAX_ACCELERATION, currentMaxSpeed)
+
+	if !t.useNodeBlocking {
+		nextSpeed := newSpeed
+		distance := (nextSpeed + t.speed) * 0.5
+		t.speed = nextSpeed
+		return distance
+	}
 
 	neededReserveAtCurrentSpeed := t.getBlockingDistance(t.speed)
 	neededReserveIfAccel := t.getBlockingDistance(newSpeed)
@@ -354,24 +374,24 @@ func (t *Tram) updateSpeedAndReserveNodes(path *controlcenter.Path) (availableDi
 		if canAccelerate {
 			nextSpeed = newSpeed
 		} else {
-			// handles situation when tram is waiting for free node
+			// handles situation when vehicle is waiting for free node
 			nextSpeed = 0
 		}
 	}
 
-	//this is the distance the tram will actually travel (consulting changing speed)
+	//this is the distance the vehicle will actually travel (consulting changing speed)
 	distance := (nextSpeed + t.speed) * 0.5
 	t.speed = nextSpeed
 
 	return distance
 }
 
-func (t *Tram) getSpeed() uint8 {
+func (t *Vehicle) getSpeed() uint8 {
 	speedKPH := float64((t.speed * 18) / 5)
 	return uint8(math.Round(speedKPH))
 }
 
-type TramDetails struct {
+type VehicleDetails struct {
 	Route           string                 `json:"route"`
 	TripHeadSign    string                 `json:"trip_head_sign"`
 	TripIndex       int                    `json:"trip_index"`
@@ -380,11 +400,11 @@ type TramDetails struct {
 	Departures      []uint                 `json:"departures"`
 	StopNames       []string               `json:"stop_names"`
 	Speed           uint8                  `json:"speed"`
-	State           TramState              `json:"state"`
+	State           VehicleState           `json:"state"`
 	PassengersCount uint                   `json:"passengers_count"`
 }
 
-func (t *Tram) GetDetails(c *city.City, time uint) TramDetails {
+func (t *Vehicle) GetDetails(c *city.City, time uint) VehicleDetails {
 	stopsByID := c.GetStopsByID()
 	stopNames := make([]string, len(t.TripDetails.Trip.Stops))
 
@@ -396,7 +416,7 @@ func (t *Tram) GetDetails(c *city.City, time uint) TramDetails {
 		t.TripDetails.Arrivals[t.TripDetails.Index] = t.GetEstimatedArrival(t.TripDetails.Index, time)
 	}
 
-	return TramDetails{
+	return VehicleDetails{
 		Route:           t.Route.Name,
 		TripHeadSign:    t.TripDetails.Trip.TripHeadSign,
 		TripIndex:       t.TripDetails.Index,
@@ -410,11 +430,11 @@ func (t *Tram) GetDetails(c *city.City, time uint) TramDetails {
 	}
 }
 
-func (t *Tram) IsStopped() bool {
+func (t *Vehicle) IsStopped() bool {
 	return t.state == StateStopped || t.state == StateStopping
 }
 
-func (t *Tram) StopTram() {
+func (t *Vehicle) StopVehicle() {
 	switch t.state {
 	case StateTravelling, StateStopping:
 		t.prevState = t.state
@@ -426,7 +446,7 @@ func (t *Tram) StopTram() {
 	}
 }
 
-func (t *Tram) ResumeTram(currentTime uint) {
+func (t *Vehicle) ResumeVehicle(currentTime uint) {
 	switch t.prevState {
 	case StatePassengersLoading:
 		t.state = StatePassengersLoading

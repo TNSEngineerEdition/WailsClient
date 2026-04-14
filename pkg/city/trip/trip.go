@@ -16,15 +16,21 @@ func NewTrip(id uint, tripDetails *api.ResponseTrip) Trip {
 	}
 }
 
-func TramTripsFromCityData(responseCityData *api.ResponseCityData) []Route {
+func VehicleTripsFromCityData(responseCityData *api.ResponseCityData) []Route {
 	tripID := uint(1)
-	tramRoutes := make([]Route, len(responseCityData.TramRoutes))
 
-	for i, item := range responseCityData.TramRoutes {
-		tramRoutes[i] = NewRoute(&item, &tripID)
+	totalRoutes := len(responseCityData.TramRoutes) + len(responseCityData.BusRoutes)
+	routes := make([]Route, 0, totalRoutes)
+
+	for _, item := range responseCityData.TramRoutes {
+		routes = append(routes, NewRoute(&item, &tripID, api.Tram))
 	}
 
-	return tramRoutes
+	for _, item := range responseCityData.BusRoutes {
+		routes = append(routes, NewRoute(&item, &tripID, api.Bus))
+	}
+
+	return routes
 }
 
 func (t *Trip) GetScheduledTravelTime(start, end int) uint {

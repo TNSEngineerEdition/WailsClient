@@ -20,7 +20,7 @@ export type GraphNode = {
     lon: number
     neighbors: Record<number, GraphNeighbor>
 
-    // tram stop specific
+    // stop specific
     gtfs_stop_ids?: string[]
     name?: string
     node_type?: string

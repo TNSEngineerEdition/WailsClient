@@ -10,7 +10,7 @@ import (
 type travelPlanBuilder[V, P any] interface {
 	handlePQValue(value *V) bool
 	getPQValueAndPriority(
-		tramTrip *trip.Trip,
+		vehicleTrip *trip.Trip,
 		stop *api.ResponseTripStop,
 		takenTripsAfterStop *tripSequence,
 	) (V, P)
@@ -83,12 +83,12 @@ func (a *abstractTravelPlanBuilder[V, P]) addStopsAlongTrip(
 	}
 
 	stopsByID := a.currentCity.GetStopsByID()
-	tramTrip := a.currentCity.GetTripByID(arrival.TripID)
+	vehicleTrip := a.currentCity.GetTripByID(arrival.TripID)
 
 	visitedStops := structs.NewSet[string]()
-	visitedStops.Add(stopsByID[tramTrip.Stops[arrival.StopIndex].ID].GetGroupName())
+	visitedStops.Add(stopsByID[vehicleTrip.Stops[arrival.StopIndex].ID].GetGroupName())
 
-	for _, stop := range tramTrip.Stops[arrival.StopIndex+1:] {
+	for _, stop := range vehicleTrip.Stops[arrival.StopIndex+1:] {
 		stopGroupName := a.currentCity.GetStopByID(stop.ID).GetGroupName()
 		visitedStops.Add(stopGroupName)
 
@@ -103,10 +103,10 @@ func (a *abstractTravelPlanBuilder[V, P]) addStopsAlongTrip(
 		}
 
 		takenTripsAfterStop := takenTrips.extendTripRecords(
-			tramTrip.ID,
+			vehicleTrip.ID,
 			stop.Time,
 			stop.Time-arrival.Time,
-			tramTrip.Stops[arrival.StopIndex].ID,
+			vehicleTrip.Stops[arrival.StopIndex].ID,
 			stop.ID,
 			visitedStops,
 		)
@@ -117,7 +117,7 @@ func (a *abstractTravelPlanBuilder[V, P]) addStopsAlongTrip(
 			break
 		}
 
-		value, priority := a.getPQValueAndPriority(tramTrip, &stop, &takenTripsAfterStop)
+		value, priority := a.getPQValueAndPriority(vehicleTrip, &stop, &takenTripsAfterStop)
 		a.tripsPriorityQueue.Push(value, priority)
 	}
 }

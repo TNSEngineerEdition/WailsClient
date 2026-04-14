@@ -9,21 +9,23 @@ type Route struct {
 	Trips           []Trip
 	Variants        *map[string][]uint64
 	routeDetails    *api.ResponseRoute
+	TransitType     api.TransitType
 }
 
-func NewRoute(tramRouteData *api.ResponseRoute, tripID *uint) Route {
-	tramRoute := Route{
-		Name:            tramRouteData.Name,
-		BackgroundColor: tramRouteData.BackgroundColor,
-		TextColor:       tramRouteData.TextColor,
+func NewRoute(vehicleRouteData *api.ResponseRoute, tripID *uint, transitType api.TransitType) Route {
+	vehicleRoute := Route{
+		Name:            vehicleRouteData.Name,
+		BackgroundColor: vehicleRouteData.BackgroundColor,
+		TextColor:       vehicleRouteData.TextColor,
 		Trips:           make([]Trip, 0),
-		Variants:        tramRouteData.Variants,
-		routeDetails:    tramRouteData,
+		Variants:        vehicleRouteData.Variants,
+		routeDetails:    vehicleRouteData,
+		TransitType:     transitType,
 	}
 
-	tramRoute.ResetTrips(tripID)
+	vehicleRoute.ResetTrips(tripID)
 
-	return tramRoute
+	return vehicleRoute
 }
 
 func (t *Route) ResetTrips(tripID *uint) {

@@ -141,7 +141,7 @@ export class LeafletCustomizeMap {
 
   // Travels through the graph to find the second selected node
   // and determines the path to highlight.
-  // It stops at tram stops, switches and the end of the rectangle
+  // It stops at stops, switches and the end of the rectangle
   private findSelectionEndAndPath(
     selectedEdgeEnd: number,
     nodes: Record<number, GraphNode>,
@@ -159,12 +159,11 @@ export class LeafletCustomizeMap {
       const isSelectedEdge = node.id === selectedEdgeEnd
       const isSwitchOrCrossing =
         node.id !== this.selectedStart.edgeStart && nodeNeighbors.length !== 1
-      const isTramStop =
+      const isStop =
         node.id !== this.selectedStart.edgeStart && node.node_type === "stop"
       const isOutOfBounds = !(nodeNeighbors[0] in nodes)
 
-      if (isSelectedEdge || isSwitchOrCrossing || isTramStop || isOutOfBounds)
-        break
+      if (isSelectedEdge || isSwitchOrCrossing || isStop || isOutOfBounds) break
 
       node = nodes[nodeNeighbors[0]].details
     }

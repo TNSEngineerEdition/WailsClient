@@ -1,7 +1,7 @@
 <script lang="ts" setup>
 import { onMounted, reactive, ref, toRaw, useTemplateRef } from "vue"
 import { LeafletCustomizeMap } from "@classes/LeafletCustomizeMap"
-import { UpdateTramTrackGraph } from "@wails/go/city/City"
+import { UpdateGraph } from "@wails/go/city/City"
 import router from "@plugins/router"
 import { InitializeSimulation } from "@wails/go/simulation/Simulation"
 import CustomizeHeaderComponent from "./CustomizeHeaderComponent.vue"
@@ -27,7 +27,7 @@ function resetChanges() {
 }
 
 async function saveChanges() {
-  await UpdateTramTrackGraph(toRaw(modifiedNodes))
+  await UpdateGraph(toRaw(modifiedNodes))
 
   const simulationErrorMessage = await InitializeSimulation(0)
   if (simulationErrorMessage) {

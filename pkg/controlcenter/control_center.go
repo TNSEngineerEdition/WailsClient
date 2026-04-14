@@ -34,8 +34,8 @@ func NewControlCenter(city *city.City) ControlCenter {
 	}
 	controlCenter.setPaths(city)
 
-	tramRoutes := city.GetTramRoutes()
-	for _, route := range tramRoutes {
+	vehicleRoutes := city.GetVehicleRoutes()
+	for _, route := range vehicleRoutes {
 		if route.Variants == nil {
 			continue
 		}
