@@ -5,27 +5,27 @@ import (
 )
 
 type NodeBlocker interface {
-	TryBlocking(tramID uint) bool
-	Unblock(tramID uint)
+	TryBlocking(vehicleID uint) bool
+	Unblock(vehicleID uint)
 	ForceUnblock()
 }
 
 type NodeBlock struct {
-	isBlocked      bool
-	blockingTramID uint
-	mu             sync.Mutex
+	isBlocked         bool
+	blockingVehicleID uint
+	mu                sync.Mutex
 }
 
-func (g *NodeBlock) TryBlocking(tramID uint) bool {
+func (g *NodeBlock) TryBlocking(vehicleID uint) bool {
 	g.mu.Lock()
 	defer g.mu.Unlock()
 
-	if g.isBlocked && g.blockingTramID != tramID {
+	if g.isBlocked && g.blockingVehicleID != vehicleID {
 		return false
 	}
 
 	g.isBlocked = true
-	g.blockingTramID = tramID
+	g.blockingVehicleID = vehicleID
 
 	return true
 }
@@ -36,12 +36,12 @@ func (g *NodeBlock) unblock(condition bool) {
 
 	if g.isBlocked && condition {
 		g.isBlocked = false
-		g.blockingTramID = 0
+		g.blockingVehicleID = 0
 	}
 }
 
-func (g *NodeBlock) Unblock(tramID uint) {
-	g.unblock(g.blockingTramID == tramID)
+func (g *NodeBlock) Unblock(vehicleID uint) {
+	g.unblock(g.blockingVehicleID == vehicleID)
 }
 
 func (g *NodeBlock) ForceUnblock() {

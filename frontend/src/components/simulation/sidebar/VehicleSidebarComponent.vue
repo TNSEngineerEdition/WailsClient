@@ -1,22 +1,25 @@
 <script setup lang="ts">
 import SidebarComponent from "@components/simulation/sidebar/SidebarComponent.vue"
-import TramControlButtonComponent from "@components/simulation/sidebar/TramControlButtonComponent.vue"
+import VehicleControlButtonComponent from "@components/simulation/sidebar/VehicleControlButtonComponent.vue"
 import { Time } from "@classes/Time"
-import { tram } from "@wails/go/models"
-import { GetTramDetails, StopResumeTram } from "@wails/go/simulation/Simulation"
+import { vehicle } from "@wails/go/models"
+import {
+  GetVehicleDetails,
+  StopResumeVehicle,
+} from "@wails/go/simulation/Simulation"
 import { computed, ref, watch } from "vue"
-import { TramMarker } from "@classes/TramMarker"
+import { VehicleMarker } from "@classes/VehicleMarker"
 
 const model = defineModel<boolean>({ required: true })
 
 const props = defineProps<{
-  tramId?: number
-  tramMarker?: TramMarker
+  vehicleId?: number
+  vehicleMarker?: VehicleMarker
   currentTime: number
-  followTram: boolean
+  followVehicle: boolean
 }>()
 
-const tramDetails = ref<tram.TramDetails>()
+const vehicleDetails = ref<vehicle.VehicleDetails>()
 
 const headers = [
   { title: "Stop name", key: "stop", align: "center", sortable: false },
@@ -27,44 +30,44 @@ const headers = [
 
 const stopsTableData = computed(
   () =>
-    tramDetails.value?.stop_names.map((stop, index) => {
-      const time = tramDetails.value?.stops[index]?.time ?? 0
-      const tripIndex = tramDetails.value?.trip_index ?? 0
+    vehicleDetails.value?.stop_names.map((stop, index) => {
+      const time = vehicleDetails.value?.stops[index]?.time ?? 0
+      const tripIndex = vehicleDetails.value?.trip_index ?? 0
 
       return {
         stop,
         time,
         arrival:
           index <= tripIndex
-            ? (tramDetails.value?.arrivals[index] ?? 0) - time
+            ? (vehicleDetails.value?.arrivals[index] ?? 0) - time
             : null,
         departure:
           index <= tripIndex - 1
-            ? (tramDetails.value?.departures[index] ?? 0) - time
+            ? (vehicleDetails.value?.departures[index] ?? 0) - time
             : null,
-        id: tramDetails.value?.stops[index]?.id,
+        id: vehicleDetails.value?.stops[index]?.id,
       }
     }) ?? [],
 )
 
-const isTramRunning = computed(
+const isVehicleRunning = computed(
   () =>
-    tramDetails.value?.state !== tram.TramState.STOPPED &&
-    tramDetails.value?.state !== tram.TramState.STOPPING,
+    vehicleDetails.value?.state !== vehicle.VehicleState.STOPPED &&
+    vehicleDetails.value?.state !== vehicle.VehicleState.STOPPING,
 )
 
-const isTramDisabled = computed(() => {
+const isVehicleDisabled = computed(() => {
   return (
-    !props.tramId ||
-    tramDetails.value?.state === tram.TramState.TRIP_FINISHED ||
-    tramDetails.value?.state === tram.TramState.TRIP_NOT_STARTED
+    !props.vehicleId ||
+    vehicleDetails.value?.state === vehicle.VehicleState.TRIP_FINISHED ||
+    vehicleDetails.value?.state === vehicle.VehicleState.TRIP_NOT_STARTED
   )
 })
 
-const emit = defineEmits(["stopSelected", "centerTram", "followTram"])
+const emit = defineEmits(["stopSelected", "centerVehicle", "followVehicle"])
 
 function getRowProps(data: any) {
-  if (data.index === tramDetails.value?.trip_index)
+  if (data.index === vehicleDetails.value?.trip_index)
     return {
       style:
         "background-color: rgba(40, 150, 241, 0.2); transition: background-color 0.3s ease, font-weight 0.3s ease;",
@@ -89,31 +92,31 @@ function onStopClick(_: MouseEvent, row: { item: any }) {
   emit("stopSelected", row.item.id)
 }
 
-function onCenterTramClick() {
-  emit("centerTram")
+function onCenterVehicleClick() {
+  emit("centerVehicle")
 }
 
-async function stopResumeTram() {
-  if (isTramDisabled.value) return
+async function stopResumeVehicle() {
+  if (isVehicleDisabled.value) return
 
-  const updated = await StopResumeTram(props.tramId!)
-  tramDetails.value = updated
+  const updated = await StopResumeVehicle(props.vehicleId!)
+  vehicleDetails.value = updated
 
-  if (props.tramMarker) {
+  if (props.vehicleMarker) {
     const isStopped =
-      updated.state === tram.TramState.STOPPED ||
-      updated.state === tram.TramState.STOPPING
-    props.tramMarker.setStopped(isStopped)
+      updated.state === vehicle.VehicleState.STOPPED ||
+      updated.state === vehicle.VehicleState.STOPPING
+    props.vehicleMarker.setStopped(isStopped)
   }
 }
 
 watch(
-  () => props.tramId,
+  () => props.vehicleId,
   async id => {
     if (id) {
-      tramDetails.value = await GetTramDetails(id)
+      vehicleDetails.value = await GetVehicleDetails(id)
     } else {
-      tramDetails.value = undefined
+      vehicleDetails.value = undefined
       model.value = false
     }
   },
@@ -123,18 +126,18 @@ watch(
 watch(
   () => props.currentTime,
   async () => {
-    if (props.tramId) {
-      tramDetails.value = await GetTramDetails(props.tramId)
+    if (props.vehicleId) {
+      vehicleDetails.value = await GetVehicleDetails(props.vehicleId)
     }
   },
   { immediate: true },
 )
 
 watch(
-  () => isTramDisabled.value,
+  () => isVehicleDisabled.value,
   disabled => {
-    if (disabled && props.followTram) {
-      emit("followTram", false)
+    if (disabled && props.followVehicle) {
+      emit("followVehicle", false)
     }
   },
   { immediate: true },
@@ -146,8 +149,8 @@ watch(
     v-model="model"
     position="left"
     :title="
-      tramDetails
-        ? `${tramDetails.route} ➡ ${tramDetails.trip_head_sign}`
+      vehicleDetails
+        ? `${vehicleDetails.route} ➡ ${vehicleDetails.trip_head_sign}`
         : 'Loading data...'
     "
     title-icon="mdi-tram"
@@ -157,16 +160,16 @@ watch(
         icon="mdi-crosshairs-gps"
         variant="text"
         density="compact"
-        :disabled="!props.tramId || isTramDisabled"
-        @click="onCenterTramClick"
+        :disabled="!props.vehicleId || isVehicleDisabled"
+        @click="onCenterVehicleClick"
       />
     </template>
     <div class="section">
       <div class="label">
         <v-icon icon="mdi-identifier" class="mr-2"></v-icon>
-        Tram ID
+        Vehicle ID
       </div>
-      <div class="value">{{ props.tramId }}</div>
+      <div class="value">{{ props.vehicleId }}</div>
     </div>
 
     <div class="section">
@@ -174,7 +177,7 @@ watch(
         <v-icon icon="mdi-speedometer" class="mr-2"></v-icon>
         Speed
       </div>
-      <div class="value">{{ tramDetails?.speed }} km/h</div>
+      <div class="value">{{ vehicleDetails?.speed }} km/h</div>
     </div>
 
     <div class="section">
@@ -182,22 +185,22 @@ watch(
         <v-icon icon="mdi-account-group" class="mr-2"></v-icon>
         Passenger count
       </div>
-      <div class="value">{{ tramDetails?.passengers_count }}</div>
+      <div class="value">{{ vehicleDetails?.passengers_count }}</div>
     </div>
 
     <div class="section">
       <div class="label">
         <v-icon icon="mdi-radar" class="mr-2" />
-        Follow tram
+        Follow vehicle
       </div>
 
       <div class="value">
         <v-switch
-          :disabled="isTramDisabled"
+          :disabled="isVehicleDisabled"
           color="info"
           density="compact"
           hide-details
-          @update:model-value="value => emit('followTram', value)"
+          @update:model-value="value => emit('followVehicle', value)"
         />
       </div>
     </div>
@@ -207,11 +210,11 @@ watch(
         <v-icon icon="mdi mdi-wrench-cog" class="mr-2"></v-icon>
         Simulate failure
       </div>
-      <TramControlButtonComponent
-        :running="isTramRunning"
-        :disabled="isTramDisabled"
-        @click="stopResumeTram"
-      ></TramControlButtonComponent>
+      <VehicleControlButtonComponent
+        :running="isVehicleRunning"
+        :disabled="isVehicleDisabled"
+        @click="stopResumeVehicle"
+      ></VehicleControlButtonComponent>
     </div>
 
     <div class="section" style="margin-bottom: 0px">
@@ -222,7 +225,7 @@ watch(
     </div>
     <div class="scrollable">
       <v-data-table-virtual
-        v-if="tramDetails?.stop_names.length"
+        v-if="vehicleDetails?.stop_names.length"
         :headers="headers"
         :header-props="{
           style: 'font-weight: bold;',

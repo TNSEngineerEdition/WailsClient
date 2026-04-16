@@ -1,4 +1,4 @@
-package tram
+package vehicle
 
 import (
 	"github.com/TNSEngineerEdition/WailsClient/pkg/city/trip"

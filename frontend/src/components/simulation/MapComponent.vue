@@ -1,16 +1,16 @@
 <script lang="ts" setup>
 import { nextTick, onMounted, ref, useTemplateRef, watch } from "vue"
 import { GetTimeBounds } from "@wails/go/city/City"
-import { city, api, tram } from "@wails/go/models"
+import { city, api, vehicle } from "@wails/go/models"
 import {
-  GetTramIDs,
-  AdvanceTrams,
+  GetVehicleIDs,
+  AdvanceVehicles,
   ResetSimulation,
 } from "@wails/go/simulation/Simulation"
 import { LeafletMap } from "@classes/LeafletMap"
-import { TramMarker } from "@classes/TramMarker"
+import { VehicleMarker } from "@classes/VehicleMarker"
 import { Time } from "@classes/Time"
-import TramSidebarComponent from "@components/simulation/sidebar/TramSidebarComponent.vue"
+import VehicleSidebarComponent from "@components/simulation/sidebar/VehicleSidebarComponent.vue"
 import StopSidebarComponent from "@components/simulation/sidebar/StopSidebarComponent.vue"
 import RouteSidebarComponent from "@components/simulation/sidebar/RouteSidebarComponent.vue"
 import { MarkerColoringMode } from "@utils/types"
@@ -29,14 +29,14 @@ const props = defineProps<{
 
 const endTime = ref(0)
 const leafletMap = ref<LeafletMap>()
-const tramMarkerByID = ref<Record<number, TramMarker>>({})
+const vehicleMarkerByID = ref<Record<number, VehicleMarker>>({})
 
-const tramSidebar = ref(false)
+const vehicleSidebar = ref(false)
 const stopSidebar = ref(false)
 const routeSidebar = ref(false)
 
-const selectedTramID = ref<number>()
-const followTram = ref(false)
+const selectedVehicleID = ref<number>()
+const followVehicle = ref(false)
 const selectedStop = ref<api.ResponseGraphStop>()
 const selectedRoute = ref<city.RouteInfo>()
 
@@ -48,19 +48,19 @@ async function setTime() {
 }
 
 async function reset() {
-  tramSidebar.value = false
+  vehicleSidebar.value = false
   stopSidebar.value = false
   routeSidebar.value = false
   loading.value = true
 
-  for (const tramMarker of Object.values(tramMarkerByID.value)) {
-    tramMarker.removeFromMap()
+  for (const vehicleMarker of Object.values(vehicleMarkerByID.value)) {
+    vehicleMarker.removeFromMap()
   }
 
-  tramMarkerByID.value = await GetTramIDs().then(trams =>
-    leafletMap.value!.getTramMarkers(trams, (id: number) => {
-      selectedTramID.value = id
-      tramSidebar.value = true
+  vehicleMarkerByID.value = await GetVehicleIDs().then(vehicles =>
+    leafletMap.value!.getVehicleMarkers(vehicles, (id: number) => {
+      selectedVehicleID.value = id
+      vehicleSidebar.value = true
     }),
   )
 
@@ -72,20 +72,20 @@ async function reset() {
 function handleRouteSelected(route: city.RouteInfo) {
   selectedRoute.value = route
   routeSidebar.value = true
-  const tramMarkersForRoute = Object.values(tramMarkerByID.value).filter(
+  const vehicleMarkersForRoute = Object.values(vehicleMarkerByID.value).filter(
     m => m.getRoute() === route.name,
   )
-  leafletMap.value?.highlightTramsForRoute(tramMarkersForRoute)
+  leafletMap.value?.highlightVehiclesForRoute(vehicleMarkersForRoute)
   leafletMap.value?.highlightRoute(route)
 }
 
-function handleArrivalSelected(tramId: number) {
-  if (leafletMap.value?.selectedTram)
-    leafletMap.value.selectedTram.setSelected(false)
-  leafletMap.value!.selectedTram = tramMarkerByID.value[tramId]
-  leafletMap.value!.selectedTram.setSelected(true)
-  selectedTramID.value = tramId
-  tramSidebar.value = true
+function handleArrivalSelected(vehicleId: number) {
+  if (leafletMap.value?.selectedVehicle)
+    leafletMap.value.selectedVehicle.setSelected(false)
+  leafletMap.value!.selectedVehicle = vehicleMarkerByID.value[vehicleId]
+  leafletMap.value!.selectedVehicle.setSelected(true)
+  selectedVehicleID.value = vehicleId
+  vehicleSidebar.value = true
 }
 
 function handleStopSelected(stopId: number) {
@@ -100,29 +100,29 @@ function handleStopSelected(stopId: number) {
 
 function handleCenterStop() {
   if (selectedStop.value && leafletMap.value) {
-    handleFollowTram(false)
+    handleFollowVehicle(false)
     leafletMap.value.centerOn(selectedStop.value.lat, selectedStop.value.lon)
   }
 }
 
-function handleCenterTram() {
-  if (selectedTramID.value && leafletMap.value) {
-    const tramMarker = tramMarkerByID.value[selectedTramID.value]
-    const wasFollowing = followTram.value
-    handleFollowTram(false)
+function handleCenterVehicle() {
+  if (selectedVehicleID.value && leafletMap.value) {
+    const vehicleMarker = vehicleMarkerByID.value[selectedVehicleID.value]
+    const wasFollowing = followVehicle.value
+    handleFollowVehicle(false)
     leafletMap.value.centerOn(
-      tramMarker.getLatLng().lat,
-      tramMarker.getLatLng().lng,
+      vehicleMarker.getLatLng().lat,
+      vehicleMarker.getLatLng().lng,
     )
     leafletMap.value?.getMap().once?.("moveend", () => {
-      handleFollowTram(wasFollowing)
+      handleFollowVehicle(wasFollowing)
     })
   }
 }
 
-function handleFollowTram(value: boolean) {
-  followTram.value = value
-  leafletMap.value?.setFollowTram(value)
+function handleFollowVehicle(value: boolean) {
+  followVehicle.value = value
+  leafletMap.value?.setFollowVehicle(value)
 }
 
 watch(() => props.resetCounter, reset)
@@ -134,12 +134,12 @@ watch(stopSidebar, isOpen => {
   }
 })
 
-watch(tramSidebar, isOpen => {
+watch(vehicleSidebar, isOpen => {
   if (!isOpen) {
-    leafletMap.value?.deselectTram()
-    selectedTramID.value = undefined
-    followTram.value = false
-    leafletMap.value?.setFollowTram(false)
+    leafletMap.value?.deselectVehicle()
+    selectedVehicleID.value = undefined
+    followVehicle.value = false
+    leafletMap.value?.setFollowVehicle(false)
   }
 })
 
@@ -152,20 +152,20 @@ watch(routeSidebar, isOpen => {
 
 watch(selectedRoute, route => {
   if (route) {
-    const tramMarkersForRoute = Object.values(tramMarkerByID.value).filter(
-      m => m.getRoute() === route.name,
-    )
-    leafletMap.value?.highlightTramsForRoute(tramMarkersForRoute)
+    const vehicleMarkersForRoute = Object.values(
+      vehicleMarkerByID.value,
+    ).filter(m => m.getRoute() === route.name)
+    leafletMap.value?.highlightVehiclesForRoute(vehicleMarkersForRoute)
   }
 })
 
 watch(
   () => props.markerColoringMode,
   mode => {
-    Object.values(tramMarkerByID.value).forEach(tramMarker =>
-      tramMarker.removeCustomColoring(),
+    Object.values(vehicleMarkerByID.value).forEach(vehicleMarker =>
+      vehicleMarker.removeCustomColoring(),
     )
-    TramMarker.coloringMode = mode
+    VehicleMarker.coloringMode = mode
   },
 )
 
@@ -193,22 +193,22 @@ onMounted(async () => {
         await Time.sleep(1)
       }
 
-      for (const tramPositionChange of await AdvanceTrams(time.value)) {
-        if (tramPositionChange.lat == 0 && tramPositionChange.lon == 0) {
-          tramMarkerByID.value[tramPositionChange.id].removeFromMap()
+      for (const vehiclePositionChange of await AdvanceVehicles(time.value)) {
+        if (vehiclePositionChange.lat == 0 && vehiclePositionChange.lon == 0) {
+          vehicleMarkerByID.value[vehiclePositionChange.id].removeFromMap()
           continue
         }
 
         const isStopped =
-          tramPositionChange.state === tram.TramState.STOPPED ||
-          tramPositionChange.state === tram.TramState.STOPPING
+          vehiclePositionChange.state === vehicle.VehicleState.STOPPED ||
+          vehiclePositionChange.state === vehicle.VehicleState.STOPPING
 
-        tramMarkerByID.value[tramPositionChange.id].updateCoordinates(
-          tramPositionChange.lat,
-          tramPositionChange.lon,
-          tramPositionChange.azimuth,
+        vehicleMarkerByID.value[vehiclePositionChange.id].updateCoordinates(
+          vehiclePositionChange.lat,
+          vehiclePositionChange.lon,
+          vehiclePositionChange.azimuth,
           isStopped,
-          tramPositionChange.delay,
+          vehiclePositionChange.delay,
         )
       }
       leafletMap.value?.followTick()
@@ -242,15 +242,17 @@ onMounted(async () => {
   <div id="map" ref="map"></div>
 
   <div class="sidebar-stack left">
-    <TramSidebarComponent
-      v-model="tramSidebar"
-      :tram-id="selectedTramID"
-      :tram-marker="selectedTramID ? tramMarkerByID[selectedTramID] : undefined"
+    <VehicleSidebarComponent
+      v-model="vehicleSidebar"
+      :vehicle-id="selectedVehicleID"
+      :vehicle-marker="
+        selectedVehicleID ? vehicleMarkerByID[selectedVehicleID] : undefined
+      "
       :current-time="time"
-      :follow-tram="followTram"
+      :follow-vehicle="followVehicle"
       @stopSelected="handleStopSelected"
-      @centerTram="handleCenterTram"
-      @followTram="handleFollowTram"
+      @centerVehicle="handleCenterVehicle"
+      @followVehicle="handleFollowVehicle"
     />
   </div>
   <div class="sidebar-stack right">
@@ -265,7 +267,7 @@ onMounted(async () => {
     <RouteSidebarComponent
       v-model="routeSidebar"
       :route="selectedRoute"
-      :tram-markers="tramMarkerByID"
+      :vehicle-markers="vehicleMarkerByID"
       :current-time="time"
     />
   </div>
@@ -277,7 +279,7 @@ onMounted(async () => {
   height: calc(100vh - 64px);
 }
 
-.tram-marker {
+.vehicle-marker {
   position: relative;
   width: 24px;
   height: 24px;
@@ -287,15 +289,15 @@ onMounted(async () => {
     background-color 0.3s ease;
 }
 
-.tram-marker.highlighted {
+.vehicle-marker.highlighted {
   transform: scale(1.1);
 }
 
-.tram-marker.selected {
+.vehicle-marker.selected {
   transform: scale(1.2);
 }
 
-.tm-circle-arrow {
+.vm-circle-arrow {
   position: absolute;
   width: 24px;
   height: 24px;
@@ -304,7 +306,7 @@ onMounted(async () => {
   z-index: 1;
 }
 
-.tm-circle {
+.vm-circle {
   position: absolute;
   width: 18px;
   height: 18px;
@@ -315,7 +317,7 @@ onMounted(async () => {
   z-index: 2;
 }
 
-.tm-route-label {
+.vm-route-label {
   position: absolute;
   top: 50%;
   left: 50%;
@@ -328,13 +330,13 @@ onMounted(async () => {
   z-index: 3;
 }
 
-.tram-marker.selected .tm-circle-arrow,
-.tram-marker.selected .tm-circle {
+.vehicle-marker.selected .vm-circle-arrow,
+.vehicle-marker.selected .vm-circle {
   background-color: #67ad2f;
 }
 
-.tram-marker.highlighted .tm-circle-arrow,
-.tram-marker.highlighted .tm-circle {
+.vehicle-marker.highlighted .vm-circle-arrow,
+.vehicle-marker.highlighted .vm-circle {
   background-color: orange !important;
 }
 
@@ -350,8 +352,8 @@ onMounted(async () => {
   }
 }
 
-.tram-marker.stopped .tm-circle-arrow,
-.tram-marker.stopped .tm-circle {
+.vehicle-marker.stopped .vm-circle-arrow,
+.vehicle-marker.stopped .vm-circle {
   background-color: red !important;
   animation: pulse-red 1.5s infinite;
 }
@@ -371,8 +373,8 @@ onMounted(async () => {
   }
 }
 
-.tram-marker.stopped.selected .tm-circle-arrow,
-.tram-marker.stopped.selected .tm-circle {
+.vehicle-marker.stopped.selected .vm-circle-arrow,
+.vehicle-marker.stopped.selected .vm-circle {
   background-color: red;
   animation: pulse-red-selected 1.5s infinite;
 }

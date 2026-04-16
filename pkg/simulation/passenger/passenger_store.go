@@ -111,9 +111,9 @@ func (ps *PassengersStore) DespawnPassengersAtTime(time uint) {
 	}
 }
 
-func (ps *PassengersStore) LoadPassengers(stopID uint64, tramID, time uint) []*Passenger {
+func (ps *PassengersStore) LoadPassengers(stopID uint64, vehicleID, time uint) []*Passenger {
 	passengerStop := ps.passengerStops[stopID]
-	return passengerStop.loadPassengersToTram(tramID, time)
+	return passengerStop.loadPassengersToVehicle(vehicleID, time)
 }
 
 func (ps *PassengersStore) UnloadPassengers(passengers []*Passenger, stopID uint64, time uint) {

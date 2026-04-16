@@ -14,21 +14,21 @@ import (
 	"github.com/TNSEngineerEdition/WailsClient/pkg/city"
 	"github.com/TNSEngineerEdition/WailsClient/pkg/controlcenter"
 	"github.com/TNSEngineerEdition/WailsClient/pkg/simulation/passenger"
-	"github.com/TNSEngineerEdition/WailsClient/pkg/simulation/tram"
+	"github.com/TNSEngineerEdition/WailsClient/pkg/simulation/vehicle"
 	"github.com/TNSEngineerEdition/WailsClient/pkg/structs"
 	"github.com/oapi-codegen/runtime/types"
 	wails_runtime "github.com/wailsapp/wails/v2/pkg/runtime"
 )
 
 type Simulation struct {
-	apiClient        *api.APIClient
-	city             *city.City
-	ctx              context.Context
-	trams            map[uint]*tram.Tram
-	tramWorkersState *structs.WorkerState[*tram.Tram, tram.TramPositionChange]
-	controlCenter    controlcenter.ControlCenter
-	time             uint
-	passengersStore  *passenger.PassengersStore
+	apiClient           *api.APIClient
+	city                *city.City
+	ctx                 context.Context
+	vehicles            map[uint]*vehicle.Vehicle
+	vehicleWorkersState *structs.WorkerState[*vehicle.Vehicle, vehicle.VehiclePositionChange]
+	controlCenter       controlcenter.ControlCenter
+	time                uint
+	passengersStore     *passenger.PassengersStore
 }
 
 func NewSimulation(apiClient *api.APIClient, city *city.City) Simulation {
@@ -42,9 +42,9 @@ func (s *Simulation) SetContext(ctx context.Context) {
 	s.ctx = ctx
 }
 
-func (s *Simulation) tramWorker(state *structs.WorkerState[*tram.Tram, tram.TramPositionChange]) {
-	for tram := range state.InputChannel {
-		positionChange, update := tram.Advance(s.time, s.city.GetStopsByID())
+func (s *Simulation) vehicleWorker(state *structs.WorkerState[*vehicle.Vehicle, vehicle.VehiclePositionChange]) {
+	for vehicle := range state.InputChannel {
+		positionChange, update := vehicle.Advance(s.time, s.city.GetStopsByID())
 		if update {
 			state.OutputChannel <- positionChange
 		}
@@ -53,21 +53,21 @@ func (s *Simulation) tramWorker(state *structs.WorkerState[*tram.Tram, tram.Tram
 	}
 }
 
-func (s *Simulation) resetTrams() {
-	trams := make(map[uint]*tram.Tram)
+func (s *Simulation) resetVehicles() {
+	vehicles := make(map[uint]*vehicle.Vehicle)
 
-	for _, route := range s.city.GetTramRoutes() {
+	for _, route := range s.city.GetVehicleRoutes() {
 		for _, trip := range route.Trips {
-			trams[trip.ID] = tram.NewTram(trip.ID, &route, &trip, &s.controlCenter, s.passengersStore)
+			vehicles[trip.ID] = vehicle.NewVehicle(trip.ID, &route, &trip, &s.controlCenter, s.passengersStore)
 		}
 	}
 
-	s.trams = trams
+	s.vehicles = vehicles
 }
 
 func (s *Simulation) ResetSimulation() {
 	s.passengersStore.ResetPassengers()
-	s.resetTrams()
+	s.resetVehicles()
 	s.city.Reset()
 }
 
@@ -112,7 +112,7 @@ func (s *Simulation) InitializeCity(parameters SimulationParameters) string {
 	return ""
 }
 
-func (s *Simulation) InitializeSimulation(tramWorkerCount uint) string {
+func (s *Simulation) InitializeSimulation(vehicleWorkerCount uint) string {
 	if s.city.CityID == "" {
 		panic("City data is not fetched")
 	}
@@ -120,89 +120,89 @@ func (s *Simulation) InitializeSimulation(tramWorkerCount uint) string {
 	s.controlCenter = controlcenter.NewControlCenter(s.city)
 	s.ResetSimulation()
 
-	if s.tramWorkersState != nil {
-		s.tramWorkersState.Stop()
+	if s.vehicleWorkersState != nil {
+		s.vehicleWorkersState.Stop()
 	}
 
-	s.tramWorkersState = structs.NewWorkerState[*tram.Tram, tram.TramPositionChange](len(s.trams))
+	s.vehicleWorkersState = structs.NewWorkerState[*vehicle.Vehicle, vehicle.VehiclePositionChange](len(s.vehicles))
 
-	if tramWorkerCount == 0 {
+	if vehicleWorkerCount == 0 {
 		// CPU count * 110% for more efficiency
-		tramWorkerCount = uint(runtime.NumCPU()) * 11 / 10
+		vehicleWorkerCount = uint(runtime.NumCPU()) * 11 / 10
 	}
 
-	for range tramWorkerCount {
-		go s.tramWorker(s.tramWorkersState)
+	for range vehicleWorkerCount {
+		go s.vehicleWorker(s.vehicleWorkersState)
 	}
 
 	return ""
 }
 
-type TramIdentifier struct {
+type VehicleIdentifier struct {
 	ID    uint   `json:"id"`
 	Route string `json:"route"`
 }
 
-func (s *Simulation) GetTramIDs() (result []TramIdentifier) {
-	result = make([]TramIdentifier, 0, len(s.trams))
-	for id, tram := range s.trams {
-		result = append(result, TramIdentifier{
+func (s *Simulation) GetVehicleIDs() (result []VehicleIdentifier) {
+	result = make([]VehicleIdentifier, 0, len(s.vehicles))
+	for id, vehicle := range s.vehicles {
+		result = append(result, VehicleIdentifier{
 			ID:    id,
-			Route: tram.Route.Name,
+			Route: vehicle.Route.Name,
 		})
 	}
 	return result
 }
 
-func (s *Simulation) AdvanceTrams(time uint) (result []tram.TramPositionChange) {
+func (s *Simulation) AdvanceVehicles(time uint) (result []vehicle.VehiclePositionChange) {
 	s.time = time
 
 	s.passengersStore.DespawnPassengersAtTime(time)
 	s.passengersStore.SpawnPassengersAtTime(time)
 
-	s.tramWorkersState.WaitGroup.Add(len(s.trams))
-	for _, tram := range s.trams {
-		s.tramWorkersState.InputChannel <- tram
+	s.vehicleWorkersState.WaitGroup.Add(len(s.vehicles))
+	for _, vehicle := range s.vehicles {
+		s.vehicleWorkersState.InputChannel <- vehicle
 	}
 
-	s.tramWorkersState.WaitGroup.Wait()
+	s.vehicleWorkersState.WaitGroup.Wait()
 
-	result = make([]tram.TramPositionChange, 0)
-	for range len(s.tramWorkersState.OutputChannel) {
-		result = append(result, <-s.tramWorkersState.OutputChannel)
+	result = make([]vehicle.VehiclePositionChange, 0)
+	for range len(s.vehicleWorkersState.OutputChannel) {
+		result = append(result, <-s.vehicleWorkersState.OutputChannel)
 	}
 
 	return result
 }
 
-func (s *Simulation) GetTramDetails(id uint) tram.TramDetails {
-	if tram, ok := s.trams[id]; ok {
-		return tram.GetDetails(s.city, s.time)
+func (s *Simulation) GetVehicleDetails(id uint) vehicle.VehicleDetails {
+	if vehicle, ok := s.vehicles[id]; ok {
+		return vehicle.GetDetails(s.city, s.time)
 	}
 
-	panic(fmt.Sprintf("Tram with ID %d not found", id))
+	panic(fmt.Sprintf("Vehicle with ID %d not found", id))
 }
 
-func (s *Simulation) StopResumeTram(id uint) tram.TramDetails {
-	tram, ok := s.trams[id]
+func (s *Simulation) StopResumeVehicle(id uint) vehicle.VehicleDetails {
+	vehicle, ok := s.vehicles[id]
 	if !ok {
-		panic(fmt.Sprintf("StopResumeTram: tram with ID %d not found", id))
+		panic(fmt.Sprintf("StopResumeVehicle: vehicle with ID %d not found", id))
 	}
 
-	if tram.IsStopped() {
-		tram.ResumeTram(s.time)
+	if vehicle.IsStopped() {
+		vehicle.ResumeVehicle(s.time)
 	} else {
-		tram.StopTram()
+		vehicle.StopVehicle()
 	}
 
-	return tram.GetDetails(s.city, s.time)
+	return vehicle.GetDetails(s.city, s.time)
 }
 
 type Arrival struct {
 	Route        string `json:"route"`
 	TripHeadSign string `json:"tripHeadSign"`
 	Minutes      uint   `json:"time"`
-	TramID       uint   `json:"id"`
+	VehicleID    uint   `json:"id"`
 }
 
 func (s *Simulation) GetArrivalsForStop(stopID uint64, count int) []Arrival {
@@ -213,9 +213,9 @@ func (s *Simulation) GetArrivalsForStop(stopID uint64, count int) []Arrival {
 		return arrivals
 	}
 
-	// Skip trams which have already departed for future iterations
+	// Skip vehicles which have already departed for future iterations
 	for i, arrival := range *plannedArrivals {
-		if s.trams[arrival.TripID].TripDetails.Index <= arrival.StopIndex {
+		if s.vehicles[arrival.TripID].TripDetails.Index <= arrival.StopIndex {
 			continue
 		}
 
@@ -228,21 +228,21 @@ func (s *Simulation) GetArrivalsForStop(stopID uint64, count int) []Arrival {
 			break
 		}
 
-		tram := s.trams[arrival.TripID]
-		if tram.TripDetails.Index > arrival.StopIndex {
+		vehicle := s.vehicles[arrival.TripID]
+		if vehicle.TripDetails.Index > arrival.StopIndex {
 			continue
 		}
 
 		var expectedTime uint
-		if tram.TripDetails.Index < arrival.StopIndex || !tram.IsAtStop() {
-			expectedTime = tram.GetEstimatedArrival(arrival.StopIndex, s.time) - s.time
+		if vehicle.TripDetails.Index < arrival.StopIndex || !vehicle.IsAtStop() {
+			expectedTime = vehicle.GetEstimatedArrival(arrival.StopIndex, s.time) - s.time
 		}
 
 		arrivals = append(arrivals, Arrival{
-			Route:        tram.Route.Name,
-			TripHeadSign: tram.TripDetails.Trip.TripHeadSign,
+			Route:        vehicle.Route.Name,
+			TripHeadSign: vehicle.TripDetails.Trip.TripHeadSign,
 			Minutes:      uint(math.Ceil(float64(expectedTime) / 60)),
-			TramID:       tram.ID,
+			VehicleID:    vehicle.ID,
 		})
 	}
 
@@ -262,9 +262,9 @@ func (s *Simulation) GetPassengerCountAtStop(stopID uint64) uint {
 }
 
 func (s *Simulation) GetPassengerCountOnRoute(routeName string) (count uint) {
-	for _, tram := range s.trams {
-		if tram.Route.Name == routeName {
-			count += tram.GetPassengerCount()
+	for _, vehicle := range s.vehicles {
+		if vehicle.Route.Name == routeName {
+			count += vehicle.GetPassengerCount()
 		}
 	}
 	return
@@ -298,10 +298,10 @@ func (s *Simulation) ExportToFile() string {
 		return err.Error()
 	}
 
-	// trams
-	if tramZipFileWriter, err := zipWriter.Create("trams.csv"); err != nil {
+	// vehicles
+	if vehicleZipFileWriter, err := zipWriter.Create("vehicles.csv"); err != nil {
 		return err.Error()
-	} else if err := tram.TramsToCSVBuffer(s.trams, tramZipFileWriter); err != nil {
+	} else if err := vehicle.VehiclesToCSVBuffer(s.vehicles, vehicleZipFileWriter); err != nil {
 		return err.Error()
 	}
 

@@ -13,7 +13,7 @@ import (
 Random strategy selects one random arrival and then picks one stop on the selected arrival's route.
 This becomes a travel plan.
 
-Optionally, for some passengers the travel plan includes one tram change on a transfer stop
+Optionally, for some passengers the travel plan includes one vehicle change on a transfer stop
 
 */
 
@@ -149,7 +149,7 @@ func (rtp *randomTravelPlan) getRandomArrivalFromStop(stopID uint64, time uint) 
 	filteredArrivals := make([]city.PlannedArrival, 0)
 	for _, arrival := range arrivals {
 		if len(trips[arrival.TripID].Stops)-1 == arrival.StopIndex {
-			continue // skip trams being at their last stop
+			continue // skip vehicles being at their last stop
 		}
 		filteredArrivals = append(filteredArrivals, arrival)
 	}

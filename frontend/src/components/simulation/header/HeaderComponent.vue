@@ -112,7 +112,7 @@ watch(isRunning, () => {
 
           <HeaderIconButtonComponent
             :disabled="loading"
-            :description="`Change tram markers coloring mode (${markerColoringMode})`"
+            :description="`Change vehicle markers coloring mode (${markerColoringMode})`"
             :icon="getMarkerModeIcon()"
             @click="markerColoringCycle.setNextValue"
           ></HeaderIconButtonComponent>

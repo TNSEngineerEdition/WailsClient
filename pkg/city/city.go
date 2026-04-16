@@ -16,7 +16,7 @@ import (
 
 type City struct {
 	CityID           string
-	tramRoutes       []trip.Route
+	vehicleRoutes    []trip.Route
 	nodesByID        map[uint64]graph.GraphNode
 	stopsByID        map[uint64]*graph.GraphStop
 	stopsByName      map[string]map[uint64]*graph.GraphStop
@@ -66,7 +66,7 @@ func (c *City) FetchCity(
 	c.CityID = cityID
 	c.responseCityData = responseCityData
 
-	c.tramRoutes = trip.TramTripsFromCityData(responseCityData)
+	c.vehicleRoutes = trip.VehicleTripsFromCityData(responseCityData)
 
 	if nodesByID, err := graph.GraphNodesFromCityData(responseCityData); err == nil {
 		c.nodesByID = nodesByID
@@ -92,9 +92,9 @@ func (c *City) FetchCity(
 	}
 
 	c.tripsByID = make(map[uint]*trip.Trip)
-	for i, route := range c.tramRoutes {
+	for i, route := range c.vehicleRoutes {
 		for j, trip := range route.Trips {
-			c.tripsByID[trip.ID] = &c.tramRoutes[i].Trips[j]
+			c.tripsByID[trip.ID] = &c.vehicleRoutes[i].Trips[j]
 		}
 	}
 
@@ -159,8 +159,8 @@ func (c *City) GetStopsInGroup(stopID uint64) map[uint64]*graph.GraphStop {
 	return c.stopsByName[groupName]
 }
 
-func (c *City) GetTramRoutes() []trip.Route {
-	return c.tramRoutes
+func (c *City) GetVehicleRoutes() []trip.Route {
+	return c.vehicleRoutes
 }
 
 func (c *City) GetBounds() LatLonBounds {
@@ -188,7 +188,7 @@ type RouteInfo struct {
 func (c *City) GetRoutesByStopID() map[uint64][]RouteInfo {
 	routeSetByStopID := make(map[uint64]*structs.Set[string])
 
-	for _, route := range c.tramRoutes {
+	for _, route := range c.vehicleRoutes {
 		if route.Variants == nil {
 			continue
 		}
@@ -212,8 +212,8 @@ func (c *City) GetRoutesByStopID() map[uint64][]RouteInfo {
 		routeNamesByStopID[stopID] = routes
 	}
 
-	routesByName := make(map[string]trip.Route, len(c.tramRoutes))
-	for _, route := range c.tramRoutes {
+	routesByName := make(map[string]trip.Route, len(c.vehicleRoutes))
+	for _, route := range c.vehicleRoutes {
 		routesByName[route.Name] = route
 	}
 
@@ -242,7 +242,7 @@ type PlannedArrival struct {
 func (c *City) GetInitialPlannedArrivals() map[uint64][]PlannedArrival {
 	plannedArrivals := make(map[uint64][]PlannedArrival, len(c.stopsByID))
 
-	for _, route := range c.tramRoutes {
+	for _, route := range c.vehicleRoutes {
 		for _, trip := range route.Trips {
 			for stopIndex, stop := range trip.Stops {
 				plannedArrivals[stop.ID] = append(plannedArrivals[stop.ID], PlannedArrival{
@@ -310,7 +310,7 @@ type TimeBounds struct {
 func (c *City) GetTimeBounds() (result TimeBounds) {
 	result.StartTime = math.MaxInt
 
-	for _, route := range c.tramRoutes {
+	for _, route := range c.vehicleRoutes {
 		for _, trip := range route.Trips {
 			result.StartTime = min(result.StartTime, trip.Stops[0].Time)
 			result.EndTime = max(result.EndTime, trip.Stops[len(trip.Stops)-1].Time)
@@ -404,7 +404,7 @@ type Modifications struct {
 	NeighborMaxSpeed map[uint64]float32 `json:"neighborMaxSpeed"`
 }
 
-func (c *City) UpdateTramTrackGraph(modifiedNodes map[uint64]Modifications) {
+func (c *City) UpdateGraph(modifiedNodes map[uint64]Modifications) {
 	for nodeID, mods := range modifiedNodes {
 		node, ok := c.nodesByID[nodeID]
 		if !ok {

@@ -1,4 +1,4 @@
-package tram
+package vehicle
 
 import (
 	"math/rand/v2"
@@ -6,10 +6,10 @@ import (
 	"github.com/TNSEngineerEdition/WailsClient/pkg/city/graph"
 )
 
-type TramState uint8
+type VehicleState uint8
 
 const (
-	StateTripNotStarted TramState = iota
+	StateTripNotStarted VehicleState = iota
 	StatePassengersLoading
 	StatePassengersUnloading
 	StateTravelling
@@ -18,8 +18,8 @@ const (
 	StateStopped
 )
 
-var TramStates = []struct {
-	Value  TramState
+var VehicleStates = []struct {
+	Value  VehicleState
 	TSName string
 }{
 	{StateTripNotStarted, "TRIP_NOT_STARTED"},
@@ -31,10 +31,10 @@ var TramStates = []struct {
 	{StateStopped, "STOPPED"},
 }
 
-func (t *Tram) onTripNotStarted(
+func (t *Vehicle) onTripNotStarted(
 	time uint,
 	stopsByID map[uint64]*graph.GraphStop,
-) (result TramPositionChange, update bool) {
+) (result VehiclePositionChange, update bool) {
 	if time != t.departureTime {
 		return
 	}
@@ -51,12 +51,12 @@ func (t *Tram) onTripNotStarted(
 
 	t.lat, t.lon = stopsByID[t.TripDetails.Trip.Stops[0].ID].GetCoordinates()
 
-	result = TramPositionChange{
-		TramID:  t.ID,
-		Lat:     t.lat,
-		Lon:     t.lon,
-		Azimuth: t.azimuth,
-		State:   t.state,
+	result = VehiclePositionChange{
+		VehicleID: t.ID,
+		Lat:       t.lat,
+		Lon:       t.lon,
+		Azimuth:   t.azimuth,
+		State:     t.state,
 	}
 
 	update = true
@@ -64,7 +64,7 @@ func (t *Tram) onTripNotStarted(
 	return
 }
 
-func (t *Tram) onPassengersLoading(time uint) {
+func (t *Vehicle) onPassengersLoading(time uint) {
 	isLoadingFinished := t.loadPassengers(time)
 
 	if !isLoadingFinished || time < t.departureTime {
@@ -77,7 +77,7 @@ func (t *Tram) onPassengersLoading(time uint) {
 	t.state = StateTravelling
 }
 
-func (t *Tram) onPassengersUnloading(time uint) {
+func (t *Vehicle) onPassengersUnloading(time uint) {
 	isUnloadingFinished := t.unloadPassengers(time)
 
 	if !isUnloadingFinished {
@@ -92,7 +92,7 @@ func (t *Tram) onPassengersUnloading(time uint) {
 	}
 }
 
-func (t *Tram) onTravelling(time uint) (result TramPositionChange, update bool) {
+func (t *Vehicle) onTravelling(time uint) (result VehiclePositionChange, update bool) {
 	path := t.getTravelPath()
 
 	if t.distToNextInterNode == 0 {
@@ -123,19 +123,19 @@ func (t *Tram) onTravelling(time uint) (result TramPositionChange, update bool) 
 		t.unblockNodesAhead()
 	}
 
-	result = TramPositionChange{
-		TramID:  t.ID,
-		Lat:     t.lat,
-		Lon:     t.lon,
-		Azimuth: t.azimuth,
-		State:   t.state,
+	result = VehiclePositionChange{
+		VehicleID: t.ID,
+		Lat:       t.lat,
+		Lon:       t.lon,
+		Azimuth:   t.azimuth,
+		State:     t.state,
 	}
 	update = true
 
 	return
 }
 
-func (t *Tram) onTripFinished() (result TramPositionChange, update bool) {
+func (t *Vehicle) onTripFinished() (result VehiclePositionChange, update bool) {
 	if t.isFinished {
 		return
 	}
@@ -143,9 +143,9 @@ func (t *Tram) onTripFinished() (result TramPositionChange, update bool) {
 	t.isFinished = true
 	t.unblockNodesBehind()
 
-	result = TramPositionChange{
-		TramID: t.ID,
-		State:  t.state,
+	result = VehiclePositionChange{
+		VehicleID: t.ID,
+		State:     t.state,
 	}
 	update = true
 

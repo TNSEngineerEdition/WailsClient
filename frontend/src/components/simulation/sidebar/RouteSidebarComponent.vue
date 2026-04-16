@@ -2,22 +2,22 @@
 import SidebarComponent from "@components/simulation/sidebar/SidebarComponent.vue"
 import { ref, computed, watch } from "vue"
 import { city } from "@wails/go/models"
-import { TramMarker } from "@classes/TramMarker"
+import { VehicleMarker } from "@classes/VehicleMarker"
 import { GetPassengerCountOnRoute } from "@wails/go/simulation/Simulation"
 
 const model = defineModel<boolean>({ required: true })
 
 const props = defineProps<{
   route?: city.RouteInfo
-  tramMarkers: Record<number, TramMarker>
+  vehicleMarkers: Record<number, VehicleMarker>
   currentTime: number
 }>()
 
 const passengersOnRoute = ref(0)
-const tramsInService = computed(() => {
+const vehiclesInService = computed(() => {
   if (!props.route?.name) return 0
-  return Object.values(props.tramMarkers).filter(
-    tram => tram.getRoute() === props.route!.name && tram.getIsOnMap(),
+  return Object.values(props.vehicleMarkers).filter(
+    vehicle => vehicle.getRoute() === props.route!.name && vehicle.getIsOnMap(),
   ).length
 })
 
@@ -44,11 +44,11 @@ watch(
     <div class="section">
       <div class="label">
         <v-icon icon="mdi-numeric" class="mr-2"></v-icon>
-        Trams in service
+        Vehicles in service
       </div>
 
       <div class="value">
-        {{ tramsInService?.valueOf() || 0 }}
+        {{ vehiclesInService?.valueOf() || 0 }}
       </div>
     </div>
 
