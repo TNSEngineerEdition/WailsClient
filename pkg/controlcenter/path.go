@@ -32,9 +32,11 @@ func getMaxSpeeds(nodes []graph.GraphNode) []float32 {
 		maxSpeeds[i] = nextNode.MaxSpeed
 	}
 
-	// max speed at the last node in path does not matter,
-	// repeat the last known max speed
-	maxSpeeds[len(maxSpeeds)-1] = maxSpeeds[len(maxSpeeds)-2]
+	if len(maxSpeeds) >= 2 {
+		// max speed at the last node in path does not matter,
+		// repeat the last known max speed
+		maxSpeeds[len(maxSpeeds)-1] = maxSpeeds[len(maxSpeeds)-2]
+	}
 
 	return maxSpeeds
 }
